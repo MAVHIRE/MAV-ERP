@@ -12,14 +12,19 @@ import { initLineItems, getLines, addRentalLine, addServiceLine } from '../compo
 
 // ── Load / filter ─────────────────────────────────────────────────────────────
 export async function loadJobs() {
+  if (STATE.jobs.length) { render(STATE.jobs); updateSubtitle(); return; }
   showLoading('Loading jobs…');
   try {
     STATE.jobs = await rpc('getJobs', {});
     render(STATE.jobs);
-    const el = document.getElementById('jobs-subtitle');
-    if (el) el.textContent = STATE.jobs.length + ' jobs';
+    updateSubtitle();
   } catch(e) { toast('Jobs failed: ' + e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+function updateSubtitle() {
+  const el = document.getElementById('jobs-subtitle');
+  if (el) el.textContent = STATE.jobs.length + ' jobs';
 }
 
 export function filterJobs() {

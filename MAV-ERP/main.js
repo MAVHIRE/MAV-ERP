@@ -1,6 +1,9 @@
 /**
  * MAV HIRE ERP — main.js
- * Entry point. Tab routing, global wiring, settings modal.
+ * Bootstrap-first architecture:
+ * - Single bootstrapApp() call on load fetches ALL data at once
+ * - Tab switches render from STATE (instant, no RPC)
+ * - Only mutations hit GAS after initial load
  */
 
 import { STATE }                    from './js/utils/state.js';
@@ -68,11 +71,73 @@ import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
-  if (!GAS_URL) { showSettingsModal(); return; }
+  if (!GAS_URL) { showGasModal(); return; }
   setupTabs();
   exposeGlobals();
-  await initDashboard();
+  await bootstrap();
 });
+
+// ── Bootstrap — one call, loads everything ────────────────────────────────────
+async function bootstrap() {
+  showLoading('Connecting to MAV Hire…');
+  try {
+    const data = await rpc('bootstrapApp');
+
+    // Populate STATE from bootstrap payload
+    if (data.products?.length)  STATE.products  = data.products;
+    if (data.clients?.length)   STATE.clients   = data.clients;
+    if (data.suppliers?.length) STATE.suppliers = data.suppliers;
+    if (data.jobs?.length)      STATE.jobs      = data.jobs;
+    if (data.quotes?.length)    STATE.quotes    = data.quotes;
+    if (data.bundles?.length)   STATE.bundles   = data.bundles;
+    if (data.services?.length)  STATE.services  = data.services;
+    if (data.settings)          STATE.settings  = data.settings;
+    if (data.dashboard)         STATE.dashboard = data.dashboard;
+
+    // Mark all data panes as pre-loaded — no RPC needed on tab switch
+    ['jobs','quotes','inventory','clients','suppliers','bundles'].forEach(p => {
+      STATE.loadedPanes.add(p);
+    });
+
+    hideLoading();
+
+    // Render dashboard immediately
+    await initDashboard();
+
+    // Show cache indicator if data came from cache
+    if (data._fromCache) {
+      const el = document.getElementById('cache-indicator');
+      if (el) { el.textContent = '⚡ cached'; el.style.display = 'inline'; }
+    }
+
+  } catch(e) {
+    hideLoading();
+    toast('Failed to connect: ' + e.message, 'err');
+    // Show connect button
+    const el = document.getElementById('connect-error');
+    if (el) el.style.display = 'block';
+  }
+}
+
+// Refresh all data — called by ↺ button
+async function refreshAll() {
+  STATE.loadedPanes.clear();
+  STATE.products  = [];
+  STATE.clients   = [];
+  STATE.suppliers = [];
+  STATE.jobs      = [];
+  STATE.quotes    = [];
+  STATE.bundles   = [];
+  STATE.services  = [];
+  STATE.dashboard = null;
+  await bootstrap();
+  // Re-render active pane
+  const active = STATE.activePane;
+  if (active && active !== 'dashboard') {
+    STATE.loadedPanes.delete(active);
+    await loadPane(active);
+  }
+}
 
 // ── Tab routing ───────────────────────────────────────────────────────────────
 function setupTabs() {
@@ -95,17 +160,7 @@ function switchPane(paneName) {
 }
 
 async function loadPane(name) {
-  if (['jobs','quotes','maintenance','scan','bundles'].includes(name))
-    await ensureProductsLoaded();
-  if (['quotes','jobs','bundles'].includes(name))
-    await ensureServicesLoaded();
-  if (['quotes','jobs','bundles'].includes(name) && !STATE.bundles.length) {
-    try { STATE.bundles = await rpc('getBundles', {}); } catch(e) {}
-  }
-  if (['jobs','quotes'].includes(name) && !STATE.clients.length) {
-    try { STATE.clients = await rpc('getClients', {}); } catch(e) {}
-  }
-
+  // These panes are pre-loaded from bootstrap — just render
   switch (name) {
     case 'dashboard':   return initDashboard();
     case 'jobs':        return loadJobs();
@@ -144,58 +199,49 @@ function switchBundlesTab(tab) {
 
 // ── Demo helpers ──────────────────────────────────────────────────────────────
 async function runSeedDemo() {
-  if (!confirm('Seed demo data? This runs in 4 stages — each takes 30–90s. Don\'t close the tab.')) return;
+  if (!confirm('Seed demo data? This runs in 5 stages — each takes 30–90s. Don\'t close the tab.')) return;
 
   const stages = [
-    { fn: 'seedDemoStage1',  label: 'Stage 1/4: Seeding suppliers, products & barcodes…' },
-    { fn: 'seedDemoStage2',  label: 'Stage 2/4: Seeding clients & quotes…' },
-    { fn: 'seedDemoStage3',  label: 'Stage 3/4: Seeding active jobs…' },
-    { fn: 'seedDemoStage3b', label: 'Stage 3b/4: Seeding historical jobs…' },
-    { fn: 'seedDemoStage4',  label: 'Stage 4/4: Seeding maintenance & rebuilding analytics…' },
+    { fn: 'seedDemoStage1',  label: 'Stage 1/5: Suppliers, products & barcodes…' },
+    { fn: 'seedDemoStage2',  label: 'Stage 2/5: Clients & quotes…' },
+    { fn: 'seedDemoStage3',  label: 'Stage 3/5: Active jobs…' },
+    { fn: 'seedDemoStage3b', label: 'Stage 4/5: Historical jobs…' },
+    { fn: 'seedDemoStage4',  label: 'Stage 5/5: Maintenance & analytics…' },
   ];
 
   for (const stage of stages) {
     showLoading(stage.label);
     try {
       const r = await rpc(stage.fn);
-      if (!r.ok) {
-        toast(r.message || 'Stage failed', 'err');
-        hideLoading();
-        return;
-      }
+      if (!r.ok) { toast(r.message, 'err'); hideLoading(); return; }
       toast(r.message, 'ok');
     } catch(e) {
-      toast('Demo seed failed at ' + stage.fn + ': ' + e.message, 'err');
-      hideLoading();
-      return;
+      toast('Failed at ' + stage.fn + ': ' + e.message, 'err');
+      hideLoading(); return;
     }
   }
 
   hideLoading();
-  toast('Demo data fully seeded!', 'ok');
-  STATE.loadedPanes.clear();
-  STATE.clients = [];
-  await initDashboard();
+  toast('Demo data seeded!', 'ok');
+  await refreshAll();
 }
 
 async function runClearDemo() {
-  if (!confirm('Delete all DEMO- rows from every sheet?')) return;
+  if (!confirm('Delete all DEMO- rows?')) return;
   showLoading('Clearing demo data…');
   try {
     const r = await rpc('clearDemoData');
     toast(r.message, 'ok');
-    STATE.loadedPanes.clear();
-    STATE.clients = [];
-    await initDashboard();
-  } catch(e) { toast('Clear failed: ' + e.message, 'err'); }
+    await refreshAll();
+  } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
 }
 
-// ── GAS URL settings modal ────────────────────────────────────────────────────
-function showSettingsModal() {
+// ── GAS URL modal ─────────────────────────────────────────────────────────────
+function showGasModal() {
   openModal('modal-gas-settings', '⚙ Connect to Google Apps Script', `
     <p style="font-size:13px;color:var(--text2);margin-bottom:16px">
-      Paste your Google Apps Script web app deployment URL below.<br>
+      Paste your Google Apps Script web app deployment URL.<br>
       <span class="td-id">Apps Script → Deploy → Manage deployments → copy /exec URL</span>
     </p>
     <div class="form-group">
@@ -203,14 +249,10 @@ function showSettingsModal() {
       <input type="url" id="gas-url-input" value="${esc(GAS_URL)}"
         placeholder="https://script.google.com/macros/s/.../exec"
         style="font-family:var(--mono);font-size:12px">
-    </div>
-    <p style="font-size:12px;color:var(--text3);margin-top:12px">
-      Stored in localStorage. Change anytime via the ⚙ button in the topbar.
-    </p>
-  `, `
+    </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__saveGasUrl()">Save &amp; Connect</button>
-  `);
+    <button class="btn btn-primary btn-sm" onclick="window.__saveGasUrl()">Save &amp; Connect</button>`
+  );
   window.__saveGasUrl = () => {
     const url = document.getElementById('gas-url-input')?.value.trim();
     if (!url) { toast('URL required', 'warn'); return; }
@@ -225,7 +267,8 @@ function exposeGlobals() {
   window.__switchPane    = switchPane;
   window.__closeModal    = closeModal;
   window.__initDashboard = initDashboard;
-  window.__showSettings  = showSettingsModal;
+  window.__showSettings  = showGasModal;
+  window.__refreshAll    = refreshAll;
   window.__reloadPane    = async (name) => {
     STATE.loadedPanes.delete(name);
     await loadPane(name);
@@ -320,17 +363,17 @@ function exposeGlobals() {
   window.__seedWarehouse     = seedWarehouse;
 
   // Invoices
-  window.__filterInvoices    = filterInvoices;
+  window.__filterInvoices = filterInvoices;
 
   // Settings
   window.__saveSettings      = saveSettings;
   window.__updateLogoPreview = updateLogoPreview;
 
   // Scan
-  window.__onScanJobSelect   = onScanJobSelect;
-  window.__setScanMode       = setScanMode;
-  window.__onScanKeydown     = onScanKeydown;
-  window.__submitScan        = submitScan;
+  window.__onScanJobSelect = onScanJobSelect;
+  window.__setScanMode     = setScanMode;
+  window.__onScanKeydown   = onScanKeydown;
+  window.__submitScan      = submitScan;
 
   // Filters
   window.__filterJobs        = filterJobs;

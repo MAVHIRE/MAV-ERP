@@ -11,6 +11,13 @@ import { openModal, closeModal } from '../components/modal.js';
 
 // ── Load / ensure ─────────────────────────────────────────────────────────────
 export async function loadProducts() {
+  if (STATE.products.length) {
+    populateFilters();
+    render(STATE.products);
+    const el = document.getElementById('inv-subtitle');
+    if (el) el.textContent = STATE.products.length + ' products';
+    return;
+  }
   showLoading('Loading inventory…');
   try {
     STATE.products = await rpc('getProducts');
