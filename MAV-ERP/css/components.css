@@ -556,3 +556,25 @@ textarea { resize: vertical; min-height: 72px; }
 }
 .autocomplete-item:last-child { border-bottom: none; }
 .autocomplete-item:hover { background: var(--surface3); }
+
+/* ── Settings tabs ───────────────────────────────────── */
+.settings-tab-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all var(--trans);
+  white-space: nowrap;
+  margin-bottom: -1px;
+}
+.settings-tab-btn:hover { color: var(--text2); }
+.settings-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}

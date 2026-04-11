@@ -63,7 +63,7 @@ import { loadStorage, openAddLocationModal, openMoveBarcodeModal,
 import { loadInvoices, filterInvoices }
   from './js/panes/invoices.js';
 
-import { loadSettings, saveSettings, updateLogoPreview }
+import { loadSettings, saveSettings, updateLogoPreview, activateSettingsTab, updatePdfPreview }
   from './js/panes/settings.js';
 
 import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan }
@@ -387,8 +387,16 @@ function exposeGlobals() {
   window.__filterInvoices = filterInvoices;
 
   // Settings
-  window.__saveSettings      = saveSettings;
-  window.__updateLogoPreview = updateLogoPreview;
+  window.__saveSettings         = saveSettings;
+  window.__updateLogoPreview    = updateLogoPreview;
+  window.__activateSettingsTab  = activateSettingsTab;
+  window.__updatePdfPreview     = updatePdfPreview;
+  window.__setTheme = (t) => {
+    if (t === 'light') document.documentElement.classList.add('light');
+    else document.documentElement.classList.remove('light');
+    localStorage.setItem('mav_theme', t);
+    updateThemeToggle();
+  };
 
   // Scan
   window.__onScanJobSelect = onScanJobSelect;

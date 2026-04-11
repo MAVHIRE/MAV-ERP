@@ -195,3 +195,136 @@
   margin-top: 4px;
   letter-spacing: .05em;
 }
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — max-width 768px
+   ═══════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* Topbar — hide wordmark, compress tabs */
+  #wordmark { min-width: unset; padding: 0 12px; font-size: 16px; }
+  #wordmark span { display: none; }
+  #tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab { padding: 0 10px; font-size: 11px; gap: 4px; }
+  .tab-icon { font-size: 11px; }
+  #topbar { height: 44px; }
+
+  /* Hide text labels on tabs, show icons only on very small screens */
+  @media (max-width: 480px) {
+    .tab span:not(.tab-icon) { display: none; }
+    .tab { padding: 0 8px; }
+  }
+
+  /* Panes */
+  .pane { padding: 14px; }
+
+  /* Page header — stack vertically */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .page-header > div:last-child,
+  .page-header > button { width: 100%; }
+  .page-header .btn { width: 100%; justify-content: center; }
+
+  /* Page title */
+  .page-title { font-size: 22px; }
+
+  /* Toolbar — wrap */
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .toolbar .search-box { width: 100%; }
+  .toolbar .filter-select { flex: 1; min-width: 120px; }
+
+  /* Cards — full width */
+  .product-card, .job-card, .quote-card, .client-card {
+    padding: 12px;
+  }
+  .pc-qty { font-size: 18px; }
+
+  /* Forms */
+  .form-grid { grid-template-columns: 1fr !important; }
+  .form-group.span-2 { grid-column: span 1 !important; }
+
+  /* Tables — horizontal scroll */
+  .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tbl-wrap table { min-width: 500px; }
+
+  /* Two/three col grids */
+  .two-col, .three-col { grid-template-columns: 1fr !important; }
+
+  /* Modals */
+  .modal-outer { padding: 8px; align-items: flex-end; }
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: var(--r2) var(--r2) 0 0;
+    max-height: 92vh;
+  }
+  .modal-body { max-height: 65vh; }
+
+  /* Section titles */
+  .section-title { font-size: 11px; }
+
+  /* Settings tabs — scroll horizontally */
+  .settings-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+  .settings-tab-btn { white-space: nowrap; padding: 8px 10px; font-size: 10px; }
+
+  /* Dashboard KPI grid */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Topbar right — compress */
+  #topbar-right { gap: 4px; padding-left: 6px; }
+  #refresh-btn { padding: 4px 8px; font-size: 10px; }
+  #cache-indicator { display: none !important; }
+
+}
+
+/* ── Scan station — optimised for phone/tablet ──────── */
+@media (max-width: 768px) {
+
+  #pane-scan .page-title { font-size: 20px; }
+
+  /* Large scan input for warehouse floor */
+  #scan-input {
+    font-size: 20px !important;
+    height: 56px !important;
+    text-align: center;
+    letter-spacing: .1em;
+  }
+
+  /* Big mode buttons */
+  #scan-mode-out, #scan-mode-in {
+    flex: 1;
+    padding: 14px !important;
+    font-size: 16px !important;
+    justify-content: center;
+  }
+
+  /* Scan log — full width */
+  #scan-log { font-size: 13px; }
+
+  /* Job select */
+  #scan-job-select { width: 100%; font-size: 15px; }
+
+  /* Submit button */
+  #scan-submit-btn {
+    width: 100%;
+    padding: 16px !important;
+    font-size: 18px !important;
+    margin-top: 8px;
+  }
+}
+
+/* ── Touch improvements (all mobile) ───────────────── */
+@media (hover: none) {
+  /* Larger tap targets */
+  .btn { min-height: 38px; }
+  .btn-sm { min-height: 32px; }
+  input, select, textarea { font-size: 16px; } /* prevents iOS zoom */
+  .tab { min-height: 44px; }
+}

@@ -432,68 +432,306 @@
     <div class="page-header">
       <div>
         <div class="page-title">Settings</div>
-        <div class="page-subtitle">Company details, branding &amp; defaults</div>
+        <div class="page-subtitle">System configuration &amp; customisation</div>
       </div>
       <button class="btn btn-primary" onclick="window.__saveSettings()">Save Settings</button>
     </div>
 
-    <div style="max-width:720px;display:flex;flex-direction:column;gap:20px">
+    <!-- Settings tab bar -->
+    <div class="settings-tabs" style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button class="settings-tab-btn active" data-tab="company"  onclick="window.__activateSettingsTab('company')">Company</button>
+      <button class="settings-tab-btn" data-tab="financial"       onclick="window.__activateSettingsTab('financial')">Financial</button>
+      <button class="settings-tab-btn" data-tab="quoting"         onclick="window.__activateSettingsTab('quoting')">Quoting</button>
+      <button class="settings-tab-btn" data-tab="email"           onclick="window.__activateSettingsTab('email')">Email Templates</button>
+      <button class="settings-tab-btn" data-tab="pdf"             onclick="window.__activateSettingsTab('pdf')">PDF Designer</button>
+      <button class="settings-tab-btn" data-tab="notifications"   onclick="window.__activateSettingsTab('notifications')">Notifications</button>
+      <button class="settings-tab-btn" data-tab="system"          onclick="window.__activateSettingsTab('system')">System</button>
+    </div>
 
-      <div class="section">
-        <div class="section-title">Company &amp; Branding</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Business Name</label>
-            <input type="text" id="s-business-name"></div>
-          <div class="form-group"><label>Phone</label>
-            <input type="text" id="s-phone"></div>
-          <div class="form-group span-2"><label>Address</label>
-            <input type="text" id="s-address"></div>
-          <div class="form-group"><label>Email</label>
-            <input type="email" id="s-email"></div>
-          <div class="form-group"><label>Website</label>
-            <input type="url" id="s-website" placeholder="https://"></div>
-          <div class="form-group span-2">
-            <label>Logo URL <span style="color:var(--text3);font-size:11px">— paste a direct image link (JPG/PNG)</span></label>
-            <input type="url" id="s-logo-url" placeholder="https://…"
-              oninput="window.__updateLogoPreview(this.value)">
-            <div id="s-logo-preview" style="margin-top:10px"></div>
+    <div style="max-width:860px">
+
+      <!-- ── Company ── -->
+      <div class="settings-section" data-section="company">
+        <div class="section" style="margin-bottom:20px">
+          <div class="section-title">Business Details</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Business Name *</label>
+              <input type="text" id="s-business-name"></div>
+            <div class="form-group"><label>Phone</label>
+              <input type="text" id="s-phone"></div>
+            <div class="form-group span-2"><label>Address</label>
+              <input type="text" id="s-address" placeholder="Full address including postcode"></div>
+            <div class="form-group"><label>Email</label>
+              <input type="email" id="s-email"></div>
+            <div class="form-group"><label>Website</label>
+              <input type="url" id="s-website" placeholder="https://"></div>
+            <div class="form-group"><label>Company Reg. Number</label>
+              <input type="text" id="s-reg-number" placeholder="12345678"></div>
+            <div class="form-group"><label>VAT Registration Number</label>
+              <input type="text" id="s-vat-number" placeholder="GB 123 4567 89"></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Logo &amp; Branding</div>
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Logo URL <span style="font-size:11px;color:var(--text3)">— direct link to JPG or PNG image</span></label>
+              <input type="url" id="s-logo-url" placeholder="https://…"
+                oninput="window.__updateLogoPreview(this.value)">
+              <div id="s-logo-preview" style="margin-top:12px"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">Financial Defaults</div>
-        <div class="form-grid">
-          <div class="form-group"><label>VAT Rate (%)</label>
-            <input type="number" id="s-vat-rate" value="20" step="0.1" min="0" max="100"></div>
-          <div class="form-group"><label>Currency Code</label>
-            <input type="text" id="s-currency" placeholder="GBP" maxlength="3"></div>
-          <div class="form-group"><label>Default Quote Valid (days)</label>
-            <input type="number" id="s-valid-days" value="30" min="1"></div>
-          <div class="form-group"><label>Default Deposit (%)</label>
-            <input type="number" id="s-deposit-pct" value="50" min="0" max="100"></div>
+      <!-- ── Financial ── -->
+      <div class="settings-section" data-section="financial" style="display:none">
+        <div class="section">
+          <div class="section-title">Tax</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>VAT Enabled</label>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                <input type="checkbox" id="s-vat-enabled" style="width:18px;height:18px">
+                <span style="font-size:13px;color:var(--text2)">Charge VAT on quotes and jobs</span>
+              </div>
+            </div>
+            <div class="form-group"><label>VAT Rate (%)</label>
+              <input type="number" id="s-vat-rate" value="20" step="0.1" min="0" max="100"></div>
+            <div class="form-group"><label>VAT Registration Number</label>
+              <input type="text" id="s-vat-number-fin" placeholder="GB 123 4567 89"></div>
+          </div>
+        </div>
+        <div class="section" style="margin-top:16px">
+          <div class="section-title">Currency</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Currency Code</label>
+              <input type="text" id="s-currency" placeholder="GBP" maxlength="3" style="max-width:100px"></div>
+            <div class="form-group"><label>Currency Symbol</label>
+              <input type="text" id="s-currency-symbol" placeholder="£" maxlength="3" style="max-width:80px"></div>
+          </div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">ID Prefixes</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Quote Prefix</label>
-            <input type="text" id="s-quote-prefix" placeholder="MAV-Q"></div>
-          <div class="form-group"><label>Job Prefix</label>
-            <input type="text" id="s-job-prefix" placeholder="MAV-J"></div>
+      <!-- ── Quoting ── -->
+      <div class="settings-section" data-section="quoting" style="display:none">
+        <div class="section" style="margin-bottom:16px">
+          <div class="section-title">ID Prefixes</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Quote Prefix</label>
+              <input type="text" id="s-quote-prefix" placeholder="MAV-Q"></div>
+            <div class="form-group"><label>Job Prefix</label>
+              <input type="text" id="s-job-prefix" placeholder="MAV-J"></div>
+          </div>
+        </div>
+        <div class="section" style="margin-bottom:16px">
+          <div class="section-title">Quote Defaults</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Quote Valid For (days)</label>
+              <input type="number" id="s-valid-days" value="30" min="1"></div>
+            <div class="form-group"><label>Default Deposit (%)</label>
+              <input type="number" id="s-deposit-pct" value="50" min="0" max="100"></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Job Defaults</div>
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Require Deposit Before Checkout</label>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                <input type="checkbox" id="s-require-deposit" style="width:18px;height:18px">
+                <span style="font-size:13px;color:var(--text2)">Block checkout if deposit hasn't been paid</span>
+              </div>
+            </div>
+            <div class="form-group span-2"><label>Default Payment Terms</label>
+              <input type="text" id="s-payment-terms" placeholder="Payment due 30 days from invoice date"></div>
+            <div class="form-group span-2"><label>Default Quote Terms &amp; Conditions</label>
+              <textarea id="s-quote-terms" rows="4"
+                placeholder="Prices valid for 30 days. Equipment must be returned in the same condition as hired. The hirer accepts full responsibility for all hired equipment from collection to return…"></textarea></div>
+          </div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">Default Terms &amp; Email</div>
-        <div class="form-grid">
-          <div class="form-group span-2"><label>Default Payment Terms</label>
-            <input type="text" id="s-payment-terms" placeholder="Payment due 30 days from invoice"></div>
-          <div class="form-group span-2"><label>Default Quote Terms</label>
-            <textarea id="s-quote-terms" rows="3" placeholder="Prices valid for 30 days. Equipment must be returned in the same condition…"></textarea></div>
-          <div class="form-group span-2"><label>Default Email Footer</label>
-            <textarea id="s-email-footer" rows="2" placeholder="MAV Hire | 07754 875616 | info@mavhire.co.uk"></textarea></div>
+      <!-- ── Email Templates ── -->
+      <div class="settings-section" data-section="email" style="display:none">
+        <div class="section" style="margin-bottom:16px">
+          <div class="section-title" style="margin-bottom:4px">Email Templates</div>
+          <p style="font-size:12px;color:var(--text3);margin-bottom:16px">
+            Use <span class="td-id">{eventName}</span>, <span class="td-id">{clientName}</span>,
+            <span class="td-id">{quoteId}</span>, <span class="td-id">{total}</span>,
+            <span class="td-id">{businessName}</span> as placeholders.
+          </p>
+          <div class="form-grid">
+            <div class="form-group span-2"><label>Quote Email Greeting</label>
+              <textarea id="s-email-greeting" rows="3"
+                placeholder="Please find attached your quotation for {eventName}."></textarea></div>
+            <div class="form-group span-2"><label>Quote Email Sign-off</label>
+              <textarea id="s-email-signoff" rows="3"
+                placeholder="Please don't hesitate to get in touch if you have any questions.&#10;&#10;Kind regards,&#10;{businessName}"></textarea></div>
+            <div class="form-group span-2"><label>Email Footer (shown below every email)</label>
+              <input type="text" id="s-email-footer"
+                placeholder="MAV Hire | 07754 875616 | info@mavhire.co.uk"></div>
+          </div>
+        </div>
+        <!-- Live preview -->
+        <div class="section">
+          <div class="section-title" style="margin-bottom:8px">Preview</div>
+          <div style="background:var(--surface2);border-radius:var(--r);padding:16px;font-size:13px;line-height:1.7;color:var(--text2)">
+            <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">Soundwave Festival — Main Stage</div>
+            <div id="s-email-preview-body" style="white-space:pre-line"></div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
+            <div id="s-email-preview-footer" style="font-size:11px;color:var(--text3)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PDF Designer ── -->
+      <div class="settings-section" data-section="pdf" style="display:none">
+        <div class="two-col" style="gap:20px;align-items:start">
+          <div>
+            <div class="section" style="margin-bottom:16px">
+              <div class="section-title">Colours</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Header Colour</label>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <input type="color" id="s-pdf-header-color" value="#111111"
+                      oninput="window.__updatePdfPreview()" style="width:48px;height:36px;padding:2px;border-radius:4px;cursor:pointer">
+                    <input type="text" id="s-pdf-header-color-text" value="#111111"
+                      style="flex:1;font-family:var(--mono);font-size:12px"
+                      oninput="document.getElementById('s-pdf-header-color').value=this.value;window.__updatePdfPreview()">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Accent Colour</label>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <input type="color" id="s-pdf-accent-color" value="#e8ff47"
+                      oninput="window.__updatePdfPreview()" style="width:48px;height:36px;padding:2px;border-radius:4px;cursor:pointer">
+                    <input type="text" id="s-pdf-accent-color-text" value="#e8ff47"
+                      style="flex:1;font-family:var(--mono);font-size:12px"
+                      oninput="document.getElementById('s-pdf-accent-color').value=this.value;window.__updatePdfPreview()">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="section" style="margin-bottom:16px">
+              <div class="section-title">Show / Hide Sections</div>
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                  <input type="checkbox" id="s-pdf-show-logo" onchange="window.__updatePdfPreview()" style="width:16px;height:16px">
+                  Show logo in header</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                  <input type="checkbox" id="s-pdf-show-address" onchange="window.__updatePdfPreview()" style="width:16px;height:16px">
+                  Show business address</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                  <input type="checkbox" id="s-pdf-show-replacement" onchange="window.__updatePdfPreview()" style="width:16px;height:16px">
+                  Show replacement value</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                  <input type="checkbox" id="s-pdf-show-weight" onchange="window.__updatePdfPreview()" style="width:16px;height:16px">
+                  Show total weight</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                  <input type="checkbox" id="s-pdf-show-signature" onchange="window.__updatePdfPreview()" style="width:16px;height:16px">
+                  Show signature block</label>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-title">Footer &amp; Terms</div>
+              <div class="form-grid">
+                <div class="form-group span-2"><label>PDF Footer Line</label>
+                  <input type="text" id="s-pdf-footer-text" placeholder="MAV Hire | 07754 875616 | info@mavhire.co.uk"
+                    oninput="window.__updatePdfPreview()"></div>
+                <div class="form-group span-2"><label>PDF Terms &amp; Conditions</label>
+                  <textarea id="s-pdf-terms-text" rows="3"
+                    placeholder="All equipment remains the property of MAV Hire. The hirer accepts full liability…"
+                    oninput="window.__updatePdfPreview()"></textarea></div>
+              </div>
+            </div>
+          </div>
+          <!-- Live PDF preview -->
+          <div>
+            <div class="section-title" style="margin-bottom:8px">Live Preview</div>
+            <div id="s-pdf-preview" style="font-size:11px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Notifications ── -->
+      <div class="settings-section" data-section="notifications" style="display:none">
+        <div class="section">
+          <div class="section-title">Email Notifications</div>
+          <div class="form-grid">
+            <div class="form-group span-2"><label>Send notifications to</label>
+              <input type="email" id="s-notify-email" placeholder="mike@mavhire.co.uk"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="s-notify-job-created" style="width:16px;height:16px">
+              <div><div style="font-weight:500">New job created</div>
+              <div style="font-size:11px;color:var(--text3)">Email when a new job is saved</div></div>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="s-notify-job-out" style="width:16px;height:16px">
+              <div><div style="font-weight:500">Equipment checked out</div>
+              <div style="font-size:11px;color:var(--text3)">Email when a job is checked out</div></div>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="s-notify-job-returned" style="width:16px;height:16px">
+              <div><div style="font-weight:500">Equipment returned</div>
+              <div style="font-size:11px;color:var(--text3)">Email when a job is marked returned</div></div>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="s-notify-low-stock" style="width:16px;height:16px">
+              <div><div style="font-weight:500">Low stock alert</div>
+              <div style="font-size:11px;color:var(--text3)">Email when a product drops below minimum stock level</div></div>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="s-notify-maintenance" style="width:16px;height:16px">
+              <div><div style="font-weight:500">Maintenance due</div>
+              <div style="font-size:11px;color:var(--text3)">Email 7 days before scheduled maintenance</div></div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── System ── -->
+      <div class="settings-section" data-section="system" style="display:none">
+        <div class="section" style="margin-bottom:16px">
+          <div class="section-title">Display</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Date Format</label>
+              <select id="s-date-format">
+                <option value="DD/MM/YYYY">DD/MM/YYYY (UK)</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Timezone</label>
+              <select id="s-timezone">
+                <option value="Europe/London">Europe/London (GMT/BST)</option>
+                <option value="Europe/Paris">Europe/Paris (CET)</option>
+                <option value="America/New_York">America/New_York (EST)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+                <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="section" style="margin-bottom:16px">
+          <div class="section-title">Theme</div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn btn-ghost" onclick="window.__setTheme('dark')"
+              style="display:flex;align-items:center;gap:8px">◑ Dark mode</button>
+            <button class="btn btn-ghost" onclick="window.__setTheme('light')"
+              style="display:flex;align-items:center;gap:8px">☀ Light mode</button>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Data Management</div>
+          <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="window.__runSeedDemo()">⚡ Seed Demo Data</button>
+            <button class="btn btn-danger btn-sm" onclick="window.__runClearDemo()">✕ Clear Demo Data</button>
+          </div>
+          <p style="font-size:11px;color:var(--text3);margin-top:8px">Demo data is prefixed DEMO- and can be cleared without affecting real data.</p>
         </div>
       </div>
 
