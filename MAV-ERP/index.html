@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MAV Hire — Rental ERP</title>
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+<!-- ══ TOPBAR ══════════════════════════════════════════════════════════════ -->
+<div id="topbar">
+  <div id="wordmark">MAV<span>·</span>ERP</div>
+
+  <div id="tabs">
+    <div class="tab active" data-pane="dashboard"><span class="tab-icon">◈</span> Dashboard</div>
+    <div class="tab" data-pane="jobs">           <span class="tab-icon">◉</span> Jobs</div>
+    <div class="tab" data-pane="quotes">         <span class="tab-icon">◎</span> Quotes</div>
+    <div class="tab" data-pane="inventory">      <span class="tab-icon">▦</span> Inventory</div>
+    <div class="tab" data-pane="clients">        <span class="tab-icon">◑</span> Clients</div>
+    <div class="tab" data-pane="suppliers">      <span class="tab-icon">◐</span> Suppliers</div>
+    <div class="tab" data-pane="maintenance">    <span class="tab-icon">⟳</span> Maintenance</div>
+    <div class="tab" data-pane="analytics">      <span class="tab-icon">∴</span> Analytics</div>
+    <div class="tab" data-pane="forecast">       <span class="tab-icon">◌</span> Forecast</div>
+    <div class="tab" data-pane="bundles">        <span class="tab-icon">◫</span> Bundles</div>
+    <div class="tab" data-pane="storage">        <span class="tab-icon">▦</span> Storage</div>
+    <div class="tab" data-pane="invoices">       <span class="tab-icon">£</span> Invoices</div>
+    <div class="tab" data-pane="scan">           <span class="tab-icon">⊡</span> Scan</div>
+    <div class="tab" data-pane="settings">       <span class="tab-icon">⚙</span> Settings</div>
+  </div>
+
+  <div id="topbar-right">
+    <div id="alert-pill" class="hidden">⚠ <span id="alert-count">0</span> alerts</div>
+    <button id="refresh-btn" onclick="window.__initDashboard()">↺ Refresh</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__showSettings()" title="Configure GAS URL">⚙</button>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ════════════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ── DASHBOARD ─────────────────────────────────────────────────────── -->
+  <div class="pane active" id="pane-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle" id="dash-ts">Loading…</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">Refresh Analytics</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__runSeedDemo()"  title="Seed demo data">⚡ Demo</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__runClearDemo()" title="Clear all DEMO- rows">🗑 Clear</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__openNewJobModal()">+ New Job</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="dash-kpis">
+      <div class="kpi"><div class="kpi-label">Active Jobs</div>    <div class="kpi-value"        id="k-active-jobs">—</div></div>
+      <div class="kpi"><div class="kpi-label">Checked Out</div>    <div class="kpi-value"        id="k-checked-out">—</div></div>
+      <div class="kpi"><div class="kpi-label">Overdue Returns</div><div class="kpi-value danger" id="k-overdue">—</div></div>
+      <div class="kpi"><div class="kpi-label">Revenue 30d</div>    <div class="kpi-value accent" id="k-rev30">—</div></div>
+      <div class="kpi"><div class="kpi-label">Revenue 365d</div>   <div class="kpi-value"        id="k-rev365">—</div></div>
+      <div class="kpi"><div class="kpi-label">Outstanding</div>    <div class="kpi-value warn"   id="k-outstanding">—</div></div>
+      <div class="kpi"><div class="kpi-label">Open Maint.</div>    <div class="kpi-value"        id="k-maint">—</div></div>
+      <div class="kpi"><div class="kpi-label">Low Stock SKUs</div> <div class="kpi-value"        id="k-lowstock">—</div></div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="section">
+          <div class="section-title">Revenue</div>
+          <div id="dash-revenue-chart" style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2)"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Alerts</div>
+          <div id="dash-alerts"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Overdue Returns</div>
+          <div id="dash-overdue"></div>
+        </div>
+      </div>
+      <div>
+        <div class="section">
+          <div class="section-title">Jobs Departing Soon</div>
+          <div id="dash-upcoming"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Low Stock</div>
+          <div id="dash-lowstock"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── JOBS ──────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-jobs">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Jobs</div>
+        <div class="page-subtitle" id="jobs-subtitle">All rental jobs</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewJobModal()">+ New Job</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="jobs-search" placeholder="Search jobs…" oninput="window.__filterJobs()">
+      </div>
+      <select class="filter-select" id="jobs-status-filter" onchange="window.__filterJobs()">
+        <option value="">All Statuses</option>
+        <option>Draft</option><option>Confirmed</option><option>Allocated</option>
+        <option>Prepping</option><option>Checked Out</option><option>Live</option>
+        <option>Returned</option><option>Complete</option><option>Cancelled</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('jobs')">↺</button>
+    </div>
+    <div id="jobs-list"></div>
+  </div>
+
+  <!-- ── QUOTES ────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-quotes">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Quotes</div>
+        <div class="page-subtitle" id="quotes-subtitle">All quotes</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewQuoteModal()">+ New Quote</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="quotes-search" placeholder="Search quotes…" oninput="window.__filterQuotes()">
+      </div>
+      <select class="filter-select" id="quotes-status-filter" onchange="window.__filterQuotes()">
+        <option value="">All Statuses</option>
+        <option>Draft</option><option>Sent</option><option>Accepted</option>
+        <option>Declined</option><option>Expired</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('quotes')">↺</button>
+    </div>
+    <div id="quotes-list"></div>
+  </div>
+
+  <!-- ── INVENTORY ─────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-inventory">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Inventory</div>
+        <div class="page-subtitle" id="inv-subtitle">Products &amp; stock levels</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="window.__openProductCsvImport()">⬆ Import Products</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__openBulkBarcodeImport()">⬆ Import Barcodes</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__openAddBarcodeModal()">+ Barcode</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__openNewProductModal()">+ Product</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="inv-search" placeholder="Search name, SKU, brand, tags…" oninput="window.__filterProducts()">
+      </div>
+      <select class="filter-select" id="inv-category-filter" onchange="window.__filterProducts()">
+        <option value="">All Categories</option>
+      </select>
+      <select class="filter-select" id="inv-group-filter" onchange="window.__filterProducts()">
+        <option value="">All Groups</option>
+      </select>
+      <select class="filter-select" id="inv-brand-filter" onchange="window.__filterProducts()">
+        <option value="">All Brands</option>
+      </select>
+      <select class="filter-select" id="inv-method-filter" onchange="window.__filterProducts()">
+        <option value="">All Methods</option>
+        <option value="Bulk">Bulk</option>
+        <option value="Serialised">Serialised</option>
+      </select>
+      <select class="filter-select" id="inv-avail-filter" onchange="window.__filterProducts()">
+        <option value="">Any Availability</option>
+        <option value="available">Has Stock</option>
+        <option value="low">Low Stock</option>
+        <option value="out">Items Out</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('inventory')">↺</button>
+    </div>
+    <div id="products-list"></div>
+  </div>
+
+  <!-- ── CLIENTS ───────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-clients">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Clients</div>
+        <div class="page-subtitle" id="clients-subtitle">Client records</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewClientModal()">+ New Client</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="clients-search" placeholder="Search clients…" oninput="window.__filterClients()">
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('clients')">↺</button>
+    </div>
+    <div id="clients-list"></div>
+  </div>
+
+  <!-- ── SUPPLIERS ─────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-suppliers">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Suppliers</div>
+        <div class="page-subtitle" id="suppliers-subtitle">Equipment suppliers</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewSupplierModal()">+ New Supplier</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="sup-search" placeholder="Search suppliers…" oninput="window.__filterSuppliers()">
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('suppliers')">↺</button>
+    </div>
+    <div id="suppliers-list"></div>
+  </div>
+
+  <!-- ── MAINTENANCE ───────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-maintenance">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Maintenance</div>
+        <div class="page-subtitle" id="maint-subtitle">Service &amp; repairs</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewMaintenanceModal()">+ New Record</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="maint-search" placeholder="Search maintenance…" oninput="window.__filterMaintenance()">
+      </div>
+      <select class="filter-select" id="maint-status-filter" onchange="window.__filterMaintenance()">
+        <option value="">All Statuses</option>
+        <option>Scheduled</option><option>In Progress</option>
+        <option>Awaiting Parts</option><option>Complete</option><option>Cancelled</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('maintenance')">↺</button>
+    </div>
+    <div id="maint-list"></div>
+  </div>
+
+  <!-- ── ANALYTICS ─────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-analytics">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Analytics</div>
+        <div class="page-subtitle" id="analytics-subtitle">ROI, utilisation &amp; performance</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Refresh Stats</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Portfolio KPIs</div>
+      <div class="kpi-grid" id="analytics-kpis"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="section">
+        <div class="section-title">Top Revenue SKUs</div>
+        <div class="tbl-wrap">
+          <table id="tbl-top-skus">
+            <thead><tr><th>Product</th><th>Rev Total</th><th>Hires</th><th>ROI %</th><th>Util %</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Dead Stock (180+ days)</div>
+        <div id="dead-stock-list"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">SKU Performance Table</div>
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="sku-search" placeholder="Filter SKUs…" oninput="window.__filterSkuTable()">
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table id="tbl-sku-stats">
+          <thead><tr>
+            <th>SKU / Name</th><th>Category</th><th>Qty</th>
+            <th>Revenue</th><th>Rev 30d</th><th>Rev 365d</th>
+            <th>Maint Cost</th><th>ROI %</th><th>Util %</th><th>Payback</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FORECAST ──────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-forecast">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Forecast</div>
+        <div class="page-subtitle" id="forecast-subtitle">Demand &amp; buy recommendations</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="window.__runForecastRefresh()">↺ Rebuild Forecasts</button>
+    </div>
+
+    <div class="kpi-grid" id="forecast-kpis" style="grid-template-columns:repeat(4,1fr)"></div>
+
+    <div class="two-col">
+      <div class="section">
+        <div class="section-title">Predicted Shortages — 90 Days</div>
+        <div id="shortage-list"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Buy Recommendations</div>
+        <div id="buy-list"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">All Forecast Lines</div>
+      <div class="tbl-wrap">
+        <table id="tbl-forecasts">
+          <thead><tr>
+            <th>Scope</th><th>Horizon</th><th>Rev Forecast</th>
+            <th>Demand Qty</th><th>Shortage</th><th>Buy Qty</th><th>Confidence</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── BUNDLES ───────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-bundles">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Bundles</div>
+        <div class="page-subtitle" id="bundles-subtitle">Saved kit templates &amp; accessories</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewBundleModal()">+ New Bundle</button>
+    </div>
+
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
+      <div class="tab active" id="btab-bundles" onclick="window.__switchBundlesTab('bundles')" style="border-right:1px solid var(--border)">Bundles</div>
+      <div class="tab" id="btab-accessories" onclick="window.__switchBundlesTab('accessories')">Product Accessories</div>
+    </div>
+
+    <div id="bundles-content">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="bundles-search" placeholder="Search bundles…" oninput="window.__filterBundles()">
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('bundles')">↺</button>
+      </div>
+      <div id="bundles-list"></div>
+    </div>
+
+    <div id="accessories-content" style="display:none">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Product accessories are automatically suggested when adding a product to a quote or job.</p>
+      <div id="accessories-list"></div>
+    </div>
+  </div>
+
+  <!-- ── STORAGE ───────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-storage">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Storage</div>
+        <div class="page-subtitle" id="storage-subtitle">Warehouse locations &amp; stock placement</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="window.__seedWarehouse()">⚡ Seed Warehouse</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('','Zone','')">+ Zone</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('storage')">↺</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="occupancy-summary" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+    <div class="two-col">
+      <div class="section">
+        <div class="section-title">Warehouse Layout</div>
+        <div id="warehouse-tree"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Unlocated Available Stock</div>
+        <div id="unlocated-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INVOICES ──────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-invoices">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Outstanding Invoices</div>
+        <div class="page-subtitle" id="invoices-subtitle">Jobs with balance due</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('invoices')">↺ Refresh</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="inv2-search" placeholder="Search jobs…" oninput="window.__filterInvoices()">
+      </div>
+      <select class="filter-select" id="inv2-age-filter" onchange="window.__filterInvoices()">
+        <option value="">Any age</option>
+        <option value="7">Event 7+ days ago</option>
+        <option value="30">Event 30+ days ago</option>
+        <option value="60">Event 60+ days ago</option>
+      </select>
+    </div>
+    <div id="invoices-list"></div>
+  </div>
+
+  <!-- ── SETTINGS ──────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-settings">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Settings</div>
+        <div class="page-subtitle">Company details, branding &amp; defaults</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__saveSettings()">Save Settings</button>
+    </div>
+
+    <div style="max-width:720px;display:flex;flex-direction:column;gap:20px">
+
+      <div class="section">
+        <div class="section-title">Company &amp; Branding</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Business Name</label>
+            <input type="text" id="s-business-name"></div>
+          <div class="form-group"><label>Phone</label>
+            <input type="text" id="s-phone"></div>
+          <div class="form-group span-2"><label>Address</label>
+            <input type="text" id="s-address"></div>
+          <div class="form-group"><label>Email</label>
+            <input type="email" id="s-email"></div>
+          <div class="form-group"><label>Website</label>
+            <input type="url" id="s-website" placeholder="https://"></div>
+          <div class="form-group span-2">
+            <label>Logo URL <span style="color:var(--text3);font-size:11px">— paste a direct image link (JPG/PNG)</span></label>
+            <input type="url" id="s-logo-url" placeholder="https://…"
+              oninput="window.__updateLogoPreview(this.value)">
+            <div id="s-logo-preview" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Financial Defaults</div>
+        <div class="form-grid">
+          <div class="form-group"><label>VAT Rate (%)</label>
+            <input type="number" id="s-vat-rate" value="20" step="0.1" min="0" max="100"></div>
+          <div class="form-group"><label>Currency Code</label>
+            <input type="text" id="s-currency" placeholder="GBP" maxlength="3"></div>
+          <div class="form-group"><label>Default Quote Valid (days)</label>
+            <input type="number" id="s-valid-days" value="30" min="1"></div>
+          <div class="form-group"><label>Default Deposit (%)</label>
+            <input type="number" id="s-deposit-pct" value="50" min="0" max="100"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">ID Prefixes</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Quote Prefix</label>
+            <input type="text" id="s-quote-prefix" placeholder="MAV-Q"></div>
+          <div class="form-group"><label>Job Prefix</label>
+            <input type="text" id="s-job-prefix" placeholder="MAV-J"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Default Terms &amp; Email</div>
+        <div class="form-grid">
+          <div class="form-group span-2"><label>Default Payment Terms</label>
+            <input type="text" id="s-payment-terms" placeholder="Payment due 30 days from invoice"></div>
+          <div class="form-group span-2"><label>Default Quote Terms</label>
+            <textarea id="s-quote-terms" rows="3" placeholder="Prices valid for 30 days. Equipment must be returned in the same condition…"></textarea></div>
+          <div class="form-group span-2"><label>Default Email Footer</label>
+            <textarea id="s-email-footer" rows="2" placeholder="MAV Hire | 07754 875616 | info@mavhire.co.uk"></textarea></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── SCAN STATION ──────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-scan">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Scan Station</div>
+        <div class="page-subtitle">Barcode checkout &amp; return</div>
+      </div>
+    </div>
+
+    <div style="max-width:640px">
+      <div class="section">
+        <div class="section-title">Select Job</div>
+        <select id="scan-job-select" onchange="window.__onScanJobSelect()" style="max-width:460px">
+          <option value="">— Select a job —</option>
+        </select>
+      </div>
+
+      <div id="scan-job-info" class="card" style="display:none;margin-bottom:20px">
+        <div class="detail-row"><div class="detail-label">Job</div>    <div class="detail-value" id="scan-job-name"></div></div>
+        <div class="detail-row"><div class="detail-label">Client</div> <div class="detail-value" id="scan-job-client"></div></div>
+        <div class="detail-row"><div class="detail-label">Status</div> <div class="detail-value" id="scan-job-status"></div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Mode</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn btn-ghost" id="scan-mode-out" onclick="window.__setScanMode('out')">⬆ Checkout</button>
+          <button class="btn btn-ghost" id="scan-mode-in"  onclick="window.__setScanMode('in')">⬇ Return</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Line Item</div>
+        <select id="scan-line-select" style="max-width:460px">
+          <option value="">— Select line item —</option>
+        </select>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Scan Barcode</div>
+        <div class="scan-input-wrap" id="scan-input-wrap">
+          <span class="scan-label">⊡</span>
+          <input type="text" id="scan-barcode-input" placeholder="Scan or type barcode…" autocomplete="off"
+                 onkeydown="window.__onScanKeydown(event)">
+          <button class="btn btn-primary btn-sm" onclick="window.__submitScan()">Scan</button>
+        </div>
+        <div id="scan-feedback" style="margin-top:12px"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Scan Log</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Barcode</th><th>Item</th><th>Mode</th><th>Result</th></tr></thead>
+            <tbody id="scan-log-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- ══ OVERLAYS ════════════════════════════════════════════════════════════ -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div id="loading-msg">Connecting…</div>
+</div>
+
+<div id="toast-container"></div>
+<div id="modal-container"></div>
+
+<!-- ══ ENTRY POINT ═════════════════════════════════════════════════════════ -->
+<script type="module" src="main.js"></script>
+</body>
+</html>
