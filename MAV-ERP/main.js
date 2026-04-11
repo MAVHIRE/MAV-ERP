@@ -153,11 +153,7 @@ function switchPane(paneName) {
     t.classList.toggle('active', t.dataset.pane === paneName));
   document.querySelectorAll('.pane').forEach(p =>
     p.classList.toggle('active', p.id === 'pane-' + paneName));
-
-  if (!STATE.loadedPanes.has(paneName)) {
-    STATE.loadedPanes.add(paneName);
-    loadPane(paneName);
-  }
+  loadPane(paneName);
 }
 
 async function loadPane(name) {
