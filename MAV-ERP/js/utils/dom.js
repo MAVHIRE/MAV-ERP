@@ -60,7 +60,7 @@ export function setupClientAutocomplete(nameId, companyId, emailId, phoneId) {
     if (!q || q.length < 2) { dropdown.style.display = 'none'; return; }
 
     // Import STATE lazily to avoid circular deps
-    import('../utils/state.js').then(({ STATE }) => {
+    import('./state.js').then(({ STATE }) => {
       const matches = (STATE.clients || []).filter(c =>
         [c.clientName, c.company, c.email].join(' ').toLowerCase().includes(q)
       ).slice(0, 6);
