@@ -9,7 +9,6 @@ import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 export async function loadClients() {
-  if (STATE.clients.length) { render(STATE.clients); const el = document.getElementById('clients-subtitle'); if (el) el.textContent = STATE.clients.length + ' clients'; return; }
   showLoading('Loading clients…');
   try {
     STATE.clients = await rpc('getClients', {});

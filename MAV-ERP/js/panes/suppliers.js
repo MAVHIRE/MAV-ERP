@@ -9,7 +9,6 @@ import { fmtCurDec, esc, statusBadge } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 export async function loadSuppliers() {
-  if (STATE.suppliers.length) { render(STATE.suppliers); const el = document.getElementById('suppliers-subtitle'); if (el) el.textContent = STATE.suppliers.length + ' suppliers'; return; }
   showLoading('Loading suppliers…');
   try {
     STATE.suppliers = await rpc('getSuppliers', {});

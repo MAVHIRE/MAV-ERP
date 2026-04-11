@@ -94,10 +94,11 @@ async function bootstrap() {
     if (data.settings)          STATE.settings  = data.settings;
     if (data.dashboard)         STATE.dashboard = data.dashboard;
 
-    // Mark all data panes as pre-loaded — no RPC needed on tab switch
-    ['jobs','quotes','inventory','clients','suppliers','bundles'].forEach(p => {
-      STATE.loadedPanes.add(p);
-    });
+    // Pre-populate lightweight STATE for autocompletes etc.
+    // Panes will do their own fresh fetch when first opened.
+    if (data.clients?.length)   STATE.clients   = data.clients;
+    if (data.bundles?.length)   STATE.bundles   = data.bundles;
+    if (data.services?.length)  STATE.services  = data.services;
 
     hideLoading();
 

@@ -12,7 +12,6 @@ import { generateQuotePdf } from '../components/quotePdf.js';
 
 // ── Load / filter ─────────────────────────────────────────────────────────────
 export async function loadQuotes() {
-  if (STATE.quotes.length) { render(STATE.quotes); const el = document.getElementById('quotes-subtitle'); if (el) el.textContent = STATE.quotes.length + ' quotes'; return; }
   showLoading('Loading quotes…');
   try {
     STATE.quotes = await rpc('getQuotes', {});
