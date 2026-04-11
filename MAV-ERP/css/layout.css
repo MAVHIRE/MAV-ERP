@@ -113,6 +113,19 @@
 }
 #refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+#theme-toggle {
+  font-size: 16px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all var(--trans);
+  line-height: 1;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ── App / Panes ─────────────────────────────────────── */
 #app { flex: 1; display: flex; overflow: hidden; position: relative; }
 
@@ -137,6 +150,7 @@
   gap: 12px;
   backdrop-filter: blur(4px);
 }
+:root.light #loading { background: rgba(240,240,244,.92); }
 #loading.hidden { display: none; }
 
 .spinner {

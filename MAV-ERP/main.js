@@ -69,8 +69,30 @@ import { loadSettings, saveSettings, updateLogoPreview }
 import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan }
   from './js/panes/scan.js';
 
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem('mav_theme');
+  if (saved === 'light') document.documentElement.classList.add('light');
+  updateThemeToggle();
+}
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('mav_theme', isLight ? 'light' : 'dark');
+  updateThemeToggle();
+}
+
+function updateThemeToggle() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  const isLight = document.documentElement.classList.contains('light');
+  btn.textContent = isLight ? '☀' : '◑';
+  btn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode';
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
+  initTheme();
   if (!GAS_URL) { showGasModal(); return; }
   setupTabs();
   exposeGlobals();
@@ -153,7 +175,8 @@ function switchPane(paneName) {
     t.classList.toggle('active', t.dataset.pane === paneName));
   document.querySelectorAll('.pane').forEach(p =>
     p.classList.toggle('active', p.id === 'pane-' + paneName));
-  loadPane(paneName);
+  // Small delay ensures DOM is visible before render writes to it
+  setTimeout(() => loadPane(paneName), 0);
 }
 
 async function loadPane(name) {
@@ -266,6 +289,7 @@ function exposeGlobals() {
   window.__initDashboard = initDashboard;
   window.__showSettings  = showGasModal;
   window.__refreshAll    = refreshAll;
+  window.__toggleTheme   = toggleTheme;
   window.__reloadPane    = async (name) => {
     STATE.loadedPanes.delete(name);
     await loadPane(name);
