@@ -127,16 +127,17 @@
 #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── App / Panes ─────────────────────────────────────── */
-#app { flex: 1; display: flex; overflow: hidden; position: relative; }
+#app { flex: 1; display: flex; overflow: hidden; position: relative; min-height: 0; }
 
 .pane {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
   display: none;
+  min-height: 0;
 }
 .pane.active { display: block; }
-#pane-storage.active { display: flex; overflow: hidden; }
+#pane-storage.active { display: flex !important; overflow: hidden; }
 
 /* ── Loading overlay ─────────────────────────────────── */
 #loading {
