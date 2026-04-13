@@ -34,6 +34,8 @@ const ITEM_TYPES = {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 export async function loadWarehouseDesigner() {
+  // Ensure globals are set even if called before exposeGlobals
+  exposeWarehouseGlobals();
   showLoading('Loading warehouse…');
   try {
     const [locations, config, occ] = await Promise.all([
@@ -76,7 +78,7 @@ export async function loadWarehouseDesigner() {
     (occ || []).forEach(o => { _occupancy[o.locationId] = o.itemCount || 0; });
 
     hideLoading();
-    setTimeout(() => initCanvas(), 50);
+    setTimeout(() => { initCanvas(); setTimeout(zoomFit, 100); }, 80);
 
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }
@@ -110,8 +112,15 @@ function initCanvas() {
 function resizeCanvas() {
   const wrap = document.getElementById('warehouse-canvas-wrap');
   if (!wrap || !_canvas) return;
-  _canvas.width  = wrap.clientWidth  || 800;
-  _canvas.height = wrap.clientHeight || 600;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w < 10 || h < 10) {
+    // Container not visible yet — retry
+    setTimeout(resizeCanvas, 50);
+    return;
+  }
+  _canvas.width  = w;
+  _canvas.height = h;
   draw();
 }
 
