@@ -177,6 +177,7 @@ function showProductModal(p, s, maint) {
   `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__editProduct('${esc(p.productId)}')">✏ Edit</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__stockAdjust('${esc(p.productId)}','${esc(p.name)}')">± Stock</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__printLabels('${esc(p.productId)}','${esc(p.name)}')">🏷 Labels</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__logMaintenanceForProduct('${esc(p.productId)}','${esc(p.name)}')">+ Maintenance</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
@@ -636,4 +637,99 @@ export function openStockAdjustModal(productId, productName) {
     } catch(e) { toast(e.message, 'err'); }
     finally { hideLoading(); }
   };
+}
+
+// ── Barcode label printing ────────────────────────────────────────────────────
+export async function openBarcodeLabelModal(productId, productName) {
+  showLoading('Loading barcodes…');
+  try {
+    const barcodes = await rpc('getBarcodes', productId);
+    hideLoading();
+    if (!barcodes.length) { toast('No barcodes for this product', 'warn'); return; }
+
+    openModal('modal-barcode-labels', `Print Labels — ${esc(productName)}`, `
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+        <label style="font-size:13px">Label size:</label>
+        <select id="lbl-size" style="font-size:12px;padding:4px 8px">
+          <option value="small">Small (50×25mm)</option>
+          <option value="medium" selected>Medium (70×35mm)</option>
+          <option value="large">Large (100×50mm)</option>
+        </select>
+        <label style="font-size:13px">Per row:</label>
+        <select id="lbl-cols" style="font-size:12px;padding:4px 8px">
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="lbl-show-name" checked> Show product name
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="lbl-show-serial" checked> Show serial
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        ${barcodes.map(b => `
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;
+                         background:var(--surface2);padding:6px 10px;border-radius:var(--r)">
+            <input type="checkbox" class="lbl-bc-check" value="${esc(b.barcode)}"
+              data-serial="${esc(b.serialNumber||'')}" data-name="${esc(productName)}" checked>
+            ${esc(b.barcode)} ${b.serialNumber ? '· '+esc(b.serialNumber) : ''}
+          </label>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text3)">
+        ${barcodes.length} unit${barcodes.length!==1?'s':''} · select which to include
+      </div>`, `
+      <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.querySelectorAll('.lbl-bc-check').forEach(c=>c.checked=true)">Select All</button>
+      <button class="btn btn-primary btn-sm" onclick="window.__printBarcodeLabels()">🖨 Print Labels</button>`
+    );
+
+    window.__printBarcodeLabels = () => {
+      const checked = [...document.querySelectorAll('.lbl-bc-check:checked')];
+      if (!checked.length) { toast('Select at least one barcode', 'warn'); return; }
+
+      const size  = document.getElementById('lbl-size')?.value || 'medium';
+      const cols  = parseInt(document.getElementById('lbl-cols')?.value) || 3;
+      const showName   = document.getElementById('lbl-show-name')?.checked ?? true;
+      const showSerial = document.getElementById('lbl-show-serial')?.checked ?? true;
+
+      const dims = { small: [50,25], medium: [70,35], large: [100,50] }[size];
+      const [w, h] = dims;
+
+      const labelStyle = `
+        width:${w}mm;height:${h}mm;display:inline-flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:2px;
+        border:0.5px solid #ccc;padding:3mm;box-sizing:border-box;
+        font-family:Arial,sans-serif;page-break-inside:avoid;vertical-align:top;`;
+
+      const labels = checked.map(cb => {
+        const barcode = cb.value;
+        const serial  = cb.dataset.serial;
+        const name    = cb.dataset.name;
+        // Generate QR code using Google Charts API
+        const qrUrl   = `https://chart.googleapis.com/chart?cht=qr&chs=120x120&chl=${encodeURIComponent(barcode)}&choe=UTF-8`;
+        return `<div style="${labelStyle}">
+          <img src="${qrUrl}" style="width:${Math.round(h*0.55)}mm;height:${Math.round(h*0.55)}mm;object-fit:contain">
+          <div style="font-size:${size==='small'?6:size==='large'?9:7}pt;font-weight:bold;text-align:center;word-break:break-all;max-width:100%">${barcode}</div>
+          ${showSerial && serial ? `<div style="font-size:${size==='small'?5:6}pt;color:#666;text-align:center">${serial}</div>` : ''}
+          ${showName ? `<div style="font-size:${size==='small'?5:6}pt;color:#666;text-align:center;word-break:break-all;max-width:100%">${name}</div>` : ''}
+        </div>`;
+      }).join('');
+
+      const win = window.open('', '_blank');
+      win.document.write(`<!DOCTYPE html><html><head><title>Barcode Labels — ${productName}</title>
+        <style>
+          @page { margin: 10mm; }
+          body { margin:0;padding:0;background:#fff; }
+          .grid { display:grid;grid-template-columns:repeat(${cols},${w}mm);gap:3mm; }
+          @media print { body { -webkit-print-color-adjust:exact; } }
+        </style></head><body>
+        <div class="grid">${labels}</div>
+        <script>window.onload=()=>{ setTimeout(()=>window.print(),500); }<\/script>
+      </body></html>`);
+      win.document.close();
+      closeModal();
+    };
+  } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }

@@ -123,7 +123,7 @@ function showQuoteModal(q) {
     ${q.notes?`<div style="margin-top:12px;font-size:12px;color:var(--text2);padding:10px;background:var(--surface2);border-radius:var(--r)">${esc(q.notes)}</div>`:''}
   `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${esc(q.quoteId)}')">⬇ PDF</button>
-    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${esc(q.quoteId)}')">✉ Email</button>`:''}
+    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${esc(q.quoteId)}')">✉ Email</button>`:''} ${['Draft','Sent','Accepted'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${esc(q.quoteId)}')">🔗 Approval Link</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${esc(q.quoteId)}')">✏ Edit</button>
     ${statusBtns}
     ${!q.linkedJobId?`<button class="btn btn-ghost btn-sm" onclick="window.__convertQuoteToJob('${esc(q.quoteId)}')">→ Convert to Job</button>`:''}

@@ -28,7 +28,7 @@ import { loadProducts, filterProducts, openProductDetail,
          openNewProductModal, openAddBarcodeModal,
          openBulkBarcodeImport, openProductCsvImport,
          openLogMaintenanceForProduct, openReturnConditionModal,
-         editProduct, openStockAdjustModal,
+         editProduct, openStockAdjustModal, openBarcodeLabelModal,
          ensureProductsLoaded, ensureServicesLoaded }
   from './js/panes/inventory.js';
 
@@ -68,6 +68,13 @@ import { loadSettings, saveSettings, updateLogoPreview, activateSettingsTab, upd
 
 import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan }
   from './js/panes/scan.js';
+
+import { loadCalendar, calPrev, calNext, calToday, calDayClick }
+  from './js/panes/calendar.js';
+
+import { loadSubRentals, filterSubRentals, openNewSubRentalModal,
+         editSubRental, deleteSubRental }
+  from './js/panes/subrentals.js';
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 function initTheme() {
@@ -200,6 +207,8 @@ async function loadPane(name) {
     case 'bundles':     return loadBundles();
     case 'storage':     return loadStorage();
     case 'invoices':    return loadInvoices();
+    case 'calendar':    return loadCalendar();
+    case 'subrentals':  return loadSubRentals();
     case 'settings':    return loadSettings();
     case 'scan':        return loadScanPane();
   }
@@ -409,6 +418,47 @@ function exposeGlobals() {
   window.__setScanMode     = setScanMode;
   window.__onScanKeydown   = onScanKeydown;
   window.__submitScan      = submitScan;
+
+  // Inventory — barcode labels
+  window.__printLabels              = openBarcodeLabelModal;
+
+  // Calendar
+  window.__calPrev      = calPrev;
+  window.__calNext      = calNext;
+  window.__calToday     = calToday;
+  window.__calDayClick  = calDayClick;
+
+  // Sub-rentals
+  window.__openNewSubRentalModal = openNewSubRentalModal;
+  window.__editSubRental         = editSubRental;
+  window.__deleteSubRental       = deleteSubRental;
+  window.__filterSubRentals      = filterSubRentals;
+
+  // Quote approval
+  window.__generateApprovalLink = async (quoteId) => {
+    showLoading('Generating approval link…');
+    try {
+      const r = await rpc('generateQuoteApprovalLink', quoteId);
+      hideLoading();
+      openModal('modal-approval-link', '🔗 Quote Approval Link', `
+        <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
+          Share this link with your client. They can view the quote and accept or decline online.
+          The link expires after 90 days or once they respond.
+        </p>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="url" id="approval-link-input" value="${esc(r.link)}" readonly
+            style="flex:1;font-family:var(--mono);font-size:11px;color:var(--text2)">
+          <button class="btn btn-primary btn-sm" onclick="
+            navigator.clipboard.writeText(document.getElementById('approval-link-input').value);
+            window.__toast('Link copied!','ok')">Copy</button>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:10px">
+          Tip: You can include this link in the quote email body.
+        </p>`, `
+        <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`);
+    } catch(e) { hideLoading(); toast(e.message, 'err'); }
+  };
+  window.__toast = toast;
 
   // Filters
   window.__filterJobs        = filterJobs;
