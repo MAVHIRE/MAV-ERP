@@ -41,7 +41,14 @@ function render(d) {
   const pill   = document.getElementById('alert-pill');
   const count  = document.getElementById('alert-count');
   if (count) count.textContent = alerts.length;
-  if (pill)  pill.classList.toggle('hidden', alerts.length === 0);
+  if (pill) {
+    pill.classList.toggle('hidden', alerts.length === 0);
+    pill.style.cursor = 'pointer';
+    pill.onclick = () => {
+      const ac = document.getElementById('dash-alerts-section');
+      if (ac) ac.scrollIntoView({ behavior: 'smooth' });
+    };
+  }
 
   // Revenue mini chart (30d vs 90d vs 365d)
   renderRevenueChart(fin);
@@ -50,14 +57,26 @@ function render(d) {
   const ac = document.getElementById('dash-alerts');
   if (ac) ac.innerHTML = alerts.length === 0
     ? emptyState('✓', 'No alerts')
-    : alerts.slice(0, 8).map(a => `
-        <div class="alert-item ${(a.severity||'').toLowerCase()}">
+    : alerts.slice(0, 10).map(a => {
+        const clickable = a.jobId || a.productId || a.maintenanceId;
+        const onclick = a.jobId
+          ? `window.__openJobDetail('${esc(a.jobId)}')`
+          : a.maintenanceId
+            ? `window.__openMaintDetail('${esc(a.maintenanceId)}')`
+            : a.productId
+              ? `window.__switchPane('inventory')`
+              : '';
+        return `<div class="alert-item ${(a.severity||'').toLowerCase()}"
+          style="cursor:${clickable?'pointer':'default'};display:flex;align-items:flex-start;gap:8px"
+          ${onclick ? `onclick="${onclick}"` : ''}>
           <div class="alert-dot"></div>
-          <div>
+          <div style="flex:1">
             <div class="alert-cat">${esc(a.severity)} · ${esc(a.category)}</div>
             <div class="alert-msg">${esc(a.message)}</div>
           </div>
-        </div>`).join('');
+          ${clickable ? '<div style="color:var(--text3);font-size:11px;margin-top:2px">→</div>' : ''}
+        </div>`;
+      }).join('');
 
   // Overdue returns
   const ov   = ops.overdueReturns || [];

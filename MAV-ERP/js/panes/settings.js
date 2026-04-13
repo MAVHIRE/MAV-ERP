@@ -42,7 +42,7 @@ function renderSettings(s) {
   updateLogoPreview(s.logoUrl);
 
   // Financial
-  setVal('s-vat-rate',         s.vatRate * 100);
+  setVal('s-vat-rate',         +(s.vatRate * 100).toFixed(4));
   setVal('s-vat-enabled',      s.vatEnabled);
   setVal('s-currency',         s.currency);
   setVal('s-currency-symbol',  s.currencySymbol);

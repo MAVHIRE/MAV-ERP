@@ -24,6 +24,8 @@
     <div class="tab" data-pane="clients">        <span class="tab-icon">◑</span> Clients</div>
     <div class="tab" data-pane="suppliers">      <span class="tab-icon">◐</span> Suppliers</div>
     <div class="tab" data-pane="subrentals">     <span class="tab-icon">↗</span> Sub-Rentals</div>
+    <div class="tab" data-pane="crew">           <span class="tab-icon">◑</span> Crew</div>
+    <div class="tab" data-pane="purchaseorders"><span class="tab-icon">◎</span> Purchase Orders</div>
     <div class="tab" data-pane="maintenance">    <span class="tab-icon">⟳</span> Maintenance</div>
     <div class="tab" data-pane="analytics">      <span class="tab-icon">∴</span> Analytics</div>
     <div class="tab" data-pane="forecast">       <span class="tab-icon">◌</span> Forecast</div>
@@ -79,7 +81,7 @@
           <div id="dash-revenue-chart" style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2)"></div>
         </div>
         <div class="section">
-          <div class="section-title">Alerts</div>
+          <div class="section-title" id="dash-alerts-section">Alerts</div>
           <div id="dash-alerts"></div>
         </div>
         <div class="section">
@@ -779,6 +781,54 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('subrentals')">↺</button>
     </div>
     <div id="sr-list"></div>
+  </div>
+
+  <!-- ── CREW ──────────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-crew">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Crew</div>
+        <div class="page-subtitle" id="crew-subtitle">Staff assignments</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewCrewModal()">+ Assign Crew</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="crew-search" placeholder="Search name, role, job…" oninput="window.__filterCrew()">
+      </div>
+      <select class="filter-select" id="crew-status-filter" onchange="window.__filterCrew()">
+        <option value="">All Statuses</option>
+        <option>Assigned</option><option>Confirmed</option>
+        <option>On Site</option><option>Complete</option><option>Cancelled</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('crew')">↺</button>
+    </div>
+    <div id="crew-list"></div>
+  </div>
+
+  <!-- ── PURCHASE ORDERS ────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-purchaseorders">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Purchase Orders</div>
+        <div class="page-subtitle" id="po-subtitle">Supplier orders</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewPOModal()">+ New PO</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="po-search" placeholder="Search supplier, PO ID…" oninput="window.__filterPOs()">
+      </div>
+      <select class="filter-select" id="po-status-filter" onchange="window.__filterPOs()">
+        <option value="">All Statuses</option>
+        <option>Draft</option><option>Ordered</option>
+        <option>Received</option><option>Cancelled</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('purchaseorders')">↺</button>
+    </div>
+    <div id="po-list"></div>
   </div>
 
   <!-- ── SCAN STATION ──────────────────────────────────────────────────── -->

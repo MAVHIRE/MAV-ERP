@@ -1,9 +1,6 @@
 /**
  * MAV HIRE ERP — main.js
- * Bootstrap-first architecture:
- * - Single bootstrapApp() call on load fetches ALL data at once
- * - Tab switches render from STATE (instant, no RPC)
- * - Only mutations hit GAS after initial load
+ * Bootstrap-first architecture.
  */
 
 import { STATE }                    from './js/utils/state.js';
@@ -63,18 +60,26 @@ import { loadStorage, openAddLocationModal, openMoveBarcodeModal,
 import { loadInvoices, filterInvoices }
   from './js/panes/invoices.js';
 
-import { loadSettings, saveSettings, updateLogoPreview, activateSettingsTab, updatePdfPreview }
-  from './js/panes/settings.js';
-
-import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan }
-  from './js/panes/scan.js';
-
 import { loadCalendar, calPrev, calNext, calToday, calDayClick }
   from './js/panes/calendar.js';
 
 import { loadSubRentals, filterSubRentals, openNewSubRentalModal,
          editSubRental, deleteSubRental }
   from './js/panes/subrentals.js';
+
+import { loadCrew, filterCrew, openNewCrewModal, editCrew, deleteCrew }
+  from './js/panes/crew.js';
+
+import { loadPurchaseOrders, filterPurchaseOrders, openNewPOModal,
+         editPO, deletePO, updatePOStatus, openPODetail }
+  from './js/panes/purchaseorders.js';
+
+import { loadSettings, saveSettings, updateLogoPreview,
+         activateSettingsTab, updatePdfPreview }
+  from './js/panes/settings.js';
+
+import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan }
+  from './js/panes/scan.js';
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 function initTheme() {
@@ -112,13 +117,12 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
   window.addEventListener('load', init);
 }
 
-// ── Bootstrap — one call, loads everything ────────────────────────────────────
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
 async function bootstrap() {
   showLoading('Connecting to MAV Hire…');
   try {
     const data = await rpc('bootstrapApp');
 
-    // Populate STATE from bootstrap payload
     if (data.products?.length)  STATE.products  = data.products;
     if (data.clients?.length)   STATE.clients   = data.clients;
     if (data.suppliers?.length) STATE.suppliers = data.suppliers;
@@ -129,45 +133,25 @@ async function bootstrap() {
     if (data.settings)          STATE.settings  = data.settings;
     if (data.dashboard)         STATE.dashboard = data.dashboard;
 
-    // Pre-populate lightweight STATE for autocompletes etc.
-    // Panes will do their own fresh fetch when first opened.
-    if (data.clients?.length)   STATE.clients   = data.clients;
-    if (data.bundles?.length)   STATE.bundles   = data.bundles;
-    if (data.services?.length)  STATE.services  = data.services;
-
     hideLoading();
-
-    // Render dashboard immediately
     await initDashboard();
 
-    // Show cache indicator if data came from cache
     if (data._fromCache) {
       const el = document.getElementById('cache-indicator');
       if (el) { el.textContent = '⚡ cached'; el.style.display = 'inline'; }
     }
-
   } catch(e) {
     hideLoading();
     toast('Failed to connect: ' + e.message, 'err');
-    // Show connect button
-    const el = document.getElementById('connect-error');
-    if (el) el.style.display = 'block';
   }
 }
 
-// Refresh all data — called by ↺ button
 async function refreshAll() {
   STATE.loadedPanes.clear();
-  STATE.products  = [];
-  STATE.clients   = [];
-  STATE.suppliers = [];
-  STATE.jobs      = [];
-  STATE.quotes    = [];
-  STATE.bundles   = [];
-  STATE.services  = [];
-  STATE.dashboard = null;
+  STATE.products = []; STATE.clients = []; STATE.suppliers = [];
+  STATE.jobs = []; STATE.quotes = []; STATE.bundles = [];
+  STATE.services = []; STATE.dashboard = null;
   await bootstrap();
-  // Re-render active pane
   const active = STATE.activePane;
   if (active && active !== 'dashboard') {
     STATE.loadedPanes.delete(active);
@@ -188,29 +172,29 @@ function switchPane(paneName) {
     t.classList.toggle('active', t.dataset.pane === paneName));
   document.querySelectorAll('.pane').forEach(p =>
     p.classList.toggle('active', p.id === 'pane-' + paneName));
-  // Small delay ensures DOM is visible before render writes to it
   setTimeout(() => loadPane(paneName), 0);
 }
 
 async function loadPane(name) {
-  // These panes are pre-loaded from bootstrap — just render
   switch (name) {
-    case 'dashboard':   return initDashboard();
-    case 'jobs':        return loadJobs();
-    case 'quotes':      return loadQuotes();
-    case 'inventory':   return loadProducts();
-    case 'clients':     return loadClients();
-    case 'suppliers':   return loadSuppliers();
-    case 'maintenance': return loadMaintenance();
-    case 'analytics':   return loadAnalytics();
-    case 'forecast':    return loadForecast();
-    case 'bundles':     return loadBundles();
-    case 'storage':     return loadStorage();
-    case 'invoices':    return loadInvoices();
-    case 'calendar':    return loadCalendar();
-    case 'subrentals':  return loadSubRentals();
-    case 'settings':    return loadSettings();
-    case 'scan':        return loadScanPane();
+    case 'dashboard':      return initDashboard();
+    case 'jobs':           return loadJobs();
+    case 'calendar':       return loadCalendar();
+    case 'quotes':         return loadQuotes();
+    case 'inventory':      return loadProducts();
+    case 'clients':        return loadClients();
+    case 'suppliers':      return loadSuppliers();
+    case 'subrentals':     return loadSubRentals();
+    case 'crew':           return loadCrew();
+    case 'purchaseorders': return loadPurchaseOrders();
+    case 'maintenance':    return loadMaintenance();
+    case 'analytics':      return loadAnalytics();
+    case 'forecast':       return loadForecast();
+    case 'bundles':        return loadBundles();
+    case 'storage':        return loadStorage();
+    case 'invoices':       return loadInvoices();
+    case 'settings':       return loadSettings();
+    case 'scan':           return loadScanPane();
   }
 }
 
@@ -234,8 +218,7 @@ function switchBundlesTab(tab) {
 
 // ── Demo helpers ──────────────────────────────────────────────────────────────
 async function runSeedDemo() {
-  if (!confirm('Seed demo data? This runs in 5 stages — each takes 30–90s. Don\'t close the tab.')) return;
-
+  if (!confirm('Seed demo data? Runs in 5 stages — each ~30-90s.')) return;
   const stages = [
     { fn: 'seedDemoStage1',  label: 'Stage 1/5: Suppliers, products & barcodes…' },
     { fn: 'seedDemoStage2',  label: 'Stage 2/5: Clients & quotes…' },
@@ -243,19 +226,14 @@ async function runSeedDemo() {
     { fn: 'seedDemoStage3b', label: 'Stage 4/5: Historical jobs…' },
     { fn: 'seedDemoStage4',  label: 'Stage 5/5: Maintenance & analytics…' },
   ];
-
   for (const stage of stages) {
     showLoading(stage.label);
     try {
       const r = await rpc(stage.fn);
       if (!r.ok) { toast(r.message, 'err'); hideLoading(); return; }
       toast(r.message, 'ok');
-    } catch(e) {
-      toast('Failed at ' + stage.fn + ': ' + e.message, 'err');
-      hideLoading(); return;
-    }
+    } catch(e) { toast('Failed: ' + e.message, 'err'); hideLoading(); return; }
   }
-
   hideLoading();
   toast('Demo data seeded!', 'ok');
   await refreshAll();
@@ -263,7 +241,7 @@ async function runSeedDemo() {
 
 async function runClearDemo() {
   if (!confirm('Delete all DEMO- rows?')) return;
-  showLoading('Clearing demo data…');
+  showLoading('Clearing…');
   try {
     const r = await rpc('clearDemoData');
     toast(r.message, 'ok');
@@ -305,6 +283,7 @@ function exposeGlobals() {
   window.__showSettings  = showGasModal;
   window.__refreshAll    = refreshAll;
   window.__toggleTheme   = toggleTheme;
+  window.__toast         = toast;
   window.__reloadPane    = async (name) => {
     STATE.loadedPanes.delete(name);
     await loadPane(name);
@@ -336,6 +315,29 @@ function exposeGlobals() {
   window.__downloadQuotePdf   = downloadQuotePdf;
   window.__updateQuoteStatus  = updateQuoteStatus;
   window.__emailQuote         = emailQuote;
+  window.__generateApprovalLink = async (quoteId) => {
+    showLoading('Generating approval link…');
+    try {
+      const r = await rpc('generateQuoteApprovalLink', quoteId);
+      hideLoading();
+      openModal('modal-approval-link', '🔗 Quote Approval Link', `
+        <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
+          Share this link with your client. They can view the quote and accept or decline online.
+          The link expires after 90 days or once they respond.
+        </p>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="url" id="approval-link-input" value="${esc(r.link)}" readonly
+            style="flex:1;font-family:var(--mono);font-size:11px;color:var(--text2)">
+          <button class="btn btn-primary btn-sm" onclick="
+            navigator.clipboard.writeText(document.getElementById('approval-link-input').value);
+            window.__toast('Link copied!','ok')">Copy</button>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:10px">
+          Include this link in the quote email for easy client response.
+        </p>`, `
+        <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`);
+    } catch(e) { hideLoading(); toast(e.message, 'err'); }
+  };
 
   // Inventory
   window.__openProductDetail        = openProductDetail;
@@ -346,6 +348,7 @@ function exposeGlobals() {
   window.__openProductCsvImport     = openProductCsvImport;
   window.__logMaintenanceForProduct = openLogMaintenanceForProduct;
   window.__stockAdjust              = openStockAdjustModal;
+  window.__printLabels              = openBarcodeLabelModal;
   window.__previewProductImg        = (url) => {
     const el = document.getElementById('fp-img-preview');
     if (el) el.innerHTML = url
@@ -401,11 +404,37 @@ function exposeGlobals() {
   // Invoices
   window.__filterInvoices = filterInvoices;
 
+  // Calendar
+  window.__calPrev     = calPrev;
+  window.__calNext     = calNext;
+  window.__calToday    = calToday;
+  window.__calDayClick = calDayClick;
+
+  // Sub-rentals
+  window.__openNewSubRentalModal = openNewSubRentalModal;
+  window.__editSubRental         = editSubRental;
+  window.__deleteSubRental       = deleteSubRental;
+  window.__filterSubRentals      = filterSubRentals;
+
+  // Crew
+  window.__openNewCrewModal = openNewCrewModal;
+  window.__editCrew         = editCrew;
+  window.__deleteCrew       = deleteCrew;
+  window.__filterCrew       = filterCrew;
+
+  // Purchase Orders
+  window.__openNewPOModal = openNewPOModal;
+  window.__editPO         = editPO;
+  window.__deletePO       = deletePO;
+  window.__updatePOStatus = updatePOStatus;
+  window.__openPODetail   = openPODetail;
+  window.__filterPOs      = filterPurchaseOrders;
+
   // Settings
-  window.__saveSettings         = saveSettings;
-  window.__updateLogoPreview    = updateLogoPreview;
-  window.__activateSettingsTab  = activateSettingsTab;
-  window.__updatePdfPreview     = updatePdfPreview;
+  window.__saveSettings        = saveSettings;
+  window.__updateLogoPreview   = updateLogoPreview;
+  window.__activateSettingsTab = activateSettingsTab;
+  window.__updatePdfPreview    = updatePdfPreview;
   window.__setTheme = (t) => {
     if (t === 'light') document.documentElement.classList.add('light');
     else document.documentElement.classList.remove('light');
@@ -418,47 +447,6 @@ function exposeGlobals() {
   window.__setScanMode     = setScanMode;
   window.__onScanKeydown   = onScanKeydown;
   window.__submitScan      = submitScan;
-
-  // Inventory — barcode labels
-  window.__printLabels              = openBarcodeLabelModal;
-
-  // Calendar
-  window.__calPrev      = calPrev;
-  window.__calNext      = calNext;
-  window.__calToday     = calToday;
-  window.__calDayClick  = calDayClick;
-
-  // Sub-rentals
-  window.__openNewSubRentalModal = openNewSubRentalModal;
-  window.__editSubRental         = editSubRental;
-  window.__deleteSubRental       = deleteSubRental;
-  window.__filterSubRentals      = filterSubRentals;
-
-  // Quote approval
-  window.__generateApprovalLink = async (quoteId) => {
-    showLoading('Generating approval link…');
-    try {
-      const r = await rpc('generateQuoteApprovalLink', quoteId);
-      hideLoading();
-      openModal('modal-approval-link', '🔗 Quote Approval Link', `
-        <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
-          Share this link with your client. They can view the quote and accept or decline online.
-          The link expires after 90 days or once they respond.
-        </p>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="url" id="approval-link-input" value="${esc(r.link)}" readonly
-            style="flex:1;font-family:var(--mono);font-size:11px;color:var(--text2)">
-          <button class="btn btn-primary btn-sm" onclick="
-            navigator.clipboard.writeText(document.getElementById('approval-link-input').value);
-            window.__toast('Link copied!','ok')">Copy</button>
-        </div>
-        <p style="font-size:11px;color:var(--text3);margin-top:10px">
-          Tip: You can include this link in the quote email body.
-        </p>`, `
-        <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`);
-    } catch(e) { hideLoading(); toast(e.message, 'err'); }
-  };
-  window.__toast = toast;
 
   // Filters
   window.__filterJobs        = filterJobs;

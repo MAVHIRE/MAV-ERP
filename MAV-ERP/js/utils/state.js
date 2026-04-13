@@ -17,7 +17,9 @@ export const STATE = {
   services:    [],
   bundles:     [],
   invoices:    [],
-  subRentals:  [],
+  subRentals:      [],
+  crew:            [],
+  purchaseOrders:  [],
 
   // Company settings (from GAS Settings sheet)
   settings: null,
