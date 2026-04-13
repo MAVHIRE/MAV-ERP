@@ -55,49 +55,58 @@
         <div class="page-title">Dashboard</div>
         <div class="page-subtitle" id="dash-ts">Loading…</div>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">Refresh Analytics</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__runSeedDemo()"  title="Seed demo data">⚡ Demo</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__runClearDemo()" title="Clear all DEMO- rows">🗑 Clear</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Analytics</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__runSeedDemo()">⚡ Demo</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__runClearDemo()">🗑 Clear</button>
         <button class="btn btn-primary btn-sm" onclick="window.__openNewJobModal()">+ New Job</button>
       </div>
     </div>
 
-    <div class="kpi-grid" id="dash-kpis">
-      <div class="kpi"><div class="kpi-label">Active Jobs</div>    <div class="kpi-value"        id="k-active-jobs">—</div></div>
-      <div class="kpi"><div class="kpi-label">Checked Out</div>    <div class="kpi-value"        id="k-checked-out">—</div></div>
-      <div class="kpi"><div class="kpi-label">Overdue Returns</div><div class="kpi-value danger" id="k-overdue">—</div></div>
-      <div class="kpi"><div class="kpi-label">Revenue 30d</div>    <div class="kpi-value accent" id="k-rev30">—</div></div>
-      <div class="kpi"><div class="kpi-label">Revenue 365d</div>   <div class="kpi-value"        id="k-rev365">—</div></div>
-      <div class="kpi"><div class="kpi-label">Outstanding</div>    <div class="kpi-value warn"   id="k-outstanding">—</div></div>
-      <div class="kpi"><div class="kpi-label">Open Maint.</div>    <div class="kpi-value"        id="k-maint">—</div></div>
-      <div class="kpi"><div class="kpi-label">Low Stock SKUs</div> <div class="kpi-value"        id="k-lowstock">—</div></div>
+    <!-- KPI grid -->
+    <div class="kpi-grid" id="dash-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+    <!-- Row 1: Revenue chart + Job status + Utilisation -->
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="section">
+        <div class="section-title">Revenue</div>
+        <div id="dash-revenue-chart"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Job Status</div>
+        <div id="dash-status-chart"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Fleet Utilisation</div>
+        <div id="dash-util-chart"></div>
+      </div>
     </div>
 
-    <div class="two-col">
-      <div>
-        <div class="section">
-          <div class="section-title">Revenue</div>
-          <div id="dash-revenue-chart" style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2)"></div>
-        </div>
-        <div class="section">
-          <div class="section-title" id="dash-alerts-section">Alerts</div>
-          <div id="dash-alerts"></div>
-        </div>
-        <div class="section">
-          <div class="section-title">Overdue Returns</div>
-          <div id="dash-overdue"></div>
-        </div>
+    <!-- Row 2: Upcoming + Alerts + Overdue -->
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="section">
+        <div class="section-title">Jobs Departing Soon</div>
+        <div id="dash-upcoming"></div>
       </div>
-      <div>
-        <div class="section">
-          <div class="section-title">Jobs Departing Soon</div>
-          <div id="dash-upcoming"></div>
-        </div>
-        <div class="section">
-          <div class="section-title">Low Stock</div>
-          <div id="dash-lowstock"></div>
-        </div>
+      <div class="section">
+        <div class="section-title" id="dash-alerts-section">Alerts</div>
+        <div id="dash-alerts"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Overdue Returns</div>
+        <div id="dash-overdue"></div>
+      </div>
+    </div>
+
+    <!-- Row 3: Low stock + Finance summary -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="section">
+        <div class="section-title">Low Stock</div>
+        <div id="dash-lowstock"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Finance Summary</div>
+        <div id="dash-finance"></div>
       </div>
     </div>
   </div>
@@ -122,6 +131,8 @@
         <option>Prepping</option><option>Checked Out</option><option>Live</option>
         <option>Returned</option><option>Complete</option><option>Cancelled</option>
       </select>
+      <button class="btn btn-ghost btn-sm jobs-view-btn active" data-view="list" onclick="window.__setJobView('list')" title="List view">☰ List</button>
+      <button class="btn btn-ghost btn-sm jobs-view-btn" data-view="kanban" onclick="window.__setJobView('kanban')" title="Kanban board">◫ Board</button>
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('jobs')">↺</button>
     </div>
     <div id="jobs-list"></div>
@@ -264,32 +275,42 @@
         <div class="page-title">Analytics</div>
         <div class="page-subtitle" id="analytics-subtitle">ROI, utilisation &amp; performance</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Refresh Stats</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Refresh</button>
     </div>
 
-    <div class="section">
-      <div class="section-title">Portfolio KPIs</div>
-      <div class="kpi-grid" id="analytics-kpis"></div>
-    </div>
+    <div class="kpi-grid" id="analytics-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
 
-    <div class="two-col">
+    <!-- Charts row -->
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;margin-bottom:16px">
       <div class="section">
-        <div class="section-title">Top Revenue SKUs</div>
-        <div class="tbl-wrap">
-          <table id="tbl-top-skus">
-            <thead><tr><th>Product</th><th>Rev Total</th><th>Hires</th><th>ROI %</th><th>Util %</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
+        <div class="section-title">Revenue by SKU (Top 12)</div>
+        <div id="analytics-revenue-chart"></div>
       </div>
       <div class="section">
-        <div class="section-title">Dead Stock (180+ days)</div>
+        <div class="section-title">Revenue by Category</div>
+        <div id="analytics-category-chart"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Utilisation vs ROI</div>
+        <div id="analytics-roi-chart"></div>
+      </div>
+    </div>
+
+    <!-- ABC + Dead stock -->
+    <div class="two-col" style="margin-bottom:16px">
+      <div class="section">
+        <div class="section-title">ABC Classification</div>
+        <div id="analytics-abc"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Dead Stock (90+ days no hire)</div>
         <div id="dead-stock-list"></div>
       </div>
     </div>
 
+    <!-- Full SKU table -->
     <div class="section">
-      <div class="section-title">SKU Performance Table</div>
+      <div class="section-title">Full SKU Performance</div>
       <div class="toolbar">
         <div class="search-box">
           <span class="search-icon">⌕</span>
@@ -301,7 +322,7 @@
           <thead><tr>
             <th>SKU / Name</th><th>Category</th><th>Qty</th>
             <th>Revenue</th><th>Rev 30d</th><th>Rev 365d</th>
-            <th>Maint Cost</th><th>ROI %</th><th>Util %</th><th>Payback</th>
+            <th>Maint Cost</th><th>ROI %</th><th>Utilisation</th><th>Payback</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -316,12 +337,18 @@
         <div class="page-title">Forecast</div>
         <div class="page-subtitle" id="forecast-subtitle">Demand &amp; buy recommendations</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__runForecastRefresh()">↺ Rebuild Forecasts</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__runForecastRefresh()">↺ Rebuild</button>
     </div>
 
-    <div class="kpi-grid" id="forecast-kpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="kpi-grid" id="forecast-kpis" style="grid-template-columns:repeat(6,1fr);margin-bottom:20px"></div>
 
-    <div class="two-col">
+    <!-- Forecast chart -->
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-title">Forecast vs Historic Revenue (Top SKUs)</div>
+      <div id="forecast-chart"></div>
+    </div>
+
+    <div class="two-col" style="margin-bottom:16px">
       <div class="section">
         <div class="section-title">Predicted Shortages — 90 Days</div>
         <div id="shortage-list"></div>
@@ -337,7 +364,7 @@
       <div class="tbl-wrap">
         <table id="tbl-forecasts">
           <thead><tr>
-            <th>Scope</th><th>Horizon</th><th>Rev Forecast</th>
+            <th>Scope</th><th>Horizon</th><th>Historic 90d</th><th>Forecast 90d</th>
             <th>Demand Qty</th><th>Shortage</th><th>Buy Qty</th><th>Confidence</th>
           </tr></thead>
           <tbody></tbody>

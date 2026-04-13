@@ -35,32 +35,75 @@ function render(quotes) {
   const el = document.getElementById('quotes-list');
   if (!el) return;
   if (!quotes.length) { el.innerHTML = emptyState('◎', 'No quotes found'); return; }
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr>
-      <th>Quote ID</th><th>Client</th><th>Event</th><th>Date</th>
-      <th>Status</th><th>Total</th><th>Weight</th><th>Replacement</th><th>Actions</th>
-    </tr></thead>
-    <tbody>${quotes.map(q => `<tr>
-      <td class="td-id">${esc(q.quoteId)}</td>
-      <td class="td-name">${esc(q.clientName)}<br>
-        <span class="td-id">${esc(q.company||'')}</span></td>
-      <td>${esc(q.eventName||'—')}</td>
-      <td>${fmtDate(q.eventDate)}</td>
-      <td>${statusBadge(q.status)}</td>
-      <td class="td-num">${fmtCurDec(q.total)}</td>
-      <td class="td-num">${q.totalWeightKg ? (+q.totalWeightKg).toFixed(1)+' kg' : '—'}</td>
-      <td class="td-num">${q.replacementValue ? fmtCurDec(q.replacementValue) : '—'}</td>
-      <td style="display:flex;gap:4px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" onclick="window.__openQuoteDetail('${esc(q.quoteId)}')">View</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${esc(q.quoteId)}')">Edit</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${esc(q.quoteId)}')">PDF</button>
-        ${['Draft','Sent'].includes(q.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${esc(q.quoteId)}')">✉ Email</button>` : ''}
-        ${q.status==='Accepted'&&!q.linkedJobId ? `<button class="btn btn-ghost btn-sm" onclick="window.__convertQuoteToJob('${esc(q.quoteId)}')">→ Job</button>` : ''}
-        ${q.linkedJobId ? `<span class="td-id" style="padding:4px">${esc(q.linkedJobId)}</span>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="window.__duplicateQuote('${esc(q.quoteId)}')">⎘</button>
-      </td>
-    </tr>`).join('')}
-    </tbody></table></div>`;
+
+  // Pipeline summary bar
+  const statuses = ['Draft','Sent','Accepted','Declined','Expired'];
+  const statusColors = { Draft:'#5a5a70', Sent:'#4db8ff', Accepted:'#4dff91', Declined:'#ff4d4d', Expired:'#3a3a4a' };
+  const byStatus = {};
+  statuses.forEach(s => { byStatus[s] = quotes.filter(q=>q.status===s); });
+  const totalVal = quotes.reduce((s,q)=>s+(+q.total||0),0);
+  const pipelineVal = [...(byStatus.Draft||[]), ...(byStatus.Sent||[])].reduce((s,q)=>s+(+q.total||0),0);
+  const wonVal = (byStatus.Accepted||[]).reduce((s,q)=>s+(+q.total||0),0);
+  const winRate = quotes.filter(q=>['Accepted','Declined'].includes(q.status)).length > 0
+    ? Math.round((byStatus.Accepted||[]).length / quotes.filter(q=>['Accepted','Declined'].includes(q.status)).length * 100)
+    : 0;
+
+  const pipeline = `
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px">
+      ${statuses.map(s=>{
+        const qs=byStatus[s]||[];
+        const val=qs.reduce((sum,q)=>sum+(+q.total||0),0);
+        return `<div style="background:var(--surface2);border-radius:8px;padding:10px;border-top:2px solid ${statusColors[s]}">
+          <div style="font-family:var(--mono);font-size:10px;color:${statusColors[s]};text-transform:uppercase;letter-spacing:.06em">${s}</div>
+          <div style="font-size:20px;font-weight:700;margin:4px 0">${qs.length}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3)">${fmtCur(val)}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:16px;padding:10px 14px;background:var(--surface2);border-radius:6px;margin-bottom:14px;font-size:12px;flex-wrap:wrap">
+      <div><span style="color:var(--text3)">Pipeline: </span><span style="font-family:var(--mono);font-weight:600;color:var(--info)">${fmtCur(pipelineVal)}</span></div>
+      <div><span style="color:var(--text3)">Won: </span><span style="font-family:var(--mono);font-weight:600;color:var(--ok)">${fmtCur(wonVal)}</span></div>
+      <div><span style="color:var(--text3)">Win rate: </span><span style="font-family:var(--mono);font-weight:600;color:${winRate>60?'var(--ok)':winRate>40?'var(--warn)':'var(--danger)'}">${winRate}%</span></div>
+      <div><span style="color:var(--text3)">Total: </span><span style="font-family:var(--mono);font-weight:600">${fmtCur(totalVal)}</span></div>
+    </div>`;
+
+  const rows = quotes.map(q => {
+    const isActive = ['Draft','Sent'].includes(q.status);
+    const statusColor = statusColors[q.status]||'#5a5a70';
+    return `<div style="display:grid;grid-template-columns:1fr 1fr auto auto auto;gap:12px;align-items:center;
+      padding:12px 14px;border-radius:8px;background:var(--surface2);margin-bottom:6px;
+      border-left:3px solid ${statusColor};cursor:pointer;transition:background .15s"
+      onclick="window.__openQuoteDetail('${esc(q.quoteId)}')"
+      onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
+      <div>
+        <div style="font-weight:600;font-size:13px">${esc(q.eventName||q.quoteId)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(q.clientName)}${q.company?' · '+esc(q.company):''}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px">${esc(q.quoteId)}</div>
+      </div>
+      <div>
+        <div style="font-size:12px">${fmtDate(q.eventDate)}</div>
+        ${q.venue?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(q.venue)}</div>`:''}
+        ${q.validUntil?`<div style="font-size:10px;color:var(--text3)">Valid: ${fmtDate(q.validUntil)}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        ${statusBadge(q.status)}
+        ${q.linkedJobId?`<div style="font-size:10px;color:var(--ok);margin-top:3px">→ ${esc(q.linkedJobId)}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--mono);font-size:14px;font-weight:700">${fmtCurDec(q.total)}</div>
+        ${q.replacementValue?`<div style="font-size:10px;color:var(--text3)">RV: ${fmtCurDec(q.replacementValue)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${esc(q.quoteId)}')" title="Edit">✏</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${esc(q.quoteId)}')" title="PDF">⬇</button>
+        ${isActive?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${esc(q.quoteId)}')" title="Email">✉</button>`:''}
+        ${isActive?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${esc(q.quoteId)}')" title="Approval link">🔗</button>`:''}
+        ${q.status==='Accepted'&&!q.linkedJobId?`<button class="btn btn-primary btn-sm" onclick="window.__convertQuoteToJob('${esc(q.quoteId)}')">→ Job</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = pipeline + rows;
 }
 
 // ── Quote detail modal ────────────────────────────────────────────────────────

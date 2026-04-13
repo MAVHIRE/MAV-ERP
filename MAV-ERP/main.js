@@ -13,7 +13,8 @@ import { initDashboard }            from './js/panes/dashboard.js';
 
 import { loadJobs, filterJobs, openJobDetail, jobAction,
          openNewJobModal, openRecordDepositModal,
-         editJob, duplicateJob, checkAvailability, openCheckoutModal }
+         editJob, duplicateJob, checkAvailability, openCheckoutModal,
+         setJobView }
   from './js/panes/jobs.js';
 
 import { loadQuotes, filterQuotes, openQuoteDetail, openNewQuoteModal,
@@ -316,6 +317,7 @@ function exposeGlobals() {
   window.__openPickList       = openPickList;
   window.__recordDeposit      = openRecordDepositModal;
   window.__openReturnCond     = openReturnConditionModal;
+  window.__setJobView         = setJobView;
 
   // Quotes
   window.__openQuoteDetail    = openQuoteDetail;

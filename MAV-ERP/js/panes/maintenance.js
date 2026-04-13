@@ -38,32 +38,71 @@ function render(records) {
   if (!el) return;
   if (!records.length) { el.innerHTML = emptyState('⟳', 'No records found'); return; }
 
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr>
-      <th>ID</th><th>Product</th><th>Barcode</th><th>Type</th>
-      <th>Status</th><th>Priority</th><th>Scheduled</th><th>Technician</th>
-      <th class="right">Cost</th><th>Actions</th>
-    </tr></thead>
-    <tbody>${records.map(m => `<tr style="cursor:pointer" onclick="window.__openMaintDetail('${esc(m.maintenanceId)}')">
-      <td class="td-id">${esc(m.maintenanceId)}</td>
-      <td class="td-name">${esc(m.productName||m.sku||'—')}</td>
-      <td class="td-id">${esc(m.barcode||'—')}</td>
-      <td>${esc(m.type||'—')}</td>
-      <td>${statusBadge(m.status)}</td>
-      <td>${statusBadge(m.priority)}</td>
-      <td>${fmtDate(m.scheduledDate)}</td>
-      <td>${esc(m.technician||'—')}</td>
-      <td class="td-num">${m.totalCost > 0 ? fmtCurDec(m.totalCost) : '—'}</td>
-      <td onclick="event.stopPropagation()" style="display:flex;gap:4px;flex-wrap:wrap">
-        ${m.status === 'Scheduled'
-          ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${esc(m.maintenanceId)}')">Start</button>`  : ''}
-        ${['In Progress','Awaiting Parts'].includes(m.status)
-          ? `<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${esc(m.maintenanceId)}')">Complete</button>` : ''}
-        ${!['Complete','Cancelled'].includes(m.status)
-          ? `<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${esc(m.maintenanceId)}')">Cancel</button>` : ''}
-      </td>
-    </tr>`).join('')}
-    </tbody></table></div>`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const priorityColors = { High:'var(--danger)', Medium:'var(--warn)', Normal:'var(--info)', Low:'var(--text3)' };
+  const statusColors   = { Scheduled:'var(--info)', 'In Progress':'var(--warn)', 'Awaiting Parts':'var(--warn)', Complete:'var(--ok)', Cancelled:'var(--text3)' };
+
+  // Summary stats
+  const open   = records.filter(r=>!['Complete','Cancelled'].includes(r.status));
+  const high   = open.filter(r=>r.priority==='High');
+  const totCost= records.reduce((s,r)=>s+(+r.totalCost||0),0);
+
+  const summary = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      ${[
+        ['Open', open.length, 'var(--text2)'],
+        ['High Priority', high.length, high.length>0?'var(--danger)':'var(--ok)'],
+        ['Scheduled', records.filter(r=>r.status==='Scheduled').length, 'var(--info)'],
+        ['Total Cost', fmtCurDec(totCost), 'var(--warn)'],
+      ].map(([l,v,c])=>`<div style="background:var(--surface2);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">${l}</div>
+        <div style="font-size:20px;font-weight:700;color:${c};font-family:var(--head)">${v}</div>
+      </div>`).join('')}
+    </div>`;
+
+  const cards = records.map(m => {
+    const schedDate  = new Date(m.scheduledDate||'');
+    const daysToSched= isNaN(schedDate)?null:Math.ceil((schedDate-today)/86400000);
+    const isOverdue  = daysToSched!==null && daysToSched<0 && !['Complete','Cancelled'].includes(m.status);
+    const priColor   = priorityColors[m.priority]||'var(--text3)';
+    const statColor  = statusColors[m.status]||'var(--text3)';
+
+    return `<div onclick="window.__openMaintDetail('${esc(m.maintenanceId)}')"
+      style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;
+      border-radius:var(--r2);background:var(--surface);border:1px solid var(--border);
+      border-left:3px solid ${priColor};margin-bottom:6px;cursor:pointer;transition:all var(--trans)"
+      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='var(--surface)'">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+          <div style="font-weight:600;font-size:13px">${esc(m.productName||m.sku||'—')}</div>
+          ${m.barcode?`<span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${esc(m.barcode)}</span>`:''}
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${esc(m.type||'')}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">${esc(m.faultDescription||'—')}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text3)">
+          ${m.technician?`<span>👤 ${esc(m.technician)}</span>`:''}
+          <span>📅 ${fmtDate(m.scheduledDate)}</span>
+          ${isOverdue?`<span style="color:var(--danger);font-weight:600">⚠ ${Math.abs(daysToSched)}d overdue</span>`:''}
+          ${daysToSched!==null&&!isOverdue&&!['Complete','Cancelled'].includes(m.status)?
+            `<span style="color:${daysToSched<=3?'var(--warn)':'var(--text3)'}">${daysToSched===0?'Today':daysToSched+'d away'}</span>`:''}
+          ${m.totalCost>0?`<span style="color:var(--warn)">£${(+m.totalCost).toFixed(2)}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        <span style="font-size:10px;padding:2px 8px;border-radius:20px;
+          background:${statColor}22;color:${statColor};font-family:var(--mono);white-space:nowrap">${esc(m.status)}</span>
+        <span style="font-size:10px;padding:2px 8px;border-radius:20px;
+          background:${priColor}22;color:${priColor};font-family:var(--mono)">${esc(m.priority)}</span>
+        <div onclick="event.stopPropagation()" style="display:flex;gap:4px;margin-top:2px">
+          ${m.status==='Scheduled'?`<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${esc(m.maintenanceId)}')">Start</button>`:''}
+          ${['In Progress','Awaiting Parts'].includes(m.status)?`<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${esc(m.maintenanceId)}')">✓ Done</button>`:''}
+          ${!['Complete','Cancelled'].includes(m.status)?`<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${esc(m.maintenanceId)}')">✕</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = summary + cards;
 }
 
 // ── Detail modal ──────────────────────────────────────────────────────────────

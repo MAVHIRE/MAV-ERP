@@ -36,27 +36,117 @@ export function filterJobs() {
   }));
 }
 
+let _jobView = 'list'; // 'list' | 'kanban'
+
+export function setJobView(v) {
+  _jobView = v;
+  document.querySelectorAll('.jobs-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  filterJobs();
+}
+
 function render(jobs) {
   const el = document.getElementById('jobs-list');
   if (!el) return;
   if (!jobs.length) { el.innerHTML = emptyState('◉', 'No jobs found'); return; }
-  el.innerHTML = jobs.map(j => `
-    <div class="job-card" data-status="${esc(j.status)}" onclick="window.__openJobDetail('${esc(j.jobId)}')">
-      <div>
-        <div class="jc-name">${esc(j.jobName || j.jobId)} <span class="td-id">${esc(j.jobId)}</span></div>
-        <div class="jc-client">${esc(j.clientName)} ${j.company ? '· ' + esc(j.company) : ''}</div>
-        <div class="jc-meta" style="margin-top:4px">
-          ${fmtDate(j.startDate || j.eventDate)} → ${fmtDate(j.endDate)}
-          ${j.venue ? ' · ' + esc(j.venue) : ''}
+
+  if (_jobView === 'kanban') {
+    renderKanban(el, jobs);
+  } else {
+    renderList(el, jobs);
+  }
+}
+
+function renderList(el, jobs) {
+  // Group by upcoming / active / complete
+  const now = new Date();
+  const statusOrder = ['Checked Out','Live','Prepping','Allocated','Confirmed','Draft','Returned','Complete','Cancelled'];
+  const sorted = [...jobs].sort((a,b) => {
+    const ai = statusOrder.indexOf(a.status), bi = statusOrder.indexOf(b.status);
+    if (ai !== bi) return ai - bi;
+    return new Date(a.startDate||a.eventDate||0) - new Date(b.startDate||b.eventDate||0);
+  });
+
+  el.innerHTML = sorted.map(j => {
+    const eventDate = new Date(j.startDate||j.eventDate||'');
+    const daysAway  = isNaN(eventDate) ? null : Math.ceil((eventDate - now) / 86400000);
+    const isPast    = daysAway !== null && daysAway < 0;
+    const urgency   = daysAway !== null && daysAway <= 2 && !isPast ? 'var(--danger)' : daysAway <= 7 && !isPast ? 'var(--warn)' : 'var(--text3)';
+    const depositOk = !j.depositRequired || j.depositPaid >= j.depositRequired * 0.99;
+    const balanceDue = +(j.balanceDue||0);
+
+    const statusColors = {
+      'Draft':'#5a5a70','Confirmed':'#4db8ff','Allocated':'#9b8aff','Prepping':'#ffaa00',
+      'Checked Out':'#ff8c00','Live':'#4dff91','Returned':'#4dff91','Complete':'#3a3a4a','Cancelled':'#ff4d4d'
+    };
+    const barColor = statusColors[j.status]||'#5a5a70';
+
+    return `<div class="job-card" data-status="${esc(j.status)}" onclick="window.__openJobDetail('${esc(j.jobId)}')"
+      style="border-left:3px solid ${barColor}">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px">
+          <div class="jc-name" style="font-size:14px">${esc(j.jobName||j.jobId)}</div>
+          <span class="td-id">${esc(j.jobId)}</span>
+        </div>
+        <div class="jc-client">${esc(j.clientName)}${j.company?' · '+esc(j.company):''}</div>
+        <div class="jc-meta" style="margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">
+          <span>${fmtDate(j.startDate||j.eventDate)}${j.endDate?' → '+fmtDate(j.endDate):''}</span>
+          ${j.venue?`<span>📍 ${esc(j.venue)}</span>`:''}
+          ${j.crew?.length?`<span>👤 ${j.crew.length} crew</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          ${!depositOk?`<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:rgba(255,170,0,.15);color:var(--warn);font-family:var(--mono)">Deposit pending</span>`:''}
+          ${balanceDue>0?`<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:rgba(255,170,0,.15);color:var(--warn);font-family:var(--mono)">${fmtCur(balanceDue)} outstanding</span>`:''}
+          ${j.prepStatus==='Complete'?`<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:rgba(77,255,145,.12);color:var(--ok);font-family:var(--mono)">✓ Prepped</span>`:''}
         </div>
       </div>
-      <div class="jc-right">
+      <div class="jc-right" style="align-items:flex-end;gap:5px">
         ${statusBadge(j.status)}
-        <div class="jc-meta">${fmtCur(j.total)}</div>
-        ${j.balanceDue > 0 ? `<div style="font-family:var(--mono);font-size:10px;color:var(--warn)">${fmtCur(j.balanceDue)} due</div>` : ''}
-        ${j.totalWeightKg > 0 ? `<div class="td-id">${(+j.totalWeightKg).toFixed(1)} kg</div>` : ''}
+        <div style="font-family:var(--mono);font-size:14px;font-weight:600">${fmtCur(j.total)}</div>
+        ${daysAway !== null ? `<div style="font-family:var(--mono);font-size:11px;color:${urgency}">${isPast?Math.abs(daysAway)+'d ago':daysAway===0?'Today':daysAway+'d away'}</div>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function renderKanban(el, jobs) {
+  const columns = [
+    { status:'Draft',       label:'Draft',        color:'#5a5a70' },
+    { status:'Confirmed',   label:'Confirmed',    color:'#4db8ff' },
+    { status:'Allocated',   label:'Allocated',    color:'#9b8aff' },
+    { status:'Prepping',    label:'Prepping',     color:'#ffaa00' },
+    { status:'Checked Out', label:'Checked Out',  color:'#ff8c00' },
+    { status:'Live',        label:'Live',         color:'#4dff91' },
+    { status:'Returned',    label:'Returned',     color:'#4dff91' },
+    { status:'Complete',    label:'Complete',     color:'#3a3a4a' },
+  ];
+
+  el.innerHTML = `<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:12px;min-height:400px">
+    ${columns.map(col => {
+      const colJobs = jobs.filter(j => j.status === col.status);
+      const colTotal = colJobs.reduce((s,j)=>s+(+j.total||0),0);
+      return `<div style="flex-shrink:0;width:200px;background:var(--surface2);border-radius:8px;padding:10px;border-top:3px solid ${col.color}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-family:var(--mono);font-size:11px;font-weight:600;color:${col.color}">${col.label}</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">${colJobs.length}</div>
+        </div>
+        ${colTotal>0?`<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:8px">${fmtCur(colTotal)}</div>`:''}
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${colJobs.map(j=>`<div onclick="window.__openJobDetail('${esc(j.jobId)}')"
+            style="background:var(--surface);border-radius:5px;padding:8px;cursor:pointer;
+            border:1px solid var(--border);transition:border-color .15s"
+            onmouseover="this.style.borderColor='${col.color}'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:12px;font-weight:500;margin-bottom:3px;line-height:1.3">${esc(j.jobName||j.jobId)}</div>
+            <div style="font-size:10px;color:var(--text3)">${esc(j.clientName)}</div>
+            <div style="display:flex;justify-content:space-between;margin-top:5px">
+              <div style="font-size:10px;color:var(--text3)">${fmtDate(j.eventDate||j.startDate)}</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text2)">${fmtCur(j.total)}</div>
+            </div>
+          </div>`).join('')}
+          ${colJobs.length===0?`<div style="font-size:11px;color:var(--text3);text-align:center;padding:12px 0">Empty</div>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 // ── Job detail modal ──────────────────────────────────────────────────────────

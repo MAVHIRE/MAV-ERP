@@ -71,13 +71,20 @@
 .kpi {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--r);
+  border-radius: var(--r2);
   padding: 14px 16px;
+  transition: border-color var(--trans), background var(--trans);
+  position: relative;
+  overflow: hidden;
+}
+.kpi:hover {
+  border-color: var(--border2);
+  background: var(--surface2);
 }
 .kpi-label {
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: .1em;
+  letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--text3);
   margin-bottom: 6px;
@@ -85,7 +92,7 @@
 .kpi-value {
   font-family: var(--head);
   font-weight: 700;
-  font-size: 26px;
+  font-size: clamp(20px, 2.5vw, 28px);
   color: var(--text);
   line-height: 1;
 }
@@ -93,6 +100,7 @@
 .kpi-value.ok     { color: var(--ok);     }
 .kpi-value.warn   { color: var(--warn);   }
 .kpi-value.danger { color: var(--danger); }
+.kpi-value.info   { color: var(--info);   }
 .kpi-sub {
   font-family: var(--mono);
   font-size: 10px;
@@ -464,47 +472,49 @@ textarea { resize: vertical; min-height: 72px; }
 .product-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 14px 16px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+  border-left: 3px solid var(--border2);
+  border-radius: var(--r2);
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
   cursor: pointer;
-  transition: border-color var(--trans), background var(--trans);
+  transition: all var(--trans);
   margin-bottom: 6px;
 }
-.product-card:hover { border-color: var(--border2); background: var(--surface2); }
-.pc-name { font-weight: 500; color: var(--text); font-size: 14px; }
+.product-card:hover { border-color: var(--border2); background: var(--surface2); transform: translateX(2px); }
+.pc-name { font-weight: 600; color: var(--text); font-size: 14px; }
 .pc-sku  { font-family: var(--mono); font-size: 11px; color: var(--text3); }
 .pc-stock { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
-.pc-qty { font-family: var(--mono); font-size: 13px; font-weight: 500; }
+.pc-qty { font-family: var(--mono); font-size: 22px; font-weight: 700; line-height: 1; }
 
 .job-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--border2);
-  border-radius: var(--r);
+  border-radius: var(--r2);
   padding: 14px 16px;
   cursor: pointer;
   transition: all var(--trans);
   margin-bottom: 6px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: center;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
 }
-.job-card:hover { background: var(--surface2); border-left-color: var(--accent); }
-.job-card[data-status="Confirmed"]   { border-left-color: var(--info);    }
-.job-card[data-status="Allocated"]   { border-left-color: #8b5cf6;        }
-.job-card[data-status="Prepping"]    { border-left-color: var(--warn);    }
-.job-card[data-status="Checked Out"] { border-left-color: var(--warn);    }
-.job-card[data-status="Live"]        { border-left-color: var(--accent);  }
-.job-card[data-status="Returned"]    { border-left-color: var(--ok);      }
-.job-card[data-status="Complete"]    { border-left-color: var(--text3);   }
-.jc-name   { font-weight: 500; color: var(--text); font-size: 14px; }
+.job-card:hover { background: var(--surface2); transform: translateX(2px); }
+.job-card[data-status="Confirmed"]   { border-left-color: var(--info);   }
+.job-card[data-status="Allocated"]   { border-left-color: #8b5cf6;       }
+.job-card[data-status="Prepping"]    { border-left-color: var(--warn);   }
+.job-card[data-status="Checked Out"] { border-left-color: #ff8c00;       }
+.job-card[data-status="Live"]        { border-left-color: var(--ok);     }
+.job-card[data-status="Returned"]    { border-left-color: var(--ok);     }
+.job-card[data-status="Complete"]    { border-left-color: var(--text3);  }
+.job-card[data-status="Cancelled"]   { border-left-color: var(--danger); opacity:.6; }
+.jc-name   { font-weight: 600; color: var(--text); font-size: 14px; }
 .jc-client { font-size: 12px; color: var(--text3); margin-top: 2px; }
 .jc-meta   { font-family: var(--mono); font-size: 11px; color: var(--text3); }
-.jc-right  { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.jc-right  { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.jobs-view-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
 
 /* ── Location breadcrumb ─────────────────────────────── */
 .location-path {

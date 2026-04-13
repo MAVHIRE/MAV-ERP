@@ -30,18 +30,38 @@ function render(clients) {
   const el = document.getElementById('clients-list');
   if (!el) return;
   if (!clients.length) { el.innerHTML = emptyState('◑', 'No clients found'); return; }
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Type</th><th>Source</th><th></th></tr></thead>
-    <tbody>${clients.map(c => `<tr style="cursor:pointer" onclick="window.__openClientHistory('${esc(c.clientId)}')">
-      <td class="td-name">${esc(c.clientName)}</td>
-      <td>${esc(c.company||'—')}</td>
-      <td>${esc(c.email||'—')}</td>
-      <td>${esc(c.phone||'—')}</td>
-      <td>${c.clientType ? statusBadge(c.clientType) : '—'}</td>
-      <td class="td-id">${esc(c.source||'')}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();window.__openClientHistory('${esc(c.clientId)}')">History</button></td>
-    </tr>`).join('')}
-    </tbody></table></div>`;
+
+  const typeColors = { Agency:'#4db8ff', Corporate:'#9b8aff', Individual:'#4dff91' };
+
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+    ${clients.map(c => {
+      const initials = c.clientName.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const typeColor = typeColors[c.clientType]||'#5a5a70';
+      return `<div onclick="window.__openClientHistory('${esc(c.clientId)}')"
+        style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
+        padding:14px;cursor:pointer;transition:all var(--trans)"
+        onmouseover="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:38px;height:38px;border-radius:50%;background:${typeColor}22;
+            border:1px solid ${typeColor}44;display:flex;align-items:center;justify-content:center;
+            font-family:var(--mono);font-size:13px;font-weight:700;color:${typeColor};flex-shrink:0">
+            ${initials}</div>
+          <div style="min-width:0">
+            <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.clientName)}</div>
+            ${c.company?`<div style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.company)}</div>`:''}
+          </div>
+          ${c.clientType?`<span style="margin-left:auto;font-size:10px;padding:2px 7px;border-radius:20px;
+            background:${typeColor}22;color:${typeColor};font-family:var(--mono);white-space:nowrap;flex-shrink:0">${esc(c.clientType)}</span>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text3)">
+          ${c.email?`<div style="display:flex;gap:6px"><span>✉</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.email)}</span></div>`:''}
+          ${c.phone?`<div style="display:flex;gap:6px"><span>☎</span><span>${esc(c.phone)}</span></div>`:''}
+          ${c.source?`<div style="display:flex;gap:6px"><span>→</span><span>${esc(c.source)}</span></div>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 // ── Client history modal ──────────────────────────────────────────────────────

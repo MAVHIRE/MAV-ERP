@@ -79,35 +79,44 @@ function render(products) {
   const el = document.getElementById('products-list');
   if (!el) return;
   if (!products.length) { el.innerHTML = emptyState('▦', 'No products match filters'); return; }
+
   el.innerHTML = products.map(p => {
     const avail    = +p.qtyAvailable || 0;
     const owned    = +p.qtyOwned     || 0;
+    const out      = owned - avail;
     const pct      = owned > 0 ? Math.round((avail / owned) * 100) : 100;
     const alertLow = p.minStockLevel > 0 && avail < p.minStockLevel;
+    const barColor = alertLow?'var(--danger)':pct<50?'var(--warn)':'var(--ok)';
     const img = p.imageUrl
       ? `<img src="${esc(p.imageUrl)}" alt=""
-           style="width:52px;height:52px;object-fit:contain;border-radius:4px;background:var(--surface2);flex-shrink:0"
+           style="width:56px;height:56px;object-fit:contain;border-radius:6px;background:var(--surface2);flex-shrink:0"
            onerror="this.style.display='none'">`
-      : `<div style="width:52px;height:52px;border-radius:4px;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:20px;flex-shrink:0">▦</div>`;
-    return `<div class="product-card" onclick="window.__openProductDetail('${esc(p.productId)}')">
-      <div style="display:flex;gap:10px;align-items:flex-start">
+      : `<div style="width:56px;height:56px;border-radius:6px;background:var(--surface2);
+           display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:22px;flex-shrink:0">▦</div>`;
+
+    return `<div class="product-card" onclick="window.__openProductDetail('${esc(p.productId)}')"
+      style="border-left:3px solid ${alertLow?'var(--danger)':p.qtyAvailable===0?'var(--warn)':'var(--border2)'}">
+      <div style="display:flex;gap:12px;align-items:flex-start;flex:1;min-width:0">
         ${img}
         <div style="flex:1;min-width:0">
-          <div class="pc-name">${esc(p.name)} ${alertLow?'<span class="badge badge-danger">Low</span>':''}</div>
-          <div class="pc-sku">${esc(p.sku)}${p.brand?' · '+esc(p.brand):''}${p.category?' · '+esc(p.category):''}</div>
-          <div style="margin-top:6px;max-width:200px">
-            <div class="progress-bar"><div class="progress-fill"
-              style="width:${pct}%;${alertLow?'background:var(--danger)':''}"></div></div>
+          <div class="pc-name" style="font-size:14px;margin-bottom:2px">
+            ${esc(p.name)}
+            ${alertLow?'<span class="badge badge-danger" style="font-size:9px;margin-left:4px">LOW</span>':''}
+            ${p.qtyAvailable===0&&owned>0?'<span class="badge badge-warn" style="font-size:9px;margin-left:4px">ALL OUT</span>':''}
           </div>
-        </div>
-      </div>
-      <div class="pc-stock">
-        <div style="text-align:right">
-          <div class="pc-qty" style="${alertLow?'color:var(--danger)':''}">${avail}
-            <span style="color:var(--text3);font-size:11px">/ ${owned}</span></div>
-          <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">${esc(p.stockMethod)}</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">${fmtCurDec(p.baseHireRate)}/day</div>
-          ${p.weightKg>0?`<div class="td-id">${(+p.weightKg).toFixed(1)} kg</div>`:''}
+          <div class="pc-sku" style="margin-bottom:6px">${esc(p.sku)}${p.brand?' · '+esc(p.brand):''}${p.category?' · '+esc(p.category):''}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="flex:1;height:4px;background:var(--surface3);border-radius:2px;max-width:140px">
+              <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width .3s"></div>
+            </div>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${avail}/${owned} avail</span>
+            ${out>0?`<span style="font-family:var(--mono);font-size:10px;color:var(--warn)">${out} out</span>`:''}
+          </div>
+          <div style="display:flex;gap:8px;margin-top:5px;font-size:10px;color:var(--text3);flex-wrap:wrap">
+            <span>${esc(p.stockMethod)}</span>
+            <span style="color:var(--text2);font-family:var(--mono)">${fmtCurDec(p.baseHireRate)}/day</span>
+            ${p.replacementCost>0?`<span>RV: ${fmtCurDec(p.replacementCost)}</span>`:''}
+          </div>
         </div>
       </div>
     </div>`;

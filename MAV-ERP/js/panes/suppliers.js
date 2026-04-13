@@ -31,28 +31,41 @@ function render(suppliers) {
   if (!el) return;
   if (!suppliers.length) { el.innerHTML = emptyState('◎', 'No suppliers found'); return; }
 
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr>
-      <th>Supplier</th><th>Contact</th><th>Email</th><th>Phone</th>
-      <th>Category</th><th>Lead Time</th><th>Products</th><th></th>
-    </tr></thead>
-    <tbody>${suppliers.map(s => `<tr>
-      <td>
-        <div class="td-name" style="cursor:pointer" onclick="window.__openSupplierDetail('${esc(s.supplierId)}')">${esc(s.supplierName)}</div>
-        <div class="td-id">${esc(s.supplierId)}</div>
-      </td>
-      <td>${esc(s.contactName||'—')}</td>
-      <td>${s.email ? `<a href="mailto:${esc(s.email)}" style="color:var(--info)">${esc(s.email)}</a>` : '—'}</td>
-      <td>${esc(s.phone||'—')}</td>
-      <td>${esc(s.category||'—')}</td>
-      <td class="td-id">${s.leadTimeDays > 0 ? s.leadTimeDays + 'd' : '—'}</td>
-      <td class="td-num">${s.productCount || 0}</td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick="window.__openSupplierDetail('${esc(s.supplierId)}')">View</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${esc(s.supplierId)}')">Edit</button>
-      </td>
-    </tr>`).join('')}
-    </tbody></table></div>`;
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px">
+    ${suppliers.map(s => {
+      const initials = s.supplierName.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      return `<div onclick="window.__openSupplierDetail('${esc(s.supplierId)}')"
+        style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
+        padding:14px;cursor:pointer;transition:all var(--trans)"
+        onmouseover="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:38px;height:38px;border-radius:8px;background:var(--surface3);
+            display:flex;align-items:center;justify-content:center;
+            font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text2);flex-shrink:0">
+            ${initials}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.supplierName)}</div>
+            ${s.contactName?`<div style="font-size:11px;color:var(--text3)">${esc(s.contactName)}</div>`:''}
+          </div>
+          ${s.productCount>0?`<div style="font-family:var(--mono);font-size:11px;color:var(--text3);flex-shrink:0">${s.productCount} SKUs</div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text3);margin-bottom:10px">
+          ${s.email?`<div><span style="color:var(--info)">${esc(s.email)}</span></div>`:''}
+          ${s.phone?`<div>${esc(s.phone)}</div>`:''}
+          <div style="display:flex;gap:12px;margin-top:2px">
+            ${s.category?`<span>${esc(s.category)}</span>`:''}
+            ${s.leadTimeDays>0?`<span>Lead: ${s.leadTimeDays}d</span>`:''}
+            ${s.paymentTerms?`<span>${esc(s.paymentTerms)}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${esc(s.supplierId)}')">✏ Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.__openNewPOModal()">+ PO</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 // ── Supplier detail modal ─────────────────────────────────────────────────────
