@@ -18,10 +18,12 @@
   <div id="tabs">
     <div class="tab active" data-pane="dashboard"><span class="tab-icon">◈</span> Dashboard</div>
     <div class="tab" data-pane="jobs">           <span class="tab-icon">◉</span> Jobs</div>
+    <div class="tab" data-pane="calendar">       <span class="tab-icon">▦</span> Calendar</div>
     <div class="tab" data-pane="quotes">         <span class="tab-icon">◎</span> Quotes</div>
     <div class="tab" data-pane="inventory">      <span class="tab-icon">▦</span> Inventory</div>
     <div class="tab" data-pane="clients">        <span class="tab-icon">◑</span> Clients</div>
     <div class="tab" data-pane="suppliers">      <span class="tab-icon">◐</span> Suppliers</div>
+    <div class="tab" data-pane="subrentals">     <span class="tab-icon">↗</span> Sub-Rentals</div>
     <div class="tab" data-pane="maintenance">    <span class="tab-icon">⟳</span> Maintenance</div>
     <div class="tab" data-pane="analytics">      <span class="tab-icon">∴</span> Analytics</div>
     <div class="tab" data-pane="forecast">       <span class="tab-icon">◌</span> Forecast</div>
@@ -736,6 +738,47 @@
       </div>
 
     </div>
+  </div>
+
+  <!-- ── CALENDAR ──────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-calendar">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Job Calendar</div>
+        <div class="page-subtitle" id="calendar-title">Loading…</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="window.__calPrev()">← Prev</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__calToday()">Today</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__calNext()">Next →</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px" id="calendar-legend"></div>
+    <div id="calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+  </div>
+
+  <!-- ── SUB-RENTALS ────────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-subrentals">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Sub-Rentals</div>
+        <div class="page-subtitle" id="sr-subtitle">Equipment hired from other suppliers</div>
+      </div>
+      <button class="btn btn-primary" onclick="window.__openNewSubRentalModal()">+ Sub-Rental</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="sr-search" placeholder="Search…" oninput="window.__filterSubRentals()">
+      </div>
+      <select class="filter-select" id="sr-status-filter" onchange="window.__filterSubRentals()">
+        <option value="">All Statuses</option>
+        <option>Ordered</option><option>Confirmed</option>
+        <option>Delivered</option><option>Returned</option><option>Cancelled</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('subrentals')">↺</button>
+    </div>
+    <div id="sr-list"></div>
   </div>
 
   <!-- ── SCAN STATION ──────────────────────────────────────────────────── -->
