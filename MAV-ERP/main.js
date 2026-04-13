@@ -57,6 +57,10 @@ import { loadStorage, openAddLocationModal, openMoveBarcodeModal,
          openAssignToBinModal, viewBinContents, openPickList, seedWarehouse }
   from './js/panes/storage.js';
 
+import { loadWarehouseDesigner, saveWarehouseLayout, openFloorSettings,
+         setMode as whSetMode, zoomFit as whZoomFit, exposeWarehouseGlobals }
+  from './js/panes/warehouse.js';
+
 import { loadInvoices, filterInvoices }
   from './js/panes/invoices.js';
 
@@ -191,7 +195,7 @@ async function loadPane(name) {
     case 'analytics':      return loadAnalytics();
     case 'forecast':       return loadForecast();
     case 'bundles':        return loadBundles();
-    case 'storage':        return loadStorage();
+    case 'storage':        return loadWarehouseDesigner();
     case 'invoices':       return loadInvoices();
     case 'settings':       return loadSettings();
     case 'scan':           return loadScanPane();
@@ -218,13 +222,20 @@ function switchBundlesTab(tab) {
 
 // ── Demo helpers ──────────────────────────────────────────────────────────────
 async function runSeedDemo() {
-  if (!confirm('Seed demo data? Runs in 5 stages — each ~30-90s.')) return;
+  if (!confirm('Seed demo data? Runs in 12 stages — ~15 minutes total. Don\'t close the tab.')) return;
   const stages = [
-    { fn: 'seedDemoStage1',  label: 'Stage 1/5: Suppliers, products & barcodes…' },
-    { fn: 'seedDemoStage2',  label: 'Stage 2/5: Clients & quotes…' },
-    { fn: 'seedDemoStage3',  label: 'Stage 3/5: Active jobs…' },
-    { fn: 'seedDemoStage3b', label: 'Stage 4/5: Historical jobs…' },
-    { fn: 'seedDemoStage4',  label: 'Stage 5/5: Maintenance & analytics…' },
+    { fn: 'seedDemoStage1',  label: 'Stage 1/12: Suppliers, products & barcodes…' },
+    { fn: 'seedDemoStage2',  label: 'Stage 2/12: Clients & quotes…' },
+    { fn: 'seedDemoStage3',  label: 'Stage 3/12: Active jobs…' },
+    { fn: 'seedDemoStage3b', label: 'Stage 4/12: Historical jobs…' },
+    { fn: 'seedDemoStage4',  label: 'Stage 5/12: Maintenance & analytics…' },
+    { fn: 'seedDemoStage5',  label: 'Stage 6/12: More clients & quotes…' },
+    { fn: 'seedDemoStage5b', label: 'Stage 7/12: More jobs…' },
+    { fn: 'seedDemoStage5c', label: 'Stage 8/12: Crew, sub-rentals, POs…' },
+    { fn: 'seedDemoStage6',  label: 'Stage 9/12: 40 more clients & 20 quotes…' },
+    { fn: 'seedDemoStage6b', label: 'Stage 10/12: 40 more jobs…' },
+    { fn: 'seedDemoStage6c', label: 'Stage 11/12: 30 crew, 15 sub-rentals, 12 POs…' },
+    { fn: 'seedDemoStage6d', label: 'Stage 12/12: 30 maintenance records & rebuild…' },
   ];
   for (const stage of stages) {
     showLoading(stage.label);
@@ -394,12 +405,24 @@ function exposeGlobals() {
   window.__addAccessoryModal   = openAddAccessoryModal;
   window.__deleteAccessoryLink = deleteAccessoryLink;
 
-  // Storage
+  // Storage (list view)
   window.__addLocationModal  = openAddLocationModal;
   window.__moveBarcodeModal  = openMoveBarcodeModal;
   window.__assignToBinModal  = openAssignToBinModal;
   window.__viewBinContents   = viewBinContents;
   window.__seedWarehouse     = seedWarehouse;
+
+  // Warehouse designer
+  exposeWarehouseGlobals();
+  window.__whSwitchView = (view) => {
+    const designer = document.getElementById('wh-designer-view');
+    const list     = document.getElementById('wh-list-view');
+    if (designer) designer.style.display = view === 'designer' ? 'flex' : 'none';
+    if (list)     list.style.display     = view === 'list'     ? 'block' : 'none';
+    document.querySelectorAll('.wh-view-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.view === view));
+    if (view === 'list') loadStorage();
+  };
 
   // Invoices
   window.__filterInvoices = filterInvoices;

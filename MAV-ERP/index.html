@@ -379,30 +379,99 @@
     </div>
   </div>
 
-  <!-- ── STORAGE ───────────────────────────────────────────────────────────── -->
-  <div class="pane" id="pane-storage">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Storage</div>
-        <div class="page-subtitle" id="storage-subtitle">Warehouse locations &amp; stock placement</div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__seedWarehouse()">⚡ Seed Warehouse</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('','Zone','')">+ Zone</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('storage')">↺</button>
+  <!-- ── STORAGE / WAREHOUSE DESIGNER ─────────────────────────────────────── -->
+  <div class="pane" id="pane-storage" style="padding:0;display:none;flex-direction:column">
+
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap">
+      <div style="font-family:var(--head);font-weight:900;font-size:16px;letter-spacing:.06em;text-transform:uppercase;margin-right:8px">Warehouse</div>
+
+      <!-- View tabs -->
+      <button class="btn btn-ghost btn-sm wh-view-btn active" data-view="designer" onclick="window.__whSwitchView('designer')">▦ Designer</button>
+      <button class="btn btn-ghost btn-sm wh-view-btn" data-view="list" onclick="window.__whSwitchView('list')">☰ Location List</button>
+
+      <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
+
+      <!-- Tools -->
+      <button class="btn btn-ghost btn-sm wh-tool-btn active" data-mode="select" onclick="window.__whSetMode('select')" title="Select / move">↖ Select</button>
+      <button class="btn btn-ghost btn-sm wh-tool-btn" data-mode="add-zone" onclick="window.__whSetMode('add-zone')" title="Add zone/area">+ Zone</button>
+      <button class="btn btn-ghost btn-sm wh-tool-btn" data-mode="add-rack" onclick="window.__whSetMode('add-rack')" title="Add racking unit">+ Rack</button>
+      <button class="btn btn-ghost btn-sm wh-tool-btn" data-mode="add-shelf" onclick="window.__whSetMode('add-shelf')" title="Add shelf unit">+ Shelf</button>
+      <button class="btn btn-ghost btn-sm wh-tool-btn" data-mode="add-wall" onclick="window.__whSetMode('add-wall')" title="Add wall/divider">+ Wall</button>
+
+      <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
+
+      <!-- Zoom -->
+      <button class="btn btn-ghost btn-sm" onclick="window.__whZoomIn()" title="Zoom in">+</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__whZoomOut()" title="Zoom out">−</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__whZoomFit()" title="Fit to screen">⊡ Fit</button>
+
+      <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
+
+      <button class="btn btn-ghost btn-sm" onclick="window.__whFloorSettings()">⚙ Floor</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__seedWarehouse()">⚡ Seed</button>
+      <button class="btn btn-primary btn-sm" onclick="window.__whSave()" style="margin-left:auto">💾 Save Layout</button>
+    </div>
+
+    <!-- Designer view -->
+    <div id="wh-designer-view" style="flex:1;display:flex;overflow:hidden">
+      <!-- Canvas -->
+      <div id="warehouse-canvas-wrap" style="flex:1;overflow:hidden;background:#0d0d0f;position:relative"></div>
+
+      <!-- Properties sidebar -->
+      <div style="width:220px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;padding:14px">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Properties</div>
+        <div id="wh-selected-panel">
+          <div style="color:var(--text3);font-size:12px">Select an item to see its properties.</div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Legend</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:11px">
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:14px;height:14px;background:#4db8ff;border-radius:2px;opacity:.85"></div>Zone / Area</div>
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:14px;height:14px;background:#e8ff47;border-radius:2px;opacity:.85"></div>Racking Unit</div>
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:14px;height:14px;background:#4dff91;border-radius:2px;opacity:.85"></div>Shelf Unit</div>
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:14px;height:14px;background:#5a5a70;border-radius:2px;opacity:.85"></div>Wall / Divider</div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Occupancy</div>
+        <div id="wh-occ-summary" style="font-size:11px;color:var(--text2)">—</div>
+
+        <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:6px">Shortcuts</div>
+        <div style="font-size:10px;color:var(--text3);line-height:1.8">
+          Scroll — zoom<br>
+          Alt+drag — pan<br>
+          Dbl-click — edit<br>
+          Right-click — edit<br>
+          Drag handle — resize
+        </div>
       </div>
     </div>
 
-    <div class="kpi-grid" id="occupancy-summary" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
-
-    <div class="two-col">
-      <div class="section">
-        <div class="section-title">Warehouse Layout</div>
-        <div id="warehouse-tree"></div>
+    <!-- List view (hidden by default) -->
+    <div id="wh-list-view" style="flex:1;display:none;overflow-y:auto;padding:20px">
+      <div class="page-header" style="margin-bottom:16px">
+        <div>
+          <div class="page-title">Location List</div>
+          <div class="page-subtitle" id="storage-subtitle">Warehouse locations &amp; stock placement</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('','Zone','')">+ Zone</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('storage')">↺</button>
+        </div>
       </div>
-      <div class="section">
-        <div class="section-title">Unlocated Available Stock</div>
-        <div id="unlocated-list"></div>
+      <div class="kpi-grid" id="occupancy-summary" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+      <div class="two-col">
+        <div class="section">
+          <div class="section-title">Warehouse Layout</div>
+          <div id="warehouse-tree"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Unlocated Available Stock</div>
+          <div id="unlocated-list"></div>
+        </div>
       </div>
     </div>
   </div>

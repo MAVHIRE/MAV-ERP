@@ -578,3 +578,16 @@ textarea { resize: vertical; min-height: 72px; }
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
+
+/* ── Warehouse designer ──────────────────────────────────────── */
+.wh-tool-btn.active,
+.wh-view-btn.active {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+.wh-tool-btn.active:hover,
+.wh-view-btn.active:hover {
+  background: var(--accent2);
+  border-color: var(--accent2);
+}
