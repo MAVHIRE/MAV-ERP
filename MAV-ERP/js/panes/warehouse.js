@@ -78,7 +78,15 @@ export async function loadWarehouseDesigner() {
     (occ || []).forEach(o => { _occupancy[o.locationId] = o.itemCount || 0; });
 
     hideLoading();
-    setTimeout(() => { initCanvas(); setTimeout(zoomFit, 100); }, 80);
+    setTimeout(() => {
+      initCanvas();
+      // Also watch for size changes
+      if (window.ResizeObserver) {
+        new ResizeObserver(() => resizeCanvas()).observe(
+          document.getElementById('warehouse-canvas-wrap')
+        );
+      }
+    }, 100);
 
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }
@@ -112,15 +120,11 @@ function initCanvas() {
 function resizeCanvas() {
   const wrap = document.getElementById('warehouse-canvas-wrap');
   if (!wrap || !_canvas) return;
-  const w = wrap.clientWidth;
-  const h = wrap.clientHeight;
-  if (w < 10 || h < 10) {
-    // Container not visible yet — retry
-    setTimeout(resizeCanvas, 50);
-    return;
-  }
-  _canvas.width  = w;
-  _canvas.height = h;
+  // Force layout recalc
+  const w = wrap.offsetWidth  || wrap.getBoundingClientRect().width  || 800;
+  const h = wrap.offsetHeight || wrap.getBoundingClientRect().height || 600;
+  _canvas.width  = Math.max(w, 400);
+  _canvas.height = Math.max(h, 300);
   draw();
 }
 

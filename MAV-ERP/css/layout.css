@@ -136,7 +136,7 @@
   display: none;
 }
 .pane.active { display: block; }
-#pane-storage.active { display: flex; }
+#pane-storage.active { display: flex; overflow: hidden; }
 
 /* ── Loading overlay ─────────────────────────────────── */
 #loading {
