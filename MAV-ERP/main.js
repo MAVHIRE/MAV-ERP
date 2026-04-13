@@ -91,13 +91,19 @@ function updateThemeToggle() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-window.addEventListener('load', async () => {
+async function init() {
   initTheme();
   if (!GAS_URL) { showGasModal(); return; }
   setupTabs();
   exposeGlobals();
   await bootstrap();
-});
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(init, 0);
+} else {
+  window.addEventListener('load', init);
+}
 
 // ── Bootstrap — one call, loads everything ────────────────────────────────────
 async function bootstrap() {
