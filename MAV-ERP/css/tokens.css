@@ -1,99 +1,123 @@
 /* ═══════════════════════════════════════════════════════
-   MAV HIRE ERP — tokens.css
-   Design tokens, reset, base typography
+   MAV HIRE ERP — tokens.css  v3.0
+   Professional sidebar-based ERP design system
    ═══════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;500;600;700;900&family=Barlow:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap');
 
 /* ── Dark mode (default) ─────────────────────────────── */
 :root {
-  --bg:       #0d0d0f;
-  --surface:  #141418;
-  --surface2: #1c1c22;
-  --surface3: #242430;
+  /* Backgrounds */
+  --bg:        #0a0a0c;
+  --sidebar:   #0f0f12;
+  --surface:   #141418;
+  --surface2:  #1a1a20;
+  --surface3:  #222228;
+  --surface4:  #2a2a33;
 
-  --border:  #2a2a36;
-  --border2: #3a3a4a;
+  /* Borders */
+  --border:    #1f1f28;
+  --border2:   #2e2e3a;
+  --border3:   #3d3d4e;
 
-  --accent:  #e8ff47;
-  --accent2: #b8ff00;
+  /* Brand accent — electric lime */
+  --accent:    #c8ff00;
+  --accent2:   #a8d600;
+  --accent-bg: rgba(200,255,0,.08);
+  --accent-bg2:rgba(200,255,0,.14);
 
-  --danger: #ff4d4d;
-  --warn:   #ffaa00;
-  --ok:     #4dff91;
-  --info:   #4db8ff;
+  /* Semantic */
+  --danger:    #ff5252;
+  --danger-bg: rgba(255,82,82,.1);
+  --warn:      #ffb020;
+  --warn-bg:   rgba(255,176,32,.1);
+  --ok:        #00e676;
+  --ok-bg:     rgba(0,230,118,.1);
+  --info:      #40c4ff;
+  --info-bg:   rgba(64,196,255,.1);
 
-  --text:  #e8e8f0;
-  --text2: #9090a8;
-  --text3: #5a5a70;
+  /* Text */
+  --text:      #eeeef5;
+  --text2:     #8888a0;
+  --text3:     #4a4a60;
+  --text4:     #32323f;
 
+  /* Typography */
   --mono: 'DM Mono', monospace;
-  --head: 'Barlow Condensed', sans-serif;
-  --body: 'Barlow', sans-serif;
+  --head: 'Syne', sans-serif;
+  --body: 'Inter', sans-serif;
 
-  --r:  4px;
-  --r2: 8px;
+  /* Radii */
+  --r:   5px;
+  --r2:  10px;
+  --r3:  16px;
 
-  --trans: 180ms cubic-bezier(.25,.46,.45,.94);
+  /* Shadows */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.4);
+  --shadow-md:  0 4px 16px rgba(0,0,0,.5);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,.6);
 
-  --topbar-bg:   #0d0d0f;
-  --topbar-text: #e8e8f0;
-  --tab-hover:   #1c1c22;
-  --tab-active-bg: #1c1c22;
-  --card-shadow: none;
+  /* Sidebar */
+  --sidebar-w:  220px;
+
+  /* Transitions */
+  --trans: 150ms cubic-bezier(.25,.46,.45,.94);
+  --trans-slow: 300ms cubic-bezier(.25,.46,.45,.94);
 }
 
 /* ── Light mode ──────────────────────────────────────── */
 :root.light {
-  --bg:       #f0f0f4;
-  --surface:  #ffffff;
-  --surface2: #f5f5f8;
-  --surface3: #eaeaef;
+  --bg:        #f4f4f8;
+  --sidebar:   #ffffff;
+  --surface:   #ffffff;
+  --surface2:  #f4f4f8;
+  --surface3:  #ebebf0;
+  --surface4:  #e0e0e8;
 
-  --border:  #dddde8;
-  --border2: #c8c8d8;
+  --border:    #e5e5ee;
+  --border2:   #d5d5e0;
+  --border3:   #c0c0ce;
 
-  --accent:  #1a1a2e;
-  --accent2: #2d2d4e;
+  --accent:    #1a1a2e;
+  --accent2:   #2d2d50;
+  --accent-bg: rgba(26,26,46,.06);
+  --accent-bg2:rgba(26,26,46,.1);
 
-  --danger: #e03030;
-  --warn:   #d4820a;
-  --ok:     #1a9c4a;
-  --info:   #0a7bc4;
+  --danger:    #e53935;
+  --danger-bg: rgba(229,57,53,.08);
+  --warn:      #e65100;
+  --warn-bg:   rgba(230,81,0,.08);
+  --ok:        #2e7d32;
+  --ok-bg:     rgba(46,125,50,.08);
+  --info:      #0277bd;
+  --info-bg:   rgba(2,119,189,.08);
 
-  --text:  #16161e;
-  --text2: #5a5a70;
-  --text3: #9090a8;
+  --text:      #13131f;
+  --text2:     #55556a;
+  --text3:     #9090a8;
+  --text4:     #c0c0ce;
 
-  --r:  4px;
-  --r2: 8px;
-
-  --trans: 180ms cubic-bezier(.25,.46,.45,.94);
-
-  --topbar-bg:   #16161e;
-  --topbar-text: #e8e8f0;
-  --tab-hover:   #f5f5f8;
-  --tab-active-bg: #ffffff;
-  --card-shadow: 0 1px 4px rgba(0,0,0,.08);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.08);
+  --shadow-md:  0 4px 16px rgba(0,0,0,.1);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,.14);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { height: 100%; scroll-behavior: smooth; }
-
+html { height: 100%; }
 body {
   font-family: var(--body);
   background: var(--bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
   height: 100vh;
   display: flex;
-  flex-direction: column;
   overflow: hidden;
-  transition: background var(--trans), color var(--trans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--surface); }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border3); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }

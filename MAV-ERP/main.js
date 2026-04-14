@@ -109,10 +109,10 @@ function toggleTheme() {
 
 function updateThemeToggle() {
   const btn = document.getElementById('theme-toggle');
-  if (!btn) return;
+  const lbl = document.getElementById('theme-label');
   const isLight = document.documentElement.classList.contains('light');
-  btn.textContent = isLight ? '☀' : '◑';
-  btn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode';
+  if (btn) { btn.textContent = isLight ? '☀' : '◑'; btn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode'; }
+  if (lbl) lbl.textContent = isLight ? 'Dark Mode' : 'Light Mode';
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -180,17 +180,34 @@ async function refreshAll() {
 
 // ── Tab routing ───────────────────────────────────────────────────────────────
 function setupTabs() {
-  document.querySelectorAll('.tab[data-pane]').forEach(tab => {
-    tab.addEventListener('click', () => switchPane(tab.dataset.pane));
+  document.querySelectorAll('.nav-item[data-pane]').forEach(item => {
+    item.addEventListener('click', () => switchPane(item.dataset.pane));
   });
 }
 
+const PANE_LABELS = {
+  dashboard:'Dashboard', jobs:'Jobs', calendar:'Calendar', quotes:'Quotes',
+  inventory:'Products', clients:'Clients', suppliers:'Suppliers',
+  subrentals:'Sub-Rentals', crew:'Crew', purchaseorders:'Purchase Orders',
+  maintenance:'Maintenance', analytics:'Analytics', forecast:'Forecast',
+  bundles:'Bundles', storage:'Warehouse', invoices:'Invoices',
+  transport:'Transport', scan:'Scan Station', auditlog:'Audit Log', settings:'Settings',
+};
+
 function switchPane(paneName) {
   STATE.activePane = paneName;
-  document.querySelectorAll('.tab[data-pane]').forEach(t =>
+  document.querySelectorAll('.nav-item[data-pane]').forEach(t =>
     t.classList.toggle('active', t.dataset.pane === paneName));
   document.querySelectorAll('.pane').forEach(p =>
     p.classList.toggle('active', p.id === 'pane-' + paneName));
+  const bc = document.getElementById('topbar-breadcrumb');
+  if (bc) bc.textContent = PANE_LABELS[paneName] || paneName;
+  // Update theme label
+  const tl = document.getElementById('theme-label');
+  if (tl) {
+    const isLight = document.documentElement.classList.contains('light');
+    tl.textContent = isLight ? 'Dark Mode' : 'Light Mode';
+  }
   setTimeout(() => loadPane(paneName), 0);
 }
 

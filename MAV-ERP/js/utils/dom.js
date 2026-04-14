@@ -34,9 +34,9 @@ export function toast(msg, type = 'info') {
 }
 
 export function emptyState(icon, msg) {
-  return `<div class="empty">
-    <div class="empty-icon">${icon}</div>
-    <div class="empty-msg">${msg}</div>
+  return `<div class="empty-state">
+    <div class="empty-state-icon">${icon}</div>
+    <div class="empty-state-text">${msg}</div>
   </div>`;
 }
 

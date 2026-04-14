@@ -11,59 +11,146 @@
 </head>
 <body>
 
-<!-- ══ TOPBAR ══════════════════════════════════════════════════════════════ -->
-<div id="topbar">
-  <div id="wordmark">MAV<span>·</span>ERP</div>
+<!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
+<div id="sidebar">
 
-  <div id="tabs">
-    <div class="tab active" data-pane="dashboard"><span class="tab-icon">◈</span> Dashboard</div>
-    <div class="tab" data-pane="jobs">           <span class="tab-icon">◉</span> Jobs</div>
-    <div class="tab" data-pane="calendar">       <span class="tab-icon">▦</span> Calendar</div>
-    <div class="tab" data-pane="quotes">         <span class="tab-icon">◎</span> Quotes</div>
-    <div class="tab" data-pane="inventory">      <span class="tab-icon">▦</span> Inventory</div>
-    <div class="tab" data-pane="clients">        <span class="tab-icon">◑</span> Clients</div>
-    <div class="tab" data-pane="suppliers">      <span class="tab-icon">◐</span> Suppliers</div>
-    <div class="tab" data-pane="subrentals">     <span class="tab-icon">↗</span> Sub-Rentals</div>
-    <div class="tab" data-pane="crew">           <span class="tab-icon">◑</span> Crew</div>
-    <div class="tab" data-pane="purchaseorders"><span class="tab-icon">◎</span> Purchase Orders</div>
-    <div class="tab" data-pane="maintenance">    <span class="tab-icon">⟳</span> Maintenance</div>
-    <div class="tab" data-pane="analytics">      <span class="tab-icon">∴</span> Analytics</div>
-    <div class="tab" data-pane="forecast">       <span class="tab-icon">◌</span> Forecast</div>
-    <div class="tab" data-pane="bundles">        <span class="tab-icon">◫</span> Bundles</div>
-    <div class="tab" data-pane="storage">        <span class="tab-icon">▦</span> Storage</div>
-    <div class="tab" data-pane="invoices">       <span class="tab-icon">£</span> Invoices</div>
-    <div class="tab" data-pane="transport">      <span class="tab-icon">🚚</span> Transport</div>
-    <div class="tab" data-pane="scan">           <span class="tab-icon">⊡</span> Scan</div>
-    <div class="tab" data-pane="auditlog">       <span class="tab-icon">◉</span> Audit Log</div>
-    <div class="tab" data-pane="settings">       <span class="tab-icon">⚙</span> Settings</div>
+  <!-- Wordmark -->
+  <div id="wordmark">
+    <div id="wordmark-icon">M</div>
+    <div>
+      <div id="wordmark-text">MAV Hire</div>
+      <div id="wordmark-sub">Rental ERP</div>
+    </div>
   </div>
 
+  <!-- Navigation -->
+  <nav id="nav">
+
+    <div class="nav-group">
+      <span class="nav-group-label">Overview</span>
+      <div class="nav-item active" data-pane="dashboard">
+        <span class="nav-icon">◈</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" data-pane="calendar">
+        <span class="nav-icon">▦</span><span>Calendar</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <span class="nav-group-label">Operations</span>
+      <div class="nav-item" data-pane="jobs">
+        <span class="nav-icon">◉</span><span>Jobs</span>
+      </div>
+      <div class="nav-item" data-pane="quotes">
+        <span class="nav-icon">◎</span><span>Quotes</span>
+      </div>
+      <div class="nav-item" data-pane="transport">
+        <span class="nav-icon">🚚</span><span>Transport</span>
+      </div>
+      <div class="nav-item" data-pane="scan">
+        <span class="nav-icon">⊡</span><span>Scan Station</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <span class="nav-group-label">Inventory</span>
+      <div class="nav-item" data-pane="inventory">
+        <span class="nav-icon">▦</span><span>Products</span>
+      </div>
+      <div class="nav-item" data-pane="bundles">
+        <span class="nav-icon">◫</span><span>Bundles</span>
+      </div>
+      <div class="nav-item" data-pane="storage">
+        <span class="nav-icon">⬡</span><span>Warehouse</span>
+      </div>
+      <div class="nav-item" data-pane="maintenance">
+        <span class="nav-icon">⟳</span><span>Maintenance</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <span class="nav-group-label">People</span>
+      <div class="nav-item" data-pane="clients">
+        <span class="nav-icon">◑</span><span>Clients</span>
+      </div>
+      <div class="nav-item" data-pane="suppliers">
+        <span class="nav-icon">◐</span><span>Suppliers</span>
+      </div>
+      <div class="nav-item" data-pane="crew">
+        <span class="nav-icon">◑</span><span>Crew</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <span class="nav-group-label">Finance</span>
+      <div class="nav-item" data-pane="invoices">
+        <span class="nav-icon">£</span><span>Invoices</span>
+      </div>
+      <div class="nav-item" data-pane="purchaseorders">
+        <span class="nav-icon">◎</span><span>Purchase Orders</span>
+      </div>
+      <div class="nav-item" data-pane="subrentals">
+        <span class="nav-icon">↗</span><span>Sub-Rentals</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <span class="nav-group-label">Intelligence</span>
+      <div class="nav-item" data-pane="analytics">
+        <span class="nav-icon">∴</span><span>Analytics</span>
+      </div>
+      <div class="nav-item" data-pane="forecast">
+        <span class="nav-icon">◌</span><span>Forecast</span>
+      </div>
+      <div class="nav-item" data-pane="auditlog">
+        <span class="nav-icon">◉</span><span>Audit Log</span>
+      </div>
+    </div>
+
+  </nav>
+
+  <!-- Sidebar bottom -->
+  <div id="sidebar-bottom">
+    <div class="sidebar-action" onclick="window.__showSettings()">
+      <span>⚙</span><span>Settings</span>
+    </div>
+    <div class="sidebar-action" onclick="window.__toggleTheme()">
+      <span>◑</span><span id="theme-label">Light Mode</span>
+    </div>
+    <div class="sidebar-action" onclick="window.__refreshAll()">
+      <span>↺</span><span>Refresh</span>
+    </div>
+  </div>
+
+</div><!-- #sidebar -->
+
+<!-- ══ MAIN ═════════════════════════════════════════════════════════════════ -->
+<div id="main">
+
+<!-- Topbar -->
+<div id="topbar">
+  <div id="topbar-breadcrumb">Dashboard</div>
   <div id="topbar-right">
     <!-- Global search -->
-    <div id="global-search-wrap" style="position:relative">
-      <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);
-        border:1px solid var(--border);border-radius:var(--r);padding:4px 10px;
-        transition:border-color var(--trans)" id="global-search-box">
+    <div id="global-search-wrap">
+      <div id="global-search-box">
         <span style="color:var(--text3);font-size:13px">⌕</span>
-        <input id="global-search-input" type="text" placeholder="Search… (/ to focus)"
-          style="background:none;border:none;outline:none;font-size:12px;color:var(--text);
-          font-family:var(--mono);width:160px"
+        <input id="global-search-input" type="text" placeholder="Search… (press /)"
           oninput="window.__globalSearch(this.value)"
           onkeydown="window.__globalSearchKey(event)"
-          onfocus="this.parentElement.style.borderColor='var(--accent)'"
-          onblur="this.parentElement.style.borderColor='var(--border)';setTimeout(()=>window.__hideGlobalResults(),200)">
+          onblur="setTimeout(()=>window.__hideGlobalResults(),200)">
         <kbd style="font-size:9px;color:var(--text3);background:var(--surface3);
-          padding:1px 4px;border-radius:3px;font-family:var(--mono)">/</kbd>
+          padding:1px 5px;border-radius:3px;font-family:var(--mono)">/</kbd>
       </div>
-      <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 4px);right:0;
-        width:360px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
-        box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:1000;max-height:400px;overflow-y:auto"></div>
+      <div id="global-search-results"></div>
     </div>
-    <div id="alert-pill" class="hidden">⚠ <span id="alert-count">0</span> alerts</div>
-    <span id="cache-indicator" style="display:none;font-size:10px;color:var(--text3);font-family:var(--mono);margin-right:4px"></span>
-    <button id="theme-toggle" onclick="window.__toggleTheme()" title="Toggle light/dark mode">◑</button>
-    <button id="refresh-btn" onclick="window.__refreshAll()">↺ Refresh</button>
-    <button class="btn btn-ghost btn-sm" onclick="window.__showSettings()" title="Configure GAS URL">⚙</button>
+
+    <div id="alert-pill" class="hidden">⚠ <span id="alert-count">0</span></div>
+    <span id="cache-indicator" style="display:none;font-size:10px;color:var(--text3);font-family:var(--mono)"></span>
+
+    <button id="theme-toggle" class="topbar-btn" onclick="window.__toggleTheme()" title="Toggle theme">◑</button>
+    <button class="topbar-btn" onclick="window.__refreshAll()" title="Refresh all data">↺</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__showSettings()">⚙ GAS URL</button>
   </div>
 </div>
 
@@ -1034,6 +1121,8 @@
   </div>
 
 </div><!-- #app -->
+
+</div><!-- #main -->
 
 <!-- ══ OVERLAYS ════════════════════════════════════════════════════════════ -->
 <div id="loading">
