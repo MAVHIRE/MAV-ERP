@@ -336,7 +336,7 @@ export function openAddAccessoryModal(parentProductId, parentName) {
     try {
       await rpc('saveProductAccessory', {
         parentProductId: parentId, accessoryProductId,
-        defaultQuantity: parseInt(document.getElementById('fa-qty')?.value) || 1,
+        defaultQuantity: parseInt(document.getElementById('fa-qty', 10)?.value, 10) || 1,
         optional: document.getElementById('fa-optional')?.checked || false,
       });
       toast('Accessory added', 'ok');

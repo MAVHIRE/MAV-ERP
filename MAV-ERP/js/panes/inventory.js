@@ -127,17 +127,18 @@ function render(products) {
 export async function openProductDetail(productId) {
   showLoading('Loading product…');
   try {
-    const [product, summary, maintenance] = await Promise.all([
+    const [product, summary, maintenance, movements] = await Promise.all([
       rpc('getProductById', productId),
       rpc('getProductAssetSummary', productId),
       rpc('getMaintenanceRecords', { productId }),
+      rpc('getInventoryMovements', { productId }).catch(() => []),
     ]);
     hideLoading();
-    showProductModal(product, summary, maintenance);
+    showProductModal(product, summary, maintenance, movements);
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }
 
-function showProductModal(p, s, maint) {
+function showProductModal(p, s, maint, movements) {
   const maintRows = (maint||[]).slice(0,10).map(m => `<tr>
     <td class="td-id">${esc(m.maintenanceId)}</td>
     <td>${esc(m.type||'—')}</td>
@@ -177,15 +178,36 @@ function showProductModal(p, s, maint) {
       </div>
     </div>
     ${p.description?`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">${esc(p.description)}</p>`:''}
+
     ${(maint||[]).length ? `
       <div class="section-title" style="margin-bottom:8px">Maintenance History (${maint.length})</div>
-      <div class="tbl-wrap">
+      <div class="tbl-wrap" style="margin-bottom:16px">
         <table><thead><tr><th>ID</th><th>Type</th><th>Barcode</th><th>Status</th><th>Date</th><th>Cost</th></tr></thead>
         <tbody>${maintRows}</tbody></table>
+      </div>` : ''}
+
+    ${(movements||[]).length ? `
+      <div class="section-title" style="margin-bottom:8px">Movement Ledger (last ${Math.min(movements.length,20)})</div>
+      <div class="tbl-wrap">
+        <table style="font-size:11px">
+          <thead><tr><th>Date</th><th>Type</th><th>Barcode</th><th>Job</th><th>Qty</th><th>Status Change</th><th>Notes</th></tr></thead>
+          <tbody>${(movements||[]).slice(-20).reverse().map(m => `<tr>
+            <td style="white-space:nowrap;color:var(--text3)">${fmtDate(m.createdAt)}</td>
+            <td><span style="font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;
+              background:var(--surface3);white-space:nowrap">${esc(m.movementType||'—')}</span></td>
+            <td class="td-id">${esc(m.barcode||'—')}</td>
+            <td class="td-id">${m.jobId?`<span style="cursor:pointer;color:var(--info)" onclick="window.__openJobDetail('${esc(m.jobId)}')">${esc(m.jobId)}</span>`:'—'}</td>
+            <td class="td-num">${m.quantity>0?'+':''+''}${m.quantity}</td>
+            <td style="font-size:10px;color:var(--text3)">${m.fromStatus?esc(m.fromStatus)+' → ':''} ${esc(m.toStatus||'')}</td>
+            <td style="font-size:10px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.notes||'')}</td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
       </div>` : ''}
   `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__editProduct('${esc(p.productId)}')">✏ Edit</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__stockAdjust('${esc(p.productId)}','${esc(p.name)}')">± Stock</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__openRateCards('${esc(p.productId)}','${esc(p.name)}')">£ Rates</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__printLabels('${esc(p.productId)}','${esc(p.name)}')">🏷 Labels</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__logMaintenanceForProduct('${esc(p.productId)}','${esc(p.name)}')">+ Maintenance</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
@@ -193,6 +215,113 @@ function showProductModal(p, s, maint) {
 }
 
 // ── Edit / new product ────────────────────────────────────────────────────────
+// ── Rate cards ────────────────────────────────────────────────────────────────
+export async function openRateCards(productId, productName) {
+  closeModal();
+  showLoading('Loading rates…');
+  let rates = [];
+  try {
+    rates = await rpc('getProductRates', productId);
+    hideLoading();
+  } catch(e) { hideLoading(); toast(e.message, 'err'); return; }
+
+  const renderRateRows = (rates) => rates.length ? `
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Rate Name</th><th>Type</th><th>Qty From</th><th>Qty To</th><th class="right">Price (£)</th><th></th></tr></thead>
+        <tbody id="rates-tbody">
+          ${rates.map(r => `<tr data-rate-id="${esc(r.rateId)}">
+            <td style="font-weight:500">${esc(r.rateName)}</td>
+            <td style="font-size:12px;color:var(--text3)">${esc(r.durationType)}</td>
+            <td class="td-num">${r.quantityBreakFrom}</td>
+            <td class="td-num">${r.quantityBreakTo>=999999?'∞':r.quantityBreakTo}</td>
+            <td class="td-num" style="font-family:var(--mono);font-weight:600">${fmtCurDec(r.price)}</td>
+            <td><button class="btn btn-danger btn-sm"
+              onclick="window.__deleteRate('${esc(r.rateId)}','${esc(productId)}','${esc(productName)}')">✕</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : `<div style="color:var(--text3);font-size:12px;padding:12px 0">No custom rates — base rate applies.</div>`;
+
+  openModal('modal-rates', `Rate Cards — ${esc(productName)}`, `
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">
+      Custom rates override the base hire rate (${fmtCurDec(0)}/day) in the quote builder.
+      Rates are matched by duration type and quantity.
+    </div>
+    <div id="rates-list">${renderRateRows(rates)}</div>
+
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;
+        letter-spacing:.06em;margin-bottom:8px">Add Rate</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Rate Name *</label>
+          <input type="text" id="rate-name" placeholder="e.g. Weekend Rate, Week Rate, Trade">
+        </div>
+        <div class="form-group">
+          <label>Duration Type</label>
+          <select id="rate-type">
+            <option value="Day">Day</option>
+            <option value="Weekend">Weekend</option>
+            <option value="Week">Week</option>
+            <option value="Month">Month</option>
+            <option value="Event">Event</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Price (£) *</label>
+          <input type="number" id="rate-price" placeholder="0.00" step="0.01" min="0">
+        </div>
+        <div class="form-group">
+          <label>Qty Break From</label>
+          <input type="number" id="rate-qty-from" value="1" min="1" step="1">
+        </div>
+        <div class="form-group">
+          <label>Qty Break To</label>
+          <input type="number" id="rate-qty-to" value="999999" min="1" step="1">
+        </div>
+      </div>
+    </div>
+    `, `
+    <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
+    <button class="btn btn-primary btn-sm" onclick="window.__saveRate('${esc(productId)}','${esc(productName)}')">+ Add Rate</button>`
+  );
+
+  window.__saveRate = async (pid, pname) => {
+    const name  = document.getElementById('rate-name')?.value.trim();
+    const price = parseFloat(document.getElementById('rate-price')?.value) || 0;
+    if (!name)  { toast('Rate name required', 'warn'); return; }
+    if (!price) { toast('Price required', 'warn'); return; }
+    showLoading('Saving rate…');
+    try {
+      await rpc('saveProductRate', {
+        productId:         pid,
+        rateName:          name,
+        durationType:      document.getElementById('rate-type')?.value     || 'Day',
+        price,
+        quantityBreakFrom: parseInt(document.getElementById('rate-qty-from')?.value, 10) || 1,
+        quantityBreakTo:   parseInt(document.getElementById('rate-qty-to')?.value, 10)   || 999999,
+      });
+      toast('Rate added', 'ok');
+      closeModal();
+      openRateCards(pid, pname);
+    } catch(e) { toast(e.message, 'err'); }
+    finally { hideLoading(); }
+  };
+
+  window.__deleteRate = async (rateId, pid, pname) => {
+    if (!confirm('Delete this rate?')) return;
+    showLoading('Deleting…');
+    try {
+      await rpc('deleteProductRate', rateId);
+      toast('Rate deleted', 'ok');
+      closeModal();
+      openRateCards(pid, pname);
+    } catch(e) { toast(e.message, 'err'); }
+    finally { hideLoading(); }
+  };
+}
+
 export async function editProduct(productId) {
   showLoading('Loading product…'); closeModal();
   try {
@@ -205,65 +334,244 @@ export function openNewProductModal() { openProductForm(null); }
 
 function openProductForm(existing) {
   const p = existing || {}, isEdit = !!p.productId;
-  const v = (f,fb='') => esc(p[f]!=null?p[f]:fb);
-  const n = (f,fb=0) => p[f]!=null?p[f]:fb;
+  const v = (f, fb='') => esc(p[f] != null ? p[f] : fb);
+  const n = (f, fb=0)  => p[f] != null ? p[f] : fb;
 
-  openModal('modal-product-form', isEdit ? `Edit: ${esc(p.name)}` : 'New Product', `
-    <div class="form-grid">
-      <div class="form-group"><label>Name *</label><input type="text" id="fp-name" value="${v('name')}"></div>
-      <div class="form-group"><label>SKU</label><input type="text" id="fp-sku" value="${v('sku')}"></div>
-      <div class="form-group"><label>Brand</label><input type="text" id="fp-brand" value="${v('brand')}"></div>
-      <div class="form-group"><label>Model</label><input type="text" id="fp-model" value="${v('model')}"></div>
-      <div class="form-group"><label>Category</label><input type="text" id="fp-category" value="${v('category')}"></div>
-      <div class="form-group"><label>Product Group</label><input type="text" id="fp-group" value="${v('productGroup')}"></div>
-      <div class="form-group"><label>Stock Method</label>
-        <select id="fp-method">
-          <option value="Bulk"${p.stockMethod==='Bulk'?' selected':''}>Bulk</option>
-          <option value="Serialised"${p.stockMethod==='Serialised'?' selected':''}>Serialised</option>
-        </select></div>
-      <div class="form-group"><label>Unit</label><input type="text" id="fp-unit" value="${v('unit','Each')}"></div>
-      <div class="form-group"><label>Base Hire Rate (£/day)</label>
-        <input type="number" id="fp-rate" value="${n('baseHireRate')}" step="0.01" min="0"></div>
-      <div class="form-group"><label>Replacement Cost (£)</label>
-        <input type="number" id="fp-replacement" value="${n('replacementCost')}" step="0.01" min="0"></div>
-      <div class="form-group"><label>Purchase Price (£)</label>
-        <input type="number" id="fp-purchase" value="${n('purchasePrice')}" step="0.01" min="0"></div>
-      <div class="form-group"><label>Weight (kg)</label>
-        <input type="number" id="fp-weight" value="${n('weightKg')}" step="0.01" min="0"></div>
-      <div class="form-group"><label>Min Stock Level</label>
-        <input type="number" id="fp-min-stock" value="${n('minStockLevel')}" min="0"></div>
-      <div class="form-group"><label>Reorder Level</label>
-        <input type="number" id="fp-reorder" value="${n('reorderLevel')}" min="0"></div>
-      <div class="form-group"><label>Finance Method</label>
-        <select id="fp-finance">
-          ${['Owned','Financed','Leased','Rented'].map(o=>`<option${p.financeMethod===o?' selected':''}>${o}</option>`).join('')}
-        </select></div>
-      <div class="form-group"><label>Depreciation</label>
-        <select id="fp-dep">
-          ${['Straight Line','Reducing Balance','None'].map(o=>`<option${p.depreciationMethod===o?' selected':''}>${o}</option>`).join('')}
-        </select></div>
-      <div class="form-group span-2">
-        <label>Image URL</label>
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <input type="url" id="fp-image-url" value="${v('imageUrl')}" placeholder="https://…" style="flex:1"
-            oninput="window.__previewProductImg(this.value)">
-          <div id="fp-img-preview" style="min-width:60px;min-height:40px"></div>
+  // Build supplier options from STATE
+  const supplierOpts = (STATE.suppliers || [])
+    .sort((a,b) => a.supplierName.localeCompare(b.supplierName))
+    .map(s => `<option value="${esc(s.supplierId)}"${p.supplierId===s.supplierId?' selected':''}>${esc(s.supplierName)}</option>`)
+    .join('');
+
+  // Existing category / group options for datalists
+  const cats   = [...new Set((STATE.products||[]).map(p=>p.category).filter(Boolean))].sort();
+  const groups = [...new Set((STATE.products||[]).map(p=>p.productGroup).filter(Boolean))].sort();
+
+  openModal('modal-product-form', isEdit ? `Edit Product — ${esc(p.name)}` : 'New Product', `
+    <!-- Tab nav -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;margin-top:-4px">
+      ${['Basic','Financials','Physical','Operations','Notes'].map((t,i)=>
+        `<div class="prod-tab${i===0?' active':''}" data-tab="${i}"
+          onclick="window.__switchProdTab(${i})"
+          style="padding:6px 14px;font-size:12px;font-family:var(--mono);cursor:pointer;
+          border-bottom:2px solid transparent;color:var(--text3);transition:all .15s"
+        >${t}</div>`
+      ).join('')}
+    </div>
+
+    <!-- Tab 0: Basic -->
+    <div class="prod-tab-panel" id="ptp-0">
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Product Name *</label>
+          <input type="text" id="fp-name" value="${v('name')}" placeholder="e.g. Sennheiser EW100 G4 Wireless System" autofocus>
+        </div>
+        <div class="form-group">
+          <label>SKU / Product Code</label>
+          <input type="text" id="fp-sku" value="${v('sku')}" placeholder="e.g. AUDIO-EW100">
+        </div>
+        <div class="form-group">
+          <label>Brand</label>
+          <input type="text" id="fp-brand" value="${v('brand')}" placeholder="e.g. Sennheiser" list="fp-brand-list">
+        </div>
+        <div class="form-group">
+          <label>Model</label>
+          <input type="text" id="fp-model" value="${v('model')}" placeholder="e.g. EW100 G4">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" id="fp-category" value="${v('category')}" placeholder="e.g. Wireless Audio" list="fp-cat-list">
+          <datalist id="fp-cat-list">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+        </div>
+        <div class="form-group">
+          <label>Product Group</label>
+          <input type="text" id="fp-group" value="${v('productGroup')}" placeholder="e.g. Audio Equipment" list="fp-grp-list">
+          <datalist id="fp-grp-list">${groups.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
+        </div>
+        <div class="form-group">
+          <label>Stock Method</label>
+          <select id="fp-method">
+            <option value="Bulk"${p.stockMethod!=='Serialised'?' selected':''}>Bulk (qty-tracked)</option>
+            <option value="Serialised"${p.stockMethod==='Serialised'?' selected':''}>Serialised (barcode per unit)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <input type="text" id="fp-unit" value="${v('unit','Each')}" placeholder="Each / Set / Pair">
+        </div>
+        <div class="form-group span-2">
+          <label>Image URL</label>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <input type="url" id="fp-image-url" value="${v('imageUrl')}" placeholder="https://…" style="flex:1"
+              oninput="window.__previewProductImg(this.value)">
+            <div id="fp-img-preview" style="min-width:64px;min-height:44px"></div>
+          </div>
         </div>
       </div>
-      <div class="form-group span-2"><label>Description</label>
-        <textarea id="fp-description">${v('description')}</textarea></div>
-      <div class="form-group span-2"><label>Tags (comma separated)</label>
-        <input type="text" id="fp-tags" value="${v('tags')}"></div>
-      <div class="form-group"><label>Prep Notes</label>
-        <input type="text" id="fp-prep-notes" value="${v('defaultPrepNotes')}"></div>
-      <div class="form-group"><label>Return Notes</label>
-        <input type="text" id="fp-return-notes" value="${v('defaultReturnNotes')}"></div>
-    </div>`, `
+    </div>
+
+    <!-- Tab 1: Financials -->
+    <div class="prod-tab-panel" id="ptp-1" style="display:none">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Base Hire Rate (£/day) *</label>
+          <input type="number" id="fp-rate" value="${n('baseHireRate')}" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Replacement / Insured Value (£)</label>
+          <input type="number" id="fp-replacement" value="${n('replacementCost')}" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Purchase Price (£)</label>
+          <input type="number" id="fp-purchase" value="${n('purchasePrice')}" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Purchase Date</label>
+          <input type="date" id="fp-purchase-date" value="${v('purchaseDate')}">
+        </div>
+        <div class="form-group">
+          <label>Supplier</label>
+          <select id="fp-supplier">
+            <option value="">— None —</option>
+            ${supplierOpts}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Finance Method</label>
+          <select id="fp-finance">
+            ${['Owned','Financed','Leased','Rented'].map(o=>`<option${p.financeMethod===o?' selected':''}>${o}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Depreciation Method</label>
+          <select id="fp-dep">
+            ${['Straight Line','Reducing Balance','None'].map(o=>`<option${p.depreciationMethod===o?' selected':''}>${o}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Expected Life (months)</label>
+          <input type="number" id="fp-life" value="${n('expectedLifeMonths')}" min="0" step="1" placeholder="e.g. 60">
+        </div>
+        <div class="form-group">
+          <label>Warranty End Date</label>
+          <input type="date" id="fp-warranty" value="${v('warrantyEndDate')}">
+        </div>
+        <div class="form-group">
+          <label>Min Stock Level (alert below)</label>
+          <input type="number" id="fp-min-stock" value="${n('minStockLevel')}" min="0" step="1">
+        </div>
+        <div class="form-group">
+          <label>Reorder Level (order at)</label>
+          <input type="number" id="fp-reorder" value="${n('reorderLevel')}" min="0" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Physical -->
+    <div class="prod-tab-panel" id="ptp-2" style="display:none">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Weight (kg)</label>
+          <input type="number" id="fp-weight" value="${n('weightKg')}" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Width (mm)</label>
+          <input type="number" id="fp-width" value="${n('widthMm')}" step="1" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Height (mm)</label>
+          <input type="number" id="fp-height" value="${n('heightMm')}" step="1" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Depth (mm)</label>
+          <input type="number" id="fp-depth" value="${n('depthMm')}" step="1" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Rack Size (U)</label>
+          <input type="number" id="fp-rack" value="${n('rackSizeU')}" step="1" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Case Type</label>
+          <select id="fp-case">
+            ${['','Flight Case','Soft Bag','Rack Mount','No Case','Other']
+              .map(o=>`<option value="${o}"${p.caseType===o?' selected':''}>${o||'— None —'}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Power Draw (watts)</label>
+          <input type="number" id="fp-power" value="${n('powerDrawWatts')}" step="1" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Storage Location</label>
+          <input type="text" id="fp-storage-loc" value="${v('storageLocation')}" placeholder="e.g. Zone A / Bay 2">
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Operations -->
+    <div class="prod-tab-panel" id="ptp-3" style="display:none">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Prep Time (minutes)</label>
+          <input type="number" id="fp-prep" value="${n('prepMinutes')}" step="1" min="0" placeholder="e.g. 15">
+        </div>
+        <div class="form-group">
+          <label>De-rig Time (minutes)</label>
+          <input type="number" id="fp-derig" value="${n('derigMinutes')}" step="1" min="0" placeholder="e.g. 10">
+        </div>
+        <div class="form-group">
+          <label>Crew Required</label>
+          <input type="number" id="fp-crew" value="${n('crewRequired')}" step="1" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" id="fp-sort" value="${n('sortOrder',9999)}" step="1" min="0">
+        </div>
+        <div class="form-group span-2">
+          <label>Default Prep Notes</label>
+          <input type="text" id="fp-prep-notes" value="${v('defaultPrepNotes')}" placeholder="Notes shown during prep stage">
+        </div>
+        <div class="form-group span-2">
+          <label>Default Return Notes</label>
+          <input type="text" id="fp-return-notes" value="${v('defaultReturnNotes')}" placeholder="Notes shown during return stage">
+        </div>
+        <div class="form-group span-2">
+          <label>Tags (comma separated)</label>
+          <input type="text" id="fp-tags" value="${v('tags')}" placeholder="wireless, audio, handheld">
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Notes -->
+    <div class="prod-tab-panel" id="ptp-4" style="display:none">
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Description</label>
+          <textarea id="fp-description" rows="5" placeholder="Full product description…">${v('description')}</textarea>
+        </div>
+      </div>
+    </div>
+    `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
     <button class="btn btn-primary btn-sm" onclick="window.__submitProductForm('${esc(p.productId||'')}')">
-      ${isEdit?'Save Changes':'Save Product'}</button>`
+      ${isEdit ? 'Save Changes' : 'Create Product'}</button>`
   );
 
+  // Tab switching
+  window.__switchProdTab = (idx) => {
+    document.querySelectorAll('.prod-tab').forEach((t,i) => {
+      t.classList.toggle('active', i === idx);
+      t.style.borderBottomColor  = i === idx ? 'var(--accent)' : 'transparent';
+      t.style.color = i === idx ? 'var(--text)' : 'var(--text3)';
+    });
+    document.querySelectorAll('.prod-tab-panel').forEach((p,i) => {
+      p.style.display = i === idx ? '' : 'none';
+    });
+  };
+  // Init first tab styles
+  window.__switchProdTab(0);
+
+  // Image preview
   window.__previewProductImg = (url) => {
     const el = document.getElementById('fp-img-preview');
     if (!el) return;
@@ -274,35 +582,64 @@ function openProductForm(existing) {
   };
   if (p.imageUrl) window.__previewProductImg(p.imageUrl);
 
+  // Submit
   window.__submitProductForm = async (pId) => {
     const name = document.getElementById('fp-name')?.value.trim();
-    if (!name) { toast('Name required', 'warn'); return; }
-    showLoading('Saving…'); closeModal();
+    if (!name) { toast('Product name is required', 'warn'); window.__switchProdTab(0); return; }
+    const rate = parseFloat(document.getElementById('fp-rate')?.value) || 0;
+    if (!rate && !isEdit) {
+      const ok = confirm('Base hire rate is £0.00 — continue?');
+      if (!ok) { window.__switchProdTab(1); return; }
+    }
+    showLoading('Saving product…'); closeModal();
     try {
+      const suppEl = document.getElementById('fp-supplier');
+      const suppId = suppEl?.value || '';
+      const suppName = suppId
+        ? (STATE.suppliers||[]).find(s=>s.supplierId===suppId)?.supplierName || ''
+        : '';
+
       const r = await rpc('saveProduct', {
-        productId:       pId || null, name,
-        sku:             document.getElementById('fp-sku')?.value,
-        brand:           document.getElementById('fp-brand')?.value,
-        model:           document.getElementById('fp-model')?.value,
-        category:        document.getElementById('fp-category')?.value,
-        productGroup:    document.getElementById('fp-group')?.value,
-        stockMethod:     document.getElementById('fp-method')?.value,
-        unit:            document.getElementById('fp-unit')?.value || 'Each',
-        baseHireRate:    parseFloat(document.getElementById('fp-rate')?.value)        || 0,
-        replacementCost: parseFloat(document.getElementById('fp-replacement')?.value) || 0,
-        purchasePrice:   parseFloat(document.getElementById('fp-purchase')?.value)    || 0,
-        weightKg:        parseFloat(document.getElementById('fp-weight')?.value)      || 0,
-        minStockLevel:   parseInt(document.getElementById('fp-min-stock')?.value)     || 0,
-        reorderLevel:    parseInt(document.getElementById('fp-reorder')?.value)       || 0,
-        financeMethod:   document.getElementById('fp-finance')?.value,
-        depreciationMethod: document.getElementById('fp-dep')?.value,
-        description:     document.getElementById('fp-description')?.value,
-        tags:            document.getElementById('fp-tags')?.value,
-        imageUrl:        document.getElementById('fp-image-url')?.value,
-        defaultPrepNotes:   document.getElementById('fp-prep-notes')?.value,
-        defaultReturnNotes: document.getElementById('fp-return-notes')?.value,
+        productId:          pId || null,
+        name,
+        sku:                document.getElementById('fp-sku')?.value.trim(),
+        brand:              document.getElementById('fp-brand')?.value.trim(),
+        model:              document.getElementById('fp-model')?.value.trim(),
+        category:           document.getElementById('fp-category')?.value.trim(),
+        productGroup:       document.getElementById('fp-group')?.value.trim(),
+        stockMethod:        document.getElementById('fp-method')?.value || 'Bulk',
+        unit:               document.getElementById('fp-unit')?.value.trim() || 'Each',
+        baseHireRate:       parseFloat(document.getElementById('fp-rate')?.value)         || 0,
+        replacementCost:    parseFloat(document.getElementById('fp-replacement')?.value)  || 0,
+        purchasePrice:      parseFloat(document.getElementById('fp-purchase')?.value)     || 0,
+        purchaseDate:       document.getElementById('fp-purchase-date')?.value            || '',
+        supplierId:         suppId,
+        supplierName:       suppName,
+        warrantyEndDate:    document.getElementById('fp-warranty')?.value                 || '',
+        expectedLifeMonths: parseInt(document.getElementById('fp-life', 10)?.value, 10)       || 0,
+        financeMethod:      document.getElementById('fp-finance')?.value                  || 'Owned',
+        depreciationMethod: document.getElementById('fp-dep')?.value                      || 'Straight Line',
+        weightKg:           parseFloat(document.getElementById('fp-weight')?.value)       || 0,
+        widthMm:            parseInt(document.getElementById('fp-width', 10)?.value, 10)      || 0,
+        heightMm:           parseInt(document.getElementById('fp-height', 10)?.value, 10)     || 0,
+        depthMm:            parseInt(document.getElementById('fp-depth', 10)?.value, 10)      || 0,
+        rackSizeU:          parseInt(document.getElementById('fp-rack', 10)?.value, 10)       || 0,
+        caseType:           document.getElementById('fp-case')?.value                     || '',
+        powerDrawWatts:     parseInt(document.getElementById('fp-power', 10)?.value, 10)      || 0,
+        storageLocation:    document.getElementById('fp-storage-loc')?.value              || '',
+        prepMinutes:        parseInt(document.getElementById('fp-prep', 10)?.value, 10)       || 0,
+        derigMinutes:       parseInt(document.getElementById('fp-derig', 10)?.value, 10)      || 0,
+        crewRequired:       parseInt(document.getElementById('fp-crew', 10)?.value, 10)       || 0,
+        sortOrder:          parseInt(document.getElementById('fp-sort', 10)?.value, 10)       || 9999,
+        minStockLevel:      parseInt(document.getElementById('fp-min-stock', 10)?.value, 10)  || 0,
+        reorderLevel:       parseInt(document.getElementById('fp-reorder', 10)?.value, 10)    || 0,
+        description:        document.getElementById('fp-description')?.value              || '',
+        tags:               document.getElementById('fp-tags')?.value                     || '',
+        imageUrl:           document.getElementById('fp-image-url')?.value                || '',
+        defaultPrepNotes:   document.getElementById('fp-prep-notes')?.value               || '',
+        defaultReturnNotes: document.getElementById('fp-return-notes')?.value             || '',
       });
-      toast(isEdit ? 'Product saved' : 'Product created: ' + r.productId, 'ok');
+      toast(isEdit ? `Saved: ${name}` : `Created: ${r.productId}`, 'ok');
       if (!isEdit) await rpc('syncStockFromProducts');
       STATE.loadedPanes.delete('inventory');
       await loadProducts();
@@ -573,7 +910,7 @@ export function openProductCsvImport() {
           replacementCost:parseFloat(r.replacementcost||r.replacementCost||0)||0,
           purchasePrice:parseFloat(r.purchaseprice||r.purchasePrice||0)||0,
           weightKg:parseFloat(r.weightkg||r.weightKg||0)||0,
-          minStockLevel:parseInt(r.minstocklevel||r.minStockLevel||0)||0,
+          minStockLevel:parseInt(r.minstocklevel||r.minStockLevel||0, 10)||0,
           unit:r.unit||'Each', description:r.description||'',
           tags:r.tags||'', imageUrl:r.imageurl||r.imageUrl||'' });
         ok++;
@@ -628,7 +965,7 @@ export function openStockAdjustModal(productId, productName) {
 
   window.__submitStockAdj = async (pId) => {
     const type    = document.getElementById('sa-type')?.value;
-    const qty     = parseInt(document.getElementById('sa-qty')?.value) || 0;
+    const qty     = parseInt(document.getElementById('sa-qty', 10)?.value, 10) || 0;
     const barcode = document.getElementById('sa-barcode')?.value.trim() || '';
     const notes   = document.getElementById('sa-notes')?.value.trim()   || '';
 
@@ -699,7 +1036,7 @@ export async function openBarcodeLabelModal(productId, productName) {
       if (!checked.length) { toast('Select at least one barcode', 'warn'); return; }
 
       const size  = document.getElementById('lbl-size')?.value || 'medium';
-      const cols  = parseInt(document.getElementById('lbl-cols')?.value) || 3;
+      const cols  = parseInt(document.getElementById('lbl-cols', 10)?.value, 10) || 3;
       const showName   = document.getElementById('lbl-show-name')?.checked ?? true;
       const showSerial = document.getElementById('lbl-show-serial')?.checked ?? true;
 

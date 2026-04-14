@@ -141,8 +141,8 @@ function openSubRentalForm(existing, prefillJobId) {
 
   window.__srCalcTotal = () => {
     const rate = parseFloat(document.getElementById('sr-rate')?.value) || 0;
-    const days = parseInt(document.getElementById('sr-days')?.value) || 1;
-    const qty  = parseInt(document.getElementById('sr-qty')?.value) || 1;
+    const days = parseInt(document.getElementById('sr-days', 10)?.value, 10) || 1;
+    const qty  = parseInt(document.getElementById('sr-qty', 10)?.value, 10) || 1;
     const el   = document.getElementById('sr-total');
     if (el) el.value = (rate * days * qty).toFixed(2);
   };
@@ -161,10 +161,10 @@ function openSubRentalForm(existing, prefillJobId) {
         supplierId:   supEl?.value || '',
         supplierName: supOpt?.text || '',
         itemName,
-        quantity:     parseInt(document.getElementById('sr-qty')?.value) || 1,
+        quantity:     parseInt(document.getElementById('sr-qty', 10)?.value, 10) || 1,
         unit:         document.getElementById('sr-unit')?.value || 'Each',
         dailyRate:    parseFloat(document.getElementById('sr-rate')?.value) || 0,
-        hireDays:     parseInt(document.getElementById('sr-days')?.value) || 1,
+        hireDays:     parseInt(document.getElementById('sr-days', 10)?.value, 10) || 1,
         totalCost:    parseFloat(document.getElementById('sr-total')?.value) || 0,
         deliveryDate: document.getElementById('sr-delivery')?.value || '',
         returnDate:   document.getElementById('sr-return')?.value   || '',

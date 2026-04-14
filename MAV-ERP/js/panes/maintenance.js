@@ -267,7 +267,7 @@ export function maintAddPart(maintenanceId) {
         partName:   name,
         partNumber: document.getElementById('ap-number')?.value || '',
         supplier:   document.getElementById('ap-supplier')?.value || '',
-        quantity:   parseInt(document.getElementById('ap-qty')?.value)  || 1,
+        quantity:   parseInt(document.getElementById('ap-qty', 10)?.value, 10)  || 1,
         unitCost:   parseFloat(document.getElementById('ap-cost')?.value) || 0,
       });
       toast('Part added', 'ok');

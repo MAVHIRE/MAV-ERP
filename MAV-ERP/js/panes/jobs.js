@@ -153,13 +153,16 @@ function renderKanban(el, jobs) {
 export async function openJobDetail(jobId) {
   showLoading('Loading job…');
   try {
-    const job = await rpc('getJobById', jobId);
+    const [job, crewSummary] = await Promise.all([
+      rpc('getJobById', jobId),
+      rpc('getCrewSummaryForJob', jobId).catch(() => null),
+    ]);
     hideLoading();
-    showJobModal(job);
+    showJobModal(job, crewSummary);
   } catch(e) { hideLoading(); toast('Failed: ' + e.message, 'err'); }
 }
 
-function showJobModal(job) {
+function showJobModal(job, crewSummary) {
   const items    = job.items || [];
   const editable = ['Draft','Confirmed'].includes(job.status);
 
@@ -239,6 +242,36 @@ function showJobModal(job) {
     </div>
 
     ${prepChecklist}
+
+    <!-- Crew & P&L section -->
+    ${crewSummary?.crew?.length ? `
+    <div class="section-title" style="margin-top:16px;margin-bottom:8px">Crew (${crewSummary.count})</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;margin-bottom:8px">
+      ${crewSummary.crew.map(c => `
+        <div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px">
+          <div style="font-weight:600">${esc(c.staffName||c.crewName||'—')}</div>
+          <div style="color:var(--text3)">${esc(c.role||'—')}</div>
+          <div style="font-family:var(--mono);color:var(--accent);margin-top:3px">${fmtCurDec(c.totalFee||c.dayRate||0)}</div>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--surface2);
+      border-radius:6px;font-size:13px;margin-bottom:12px">
+      <span style="color:var(--text3)">Total Crew Cost</span>
+      <span style="font-family:var(--mono);font-weight:700;color:var(--warn)">${fmtCurDec(crewSummary.totalFee)}</span>
+    </div>
+    <!-- P&L summary -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      ${[
+        ['Revenue', job.total, 'var(--accent)'],
+        ['Crew Cost', crewSummary.totalFee, 'var(--warn)'],
+        ['Gross Profit', (job.total||0)-(crewSummary.totalFee||0), ((job.total||0)-(crewSummary.totalFee||0))>=0?'var(--ok)':'var(--danger)'],
+      ].map(([l,v,c])=>`
+        <div style="background:var(--surface2);border-radius:6px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">${l}</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:${c}">${fmtCurDec(v)}</div>
+        </div>`).join('')}
+    </div>` : ''}
+
     ${job.internalNotes ? `<div style="margin-top:12px;font-size:12px;color:var(--text3);padding:10px;background:var(--surface2);border-radius:var(--r)">📝 ${esc(job.internalNotes)}</div>` : ''}
     ${job.crewNotes     ? `<div style="margin-top:8px;font-size:12px;color:var(--text3);padding:10px;background:var(--surface2);border-radius:var(--r)">👥 ${esc(job.crewNotes)}</div>` : ''}
   `, `
@@ -580,6 +613,8 @@ function openJobEditModal(job) {
         })),
       });
       toast('Job saved', 'ok');
+      // Recalculate totals in case line items changed
+      rpc('recalculateJobFinancials', jId).catch(() => {});
       STATE.loadedPanes.delete('jobs');
       await loadJobs();
     } catch(e) { toast(e.message, 'err'); }

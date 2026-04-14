@@ -13,10 +13,37 @@ export async function loadClients() {
   try {
     STATE.clients = await rpc('getClients', {});
     render(STATE.clients);
+    // Load revenue report in background
+    rpc('getClientRevenueReport').then(report => renderClientRevenue(report)).catch(()=>{});
     const el = document.getElementById('clients-subtitle');
     if (el) el.textContent = STATE.clients.length + ' clients';
   } catch(e) { toast('Clients failed: ' + e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+function renderClientRevenue(report) {
+  const el = document.getElementById('clients-revenue');
+  if (!el || !report?.length) return;
+  const top5 = report.slice(0, 5);
+  const max = top5[0]?.totalRevenue || 1;
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:flex-end;height:80px;margin-bottom:4px">
+      ${top5.map(c => {
+        const pct = Math.round((c.totalRevenue||0)/max*100);
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer"
+          onclick="window.__openClientHistory('${esc(c.clientId)}')">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text3)">${fmtCurDec(c.totalRevenue||0)}</div>
+          <div style="width:100%;background:var(--accent);border-radius:3px 3px 0 0;opacity:.8"
+            style="height:${pct}%">&nbsp;</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:8px">
+      ${top5.map(c => `<div style="flex:1;font-size:9px;color:var(--text3);text-align:center;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer"
+        onclick="window.__openClientHistory('${esc(c.clientId)}')"
+        title="${esc(c.clientName)}">${esc(c.clientName.split(' ')[0])}</div>`).join('')}
+    </div>`;
 }
 
 export function filterClients() {

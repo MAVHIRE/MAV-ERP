@@ -72,16 +72,18 @@ function render(suppliers) {
 export async function openSupplierDetail(supplierId) {
   showLoading('Loading supplier…');
   try {
-    const [supplier, products] = await Promise.all([
+    const [supplier, products, stats] = await Promise.all([
       rpc('getSupplierById', supplierId),
       rpc('getProducts').then(ps => ps.filter(p => p.supplierId === supplierId)),
+      rpc('getSupplierStats', supplierId).catch(() => []),
     ]);
     hideLoading();
-    showSupplierModal(supplier, products);
+    showSupplierModal(supplier, products, stats);
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }
 
-function showSupplierModal(s, products) {
+function showSupplierModal(s, products, stats) {
+  const st = (stats||[])[0] || {};
   const productRows = products.slice(0, 20).map(p => `<tr>
     <td class="td-id">${esc(p.sku)}</td>
     <td class="td-name">${esc(p.name)}</td>
@@ -91,7 +93,23 @@ function showSupplierModal(s, products) {
     <td class="td-num">${p.qtyOwned}</td>
   </tr>`).join('');
 
+  const statsSection = st.totalPurchaseValue ? `
+    <div class="section-title" style="margin-bottom:8px">Supplier Performance</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      ${[
+        ['Total Spent', fmtCurDec(st.totalPurchaseValue), 'var(--text2)'],
+        ['Revenue Generated', fmtCurDec(st.totalRevenue), 'var(--accent)'],
+        ['ROI', (st.roiPct||0).toFixed(1)+'%', (st.roiPct||0)>0?'var(--ok)':'var(--danger)'],
+        ['SKUs Supplied', st.productCount||products.length, 'var(--info)'],
+      ].map(([l,v,c])=>`
+        <div style="background:var(--surface2);border-radius:6px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">${l}</div>
+          <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:${c}">${v}</div>
+        </div>`).join('')}
+    </div>` : '';
+
   openModal('modal-supplier', esc(s.supplierName), `
+    ${statsSection}
     <div class="two-col" style="gap:12px;margin-bottom:16px">
       <div>
         <div class="detail-row"><div class="detail-label">Supplier ID</div><div class="detail-value td-id">${esc(s.supplierId)}</div></div>
@@ -117,6 +135,7 @@ function showSupplierModal(s, products) {
       </div>` : `<p style="font-size:13px;color:var(--text3)">No products linked to this supplier.</p>`}
   `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${esc(s.supplierId)}')">✏ Edit</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__openNewPOModal()">+ PO</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
 }
@@ -183,7 +202,7 @@ function openSupplierForm(existing) {
         email:         document.getElementById('fs-email')?.value,
         website:       document.getElementById('fs-website')?.value,
         address:       document.getElementById('fs-address')?.value,
-        leadTimeDays:  parseInt(document.getElementById('fs-lead')?.value) || 0,
+        leadTimeDays:  parseInt(document.getElementById('fs-lead', 10)?.value, 10) || 0,
         paymentTerms:  document.getElementById('fs-terms')?.value,
         currency:      document.getElementById('fs-currency')?.value || 'GBP',
         accountNumber: document.getElementById('fs-account')?.value,

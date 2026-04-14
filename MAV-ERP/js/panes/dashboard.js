@@ -19,6 +19,8 @@ export async function initDashboard() {
     STATE.dashboard = data;
     await render(data);
     setValue('dash-ts', 'Updated ' + new Date().toLocaleTimeString('en-GB'));
+    // Load management brain in background (slow call — don't block dashboard)
+    rpc('getManagementBrainReport').then(brain => renderBrainReport(brain)).catch(() => {});
   } catch(e) {
     toast('Dashboard failed: ' + e.message, 'err');
     setValue('dash-ts', '⚠ ' + e.message);
@@ -385,4 +387,60 @@ function renderLowStock(items) {
       </div>
     </div>`;
   }).join('');
+}
+
+// ── Management brain report ───────────────────────────────────────────────────
+function renderBrainReport(brain) {
+  const el = document.getElementById('dash-brain');
+  if (!el || !brain) return;
+
+  const opportunities = brain.opportunities || [];
+  const risks         = brain.risks || [];
+  const actions       = brain.recommendedActions || [];
+
+  if (!opportunities.length && !risks.length && !actions.length) {
+    el.style.display = 'none';
+    return;
+  }
+
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      ${actions.length ? `
+      <div>
+        <div style="font-size:11px;color:var(--accent);font-family:var(--mono);
+          text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+          ⚡ Recommended Actions</div>
+        ${actions.slice(0,4).map(a => `
+          <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;
+            margin-bottom:5px;border-left:2px solid var(--accent)">
+            <div style="font-size:12px;font-weight:500">${esc(a.title||a.action||a)}</div>
+            ${a.detail?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(a.detail)}</div>`:''}
+          </div>`).join('')}
+      </div>` : ''}
+      ${opportunities.length ? `
+      <div>
+        <div style="font-size:11px;color:var(--ok);font-family:var(--mono);
+          text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+          ↑ Opportunities</div>
+        ${opportunities.slice(0,4).map(o => `
+          <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;
+            margin-bottom:5px;border-left:2px solid var(--ok)">
+            <div style="font-size:12px;font-weight:500">${esc(o.title||o.opportunity||o)}</div>
+            ${o.detail?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(o.detail)}</div>`:''}
+          </div>`).join('')}
+      </div>` : ''}
+      ${risks.length ? `
+      <div>
+        <div style="font-size:11px;color:var(--danger);font-family:var(--mono);
+          text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+          ⚠ Risks</div>
+        ${risks.slice(0,4).map(r => `
+          <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;
+            margin-bottom:5px;border-left:2px solid var(--danger)">
+            <div style="font-size:12px;font-weight:500">${esc(r.title||r.risk||r)}</div>
+            ${r.detail?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(r.detail)}</div>`:''}
+          </div>`).join('')}
+      </div>` : ''}
+    </div>`;
 }

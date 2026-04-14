@@ -323,7 +323,7 @@ function buildItemMesh(scene, THREE, item) {
 function buildZoneMarker(scene, THREE, item) {
   // Translucent zone floor marker
   const geo = new THREE.PlaneGeometry(item.w, item.d);
-  const col = item.color ? parseInt(item.color.replace('#','0x')) : 0x4488ff;
+  const col = item.color ? parseInt(item.color.replace('#',''), 16) : 0x4488ff;
   const mat = new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.08, depthWrite:false });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.rotation.x = -Math.PI/2;
@@ -356,7 +356,7 @@ function buildWall(scene, THREE, item) {
 function buildRack(scene, THREE, item) {
   const occ = _occ[item.locationId]||0;
   const cap = item.capacity||0;
-  const col = item.color ? parseInt(item.color.replace('#','0x')) : 0xe8ff47;
+  const col = item.color ? parseInt(item.color.replace('#',''), 16) : 0xe8ff47;
 
   // Frame material
   const frameMat = new THREE.MeshStandardMaterial({ color:0x888888, roughness:0.4, metalness:0.8 });
@@ -609,8 +609,8 @@ export function exposeWarehouseGlobals() {
       w:        parseFloat(document.getElementById('wa-w')?.value)||1,
       d:        parseFloat(document.getElementById('wa-d')?.value)||0.5,
       h:        parseFloat(document.getElementById('wa-h')?.value)||2.4,
-      shelves:  parseInt(document.getElementById('wa-shelves')?.value)||4,
-      capacity: parseInt(document.getElementById('wa-cap')?.value)||0,
+      shelves:  parseInt(document.getElementById('wa-shelves', 10)?.value, 10)||4,
+      capacity: parseInt(document.getElementById('wa-cap', 10)?.value, 10)||0,
       color:    document.getElementById('wa-color')?.value||null,
     };
     _items.push(item); _dirty=true; closeModal();
@@ -643,7 +643,7 @@ export function exposeWarehouseGlobals() {
     if (designer) designer.style.display = view==='designer'?'flex':'none';
     if (list)     list.style.display     = view==='list'?'block':'none';
     document.querySelectorAll('.wh-view-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
-    if (view==='list') { const { loadStorage } = window.__storageModule||{}; if(loadStorage) loadStorage(); }
+    // loadStorage is wired in main.js __whSwitchView override — no-op here
     if (view==='designer' && !_three) setTimeout(()=>init3D(),80);
   };
 }

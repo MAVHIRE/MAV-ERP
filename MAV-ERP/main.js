@@ -18,7 +18,7 @@ import { loadJobs, filterJobs, openJobDetail, jobAction,
   from './js/panes/jobs.js';
 
 import { loadQuotes, filterQuotes, openQuoteDetail, openNewQuoteModal,
-         editQuote, convertQuoteToJob, duplicateQuote,
+         editQuote, convertQuoteToJob, duplicateQuote, deleteQuote,
          downloadQuotePdf, updateQuoteStatus, emailQuote }
   from './js/panes/quotes.js';
 
@@ -27,7 +27,7 @@ import { loadProducts, filterProducts, openProductDetail,
          openBulkBarcodeImport, openProductCsvImport,
          openLogMaintenanceForProduct, openReturnConditionModal,
          editProduct, openStockAdjustModal, openBarcodeLabelModal,
-         ensureProductsLoaded, ensureServicesLoaded }
+         ensureProductsLoaded, ensureServicesLoaded, openRateCards }
   from './js/panes/inventory.js';
 
 import { loadClients, filterClients, openNewClientModal, openClientHistory }
@@ -62,8 +62,15 @@ import { loadWarehouseDesigner, saveWarehouseLayout, openFloorSettings,
          setMode as whSetMode, zoomFit as whZoomFit, exposeWarehouseGlobals }
   from './js/panes/warehouse.js';
 
-import { loadInvoices, filterInvoices }
+import { loadInvoices, filterInvoices, sendPaymentReminder, generateJobInvoice }
   from './js/panes/invoices.js';
+
+import { loadTransport, filterTransport, openNewTransportModal,
+         deleteTransport, openVehicleManager, renderFleet }
+  from './js/panes/transport.js';
+
+import { loadAuditLog, filterAuditLog, populateAuditFilters }
+  from './js/panes/auditlog.js';
 
 import { loadCalendar, calPrev, calNext, calToday, calDayClick }
   from './js/panes/calendar.js';
@@ -83,7 +90,8 @@ import { loadSettings, saveSettings, updateLogoPreview,
          activateSettingsTab, updatePdfPreview }
   from './js/panes/settings.js';
 
-import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan }
+import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan,
+         loadStocktakeList, submitStocktake, filterStocktakeList, lookupBarcode }
   from './js/panes/scan.js';
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
@@ -128,15 +136,19 @@ async function bootstrap() {
   try {
     const data = await rpc('bootstrapApp');
 
-    if (data.products?.length)  STATE.products  = data.products;
-    if (data.clients?.length)   STATE.clients   = data.clients;
-    if (data.suppliers?.length) STATE.suppliers = data.suppliers;
-    if (data.jobs?.length)      STATE.jobs      = data.jobs;
-    if (data.quotes?.length)    STATE.quotes    = data.quotes;
-    if (data.bundles?.length)   STATE.bundles   = data.bundles;
-    if (data.services?.length)  STATE.services  = data.services;
-    if (data.settings)          STATE.settings  = data.settings;
-    if (data.dashboard)         STATE.dashboard = data.dashboard;
+    if (data.products?.length)      STATE.products      = data.products;
+    if (data.clients?.length)       STATE.clients       = data.clients;
+    if (data.suppliers?.length)     STATE.suppliers     = data.suppliers;
+    if (data.jobs?.length)          STATE.jobs          = data.jobs;
+    if (data.quotes?.length)        STATE.quotes        = data.quotes;
+    if (data.bundles?.length)       STATE.bundles       = data.bundles;
+    if (data.services?.length)      STATE.services      = data.services;
+    if (data.settings)              STATE.settings      = data.settings;
+    if (data.dashboard)             STATE.dashboard     = data.dashboard;
+    if (data.invoices?.length)      STATE.invoices      = data.invoices;
+    if (data.subRentals?.length)    STATE.subRentals    = data.subRentals;
+    if (data.crew?.length)          STATE.crew          = data.crew;
+    if (data.purchaseOrders?.length)STATE.purchaseOrders= data.purchaseOrders;
 
     hideLoading();
     await initDashboard();
@@ -153,9 +165,11 @@ async function bootstrap() {
 
 async function refreshAll() {
   STATE.loadedPanes.clear();
-  STATE.products = []; STATE.clients = []; STATE.suppliers = [];
-  STATE.jobs = []; STATE.quotes = []; STATE.bundles = [];
-  STATE.services = []; STATE.dashboard = null;
+  STATE.products = []; STATE.clients  = []; STATE.suppliers = [];
+  STATE.jobs     = []; STATE.quotes   = []; STATE.bundles   = [];
+  STATE.services = []; STATE.dashboard= null; STATE.invoices = [];
+  STATE.subRentals = []; STATE.crew   = []; STATE.purchaseOrders = [];
+  STATE.maintenance= []; STATE.skuStats= []; STATE.forecasts= [];
   await bootstrap();
   const active = STATE.activePane;
   if (active && active !== 'dashboard') {
@@ -200,6 +214,8 @@ async function loadPane(name) {
     case 'invoices':       return loadInvoices();
     case 'settings':       return loadSettings();
     case 'scan':           return loadScanPane();
+    case 'transport':      return loadTransport();
+    case 'auditlog':       return loadAuditLog().then(() => populateAuditFilters());
   }
 }
 
@@ -325,6 +341,7 @@ function exposeGlobals() {
   window.__editQuote          = editQuote;
   window.__convertQuoteToJob  = convertQuoteToJob;
   window.__duplicateQuote     = duplicateQuote;
+  window.__deleteQuote        = deleteQuote;
   window.__downloadQuotePdf   = downloadQuotePdf;
   window.__updateQuoteStatus  = updateQuoteStatus;
   window.__emailQuote         = emailQuote;
@@ -424,10 +441,25 @@ function exposeGlobals() {
     document.querySelectorAll('.wh-view-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.view === view));
     if (view === 'list') loadStorage();
+    if (view === 'designer') setTimeout(() => window.__whRebuild && window.__whRebuild(), 80);
   };
 
   // Invoices
-  window.__filterInvoices = filterInvoices;
+  window.__filterInvoices        = filterInvoices;
+  window.__sendPaymentReminder   = sendPaymentReminder;
+  window.__generateJobInvoice    = generateJobInvoice;
+
+  // Transport
+  window.__filterTransport       = filterTransport;
+  window.__openNewTransportModal = openNewTransportModal;
+  window.__deleteTransport       = deleteTransport;
+  window.__openVehicleManager    = openVehicleManager;
+
+  // Audit Log
+  window.__filterAuditLog        = filterAuditLog;
+
+  // Inventory rate cards
+  window.__openRateCards         = openRateCards;
 
   // Calendar
   window.__calPrev     = calPrev;
@@ -468,10 +500,14 @@ function exposeGlobals() {
   };
 
   // Scan
-  window.__onScanJobSelect = onScanJobSelect;
-  window.__setScanMode     = setScanMode;
-  window.__onScanKeydown   = onScanKeydown;
-  window.__submitScan      = submitScan;
+  window.__onScanJobSelect    = onScanJobSelect;
+  window.__setScanMode        = setScanMode;
+  window.__onScanKeydown      = onScanKeydown;
+  window.__submitScan         = submitScan;
+  window.__loadStocktakeList  = loadStocktakeList;
+  window.__submitStocktake    = submitStocktake;
+  window.__filterStocktakeList= filterStocktakeList;
+  window.__lookupBarcode      = lookupBarcode;
 
   // Filters
   window.__filterJobs        = filterJobs;
@@ -479,4 +515,107 @@ function exposeGlobals() {
   window.__filterProducts    = filterProducts;
   window.__filterClients     = filterClients;
   window.__filterMaintenance = filterMaintenance;
+
+  // ── Global search ────────────────────────────────────────────────────────
+  let _searchTimer = null;
+  window.__globalSearch = (q) => {
+    clearTimeout(_searchTimer);
+    const el = document.getElementById('global-search-results');
+    if (!el) return;
+    if (!q || q.length < 2) { el.style.display = 'none'; return; }
+    _searchTimer = setTimeout(async () => {
+      el.style.display = 'block';
+      el.innerHTML = `<div style="padding:12px;color:var(--text3);font-size:12px;font-family:var(--mono)">Searching…</div>`;
+      try {
+        const [jobs, clients, products] = await Promise.all([
+          rpc('getJobs', { search: q }),
+          rpc('searchClients', q),
+          rpc('searchProducts', q),
+        ]);
+        const sections = [];
+        const item = (icon, label, sub, pane, id, fn) =>
+          `<div onclick="window.__switchPane('${pane}');${fn?`setTimeout(()=>window.${fn}('${id}'),300)`:''}"
+            style="display:flex;gap:10px;align-items:center;padding:8px 12px;cursor:pointer;
+            border-radius:4px;transition:background .12s"
+            onmouseover="this.style.background='var(--surface2)'"
+            onmouseout="this.style.background=''"
+          >
+            <span style="font-size:16px;width:20px;text-align:center">${icon}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+              ${sub?`<div style="font-size:11px;color:var(--text3)">${sub}</div>`:''}
+            </div>
+          </div>`;
+
+        if (jobs?.length) {
+          sections.push(`<div style="padding:6px 12px 2px;font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em">Jobs</div>`);
+          sections.push(...jobs.slice(0,5).map(j => item('◉', j.jobName||j.jobId, `${j.clientName} · ${j.status}`, 'jobs', j.jobId, '__openJobDetail')));
+        }
+        if (clients?.length) {
+          sections.push(`<div style="padding:6px 12px 2px;font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em">Clients</div>`);
+          sections.push(...clients.slice(0,5).map(c => item('◑', c.clientName, `${c.company||''} ${c.email||''}`.trim(), 'clients', c.clientId, '__openClientHistory')));
+        }
+        if (products?.length) {
+          sections.push(`<div style="padding:6px 12px 2px;font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em">Inventory</div>`);
+          sections.push(...products.slice(0,5).map(p => item('▦', p.name, `${p.sku} · ${p.category||''}`, 'inventory', p.productId, '__openProductDetail')));
+        }
+        if (!sections.length) {
+          el.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">No results for "<strong>${q}</strong>"</div>`;
+        } else {
+          el.innerHTML = sections.join('');
+        }
+      } catch(e) {
+        el.innerHTML = `<div style="padding:12px;color:var(--danger);font-size:12px">${e.message}</div>`;
+      }
+    }, 280);
+  };
+
+  window.__globalSearchKey = (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('global-search-results').style.display = 'none';
+      document.getElementById('global-search-input').blur();
+    }
+    if (e.key === 'Enter') {
+      const first = document.querySelector('#global-search-results [onclick]');
+      if (first) { first.click(); window.__hideGlobalResults(); }
+    }
+  };
+
+  window.__hideGlobalResults = () => {
+    const el = document.getElementById('global-search-results');
+    if (el) el.style.display = 'none';
+  };
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      // Allow '/' only when not already in an input (focus global search)
+      return;
+    }
+    const key = e.key;
+    if (key === '/' ) { e.preventDefault(); document.getElementById('global-search-input')?.focus(); return; }
+    if (key === 'j' && !e.ctrlKey && !e.metaKey) { switchPane('jobs');      window.__openNewJobModal();   return; }
+    if (key === 'q' && !e.ctrlKey && !e.metaKey) { switchPane('quotes');    window.__openNewQuoteModal(); return; }
+    if (key === 'i' && !e.ctrlKey && !e.metaKey) { switchPane('inventory'); return; }
+    if (key === 'c' && !e.ctrlKey && !e.metaKey) { switchPane('clients');   return; }
+    if (key === 'd' && !e.ctrlKey && !e.metaKey) { switchPane('dashboard'); return; }
+    if (key === 'm' && !e.ctrlKey && !e.metaKey) { switchPane('maintenance'); return; }
+    if (key === '?' ) {
+      e.preventDefault();
+      openModal('modal-shortcuts', 'Keyboard Shortcuts', `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:12px">
+          ${[
+            ['/','Global search'],['D','Dashboard'],['J','New Job'],['Q','New Quote'],
+            ['I','Inventory'],['C','Clients'],['M','Maintenance'],
+            ['Esc','Close modal'],['?','This help'],
+          ].map(([k,l])=>`
+            <div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+              <kbd style="font-family:var(--mono);background:var(--surface3);padding:2px 8px;
+                border-radius:4px;font-size:11px;min-width:24px;text-align:center">${k}</kbd>
+              <span style="color:var(--text2)">${l}</span>
+            </div>`).join('')}
+        </div>`, `<button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`
+      );
+    }
+  });
 }

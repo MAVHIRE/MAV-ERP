@@ -161,7 +161,7 @@ export function openAddLocationModal(parentId, type, zone, bay, shelf) {
         shelf:        document.getElementById('fl-shelf')?.value.trim()  || '',
         bin:          document.getElementById('fl-bin')?.value.trim()    || '',
         description:  document.getElementById('fl-desc')?.value.trim(),
-        capacity:     parseInt(document.getElementById('fl-capacity')?.value) || 0,
+        capacity:     parseInt(document.getElementById('fl-capacity', 10)?.value, 10) || 0,
         active:       true,
       });
       toast(locType + ' created', 'ok');

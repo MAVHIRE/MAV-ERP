@@ -601,3 +601,17 @@ textarea { resize: vertical; min-height: 72px; }
   background: var(--accent2);
   border-color: var(--accent2);
 }
+
+/* ── Product form tabs ───────────────────────────────────── */
+.prod-tab {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: var(--mono);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  color: var(--text3);
+  transition: all var(--trans);
+  white-space: nowrap;
+}
+.prod-tab:hover { color: var(--text2); }
+.prod-tab.active { color: var(--text); border-bottom-color: var(--accent); }

@@ -69,40 +69,91 @@ export async function openPODetail(poId) {
 }
 
 function showPOModal(po) {
-  const itemRows = (po.items||[]).map(i => `<tr>
-    <td class="td-id">${esc(i.sku||'—')}</td>
-    <td>${esc(i.productName||'—')}</td>
-    <td class="td-num">${i.quantity}</td>
-    <td class="td-num">${fmtCurDec(i.unitCost)}</td>
-    <td class="td-num" style="font-weight:600">${fmtCurDec(i.lineTotal)}</td>
-    <td class="td-num">${i.received}</td>
-  </tr>`).join('');
+  const canReceive = po.status === 'Ordered' || po.status === 'Partially Received';
+  const itemRows = (po.items||[]).map(i => {
+    const remaining = (i.quantity||0) - (i.received||0);
+    const fullyReceived = remaining <= 0;
+    return `<tr style="${fullyReceived?'opacity:.5':''}">
+      <td class="td-id">${esc(i.sku||'—')}</td>
+      <td>${esc(i.productName||'—')}</td>
+      <td class="td-num">${i.quantity}</td>
+      <td class="td-num">${fmtCurDec(i.unitCost)}</td>
+      <td class="td-num" style="font-weight:600">${fmtCurDec(i.lineTotal)}</td>
+      <td class="td-num" style="color:${fullyReceived?'var(--ok)':'var(--warn)'}">
+        ${i.received||0}/${i.quantity}
+        ${fullyReceived?'✓':''}
+      </td>
+      ${canReceive && !fullyReceived ? `
+      <td>
+        <input type="number" class="po-receive-qty" data-item-id="${esc(i.poItemId)}"
+          value="${remaining}" min="0" max="${remaining}" step="1"
+          style="width:60px;padding:3px 6px;font-family:var(--mono);font-size:12px;
+          background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text)">
+      </td>` : `<td></td>`}
+    </tr>`;
+  }).join('');
 
   openModal('modal-po-detail', `PO: ${esc(po.poId)}`, `
-    <div class="two-col" style="gap:12px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div>
         <div class="detail-row"><div class="detail-label">Supplier</div><div class="detail-value">${esc(po.supplierName||'—')}</div></div>
         <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${statusBadge(po.status)}</div></div>
         <div class="detail-row"><div class="detail-label">Order Date</div><div class="detail-value">${fmtDate(po.orderDate)}</div></div>
         <div class="detail-row"><div class="detail-label">Expected</div><div class="detail-value">${fmtDate(po.expectedDate)}</div></div>
-        ${po.deliveryDate ? `<div class="detail-row"><div class="detail-label">Delivered</div><div class="detail-value ok">${fmtDate(po.deliveryDate)}</div></div>` : ''}
+        ${po.deliveryDate?`<div class="detail-row"><div class="detail-label">Delivered</div><div class="detail-value" style="color:var(--ok)">${fmtDate(po.deliveryDate)}</div></div>`:''}
       </div>
       <div>
-        <div class="detail-row"><div class="detail-label">Total Value</div><div class="detail-value accent" style="font-size:16px">${fmtCurDec(po.totalValue)}</div></div>
-        ${po.notes ? `<div class="detail-row"><div class="detail-label">Notes</div><div class="detail-value" style="font-size:12px">${esc(po.notes)}</div></div>` : ''}
+        <div class="detail-row"><div class="detail-label">Total Value</div><div class="detail-value" style="font-size:16px;color:var(--accent)">${fmtCurDec(po.totalValue)}</div></div>
+        ${po.notes?`<div class="detail-row"><div class="detail-label">Notes</div><div class="detail-value" style="font-size:12px">${esc(po.notes)}</div></div>`:''}
       </div>
     </div>
     ${(po.items||[]).length ? `
-      <div class="section-title" style="margin-bottom:8px">Line Items</div>
+      <div class="section-title" style="margin-bottom:8px">
+        Line Items ${canReceive?'<span style="font-size:11px;color:var(--text3);font-weight:400">— enter received qty per line</span>':''}
+      </div>
       <div class="tbl-wrap">
-        <table><thead><tr><th>SKU</th><th>Product</th><th>Qty</th><th>Unit Cost</th><th>Total</th><th>Received</th></tr></thead>
-        <tbody>${itemRows}</tbody></table>
-      </div>` : ''}`, `
-    ${!['Received','Cancelled'].includes(po.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__editPO('${esc(po.poId)}')">✏ Edit</button>` : ''}
-    ${po.status === 'Draft' ? `<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${esc(po.poId)}','Ordered')">Send Order</button>` : ''}
-    ${po.status === 'Ordered' ? `<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${esc(po.poId)}','Received')">Mark Received</button>` : ''}
+        <table>
+          <thead><tr>
+            <th>SKU</th><th>Product</th><th>Ordered</th><th>Unit Cost</th>
+            <th>Total</th><th>Received</th>${canReceive?'<th>Receive Now</th>':''}
+          </tr></thead>
+          <tbody>${itemRows}</tbody>
+        </table>
+      </div>` : '<div style="color:var(--text3);font-size:12px;padding:12px 0">No items on this PO.</div>'}
+    ${canReceive ? `
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px;
+        background:var(--surface2);border-radius:6px">
+        <input type="date" id="po-delivery-date" value="${new Date().toISOString().substring(0,10)}"
+          style="padding:5px 8px;background:var(--surface3);border:1px solid var(--border);
+          border-radius:4px;color:var(--text);font-size:12px">
+        <span style="font-size:12px;color:var(--text3)">Delivery date</span>
+      </div>` : ''}
+    `, `
+    ${!['Received','Cancelled'].includes(po.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__editPO('${esc(po.poId)}')">✏ Edit</button>`:''}
+    ${po.status==='Draft'?`<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${esc(po.poId)}','Ordered')">📤 Send Order</button>`:''}
+    ${canReceive?`<button class="btn btn-primary btn-sm" onclick="window.__receivePOItems('${esc(po.poId)}')">📦 Receive Items</button>`:''}
+    ${po.status!=='Cancelled'&&po.status!=='Received'?`<button class="btn btn-danger btn-sm" onclick="window.__updatePOStatus('${esc(po.poId)}','Cancelled')">Cancel PO</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`
   );
+
+  window.__receivePOItems = async (poId) => {
+    const inputs = document.querySelectorAll('.po-receive-qty');
+    const receipts = [];
+    inputs.forEach(inp => {
+      const qty = parseFloat(inp.value) || 0;
+      if (qty > 0) receipts.push({ poItemId: inp.dataset.itemId, receivedQty: qty });
+    });
+    if (!receipts.length) { toast('Enter at least one received quantity', 'warn'); return; }
+    const deliveryDate = document.getElementById('po-delivery-date')?.value || '';
+    showLoading('Recording delivery…'); closeModal();
+    try {
+      await rpc('receivePOItems', { poId, receipts, deliveryDate });
+      toast(`Delivery recorded — ${receipts.length} line(s) updated`, 'ok');
+      STATE.loadedPanes.delete('inventory');
+      await loadPurchaseOrders();
+    } catch(e) { toast(e.message, 'err'); }
+    finally { hideLoading(); }
+  };
 }
 
 export function openNewPOModal() { openPOForm(null); }

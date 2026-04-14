@@ -91,7 +91,7 @@ export async function saveSettings() {
   const gv  = id => document.getElementById(id)?.value ?? '';
   const gc  = id => document.getElementById(id)?.checked ? 'true' : 'false';
   const gn  = (id, fb=0) => parseFloat(document.getElementById(id)?.value) || fb;
-  const gi  = (id, fb=0) => parseInt(document.getElementById(id)?.value) || fb;
+  const gi  = (id, fb=0) => parseInt(document.getElementById(id, 10)?.value, 10) || fb;
 
   showLoading('Saving settings…');
   try {

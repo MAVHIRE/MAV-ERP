@@ -171,6 +171,7 @@ function showQuoteModal(q) {
     ${statusBtns}
     ${!q.linkedJobId?`<button class="btn btn-ghost btn-sm" onclick="window.__convertQuoteToJob('${esc(q.quoteId)}')">→ Convert to Job</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__duplicateQuote('${esc(q.quoteId)}')">⎘ Duplicate</button>
+    ${!q.linkedJobId&&['Draft','Expired','Declined'].includes(q.status)?`<button class="btn btn-danger btn-sm" onclick="window.__deleteQuote('${esc(q.quoteId)}')">🗑 Delete</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `, 'modal-lg');
 }
@@ -409,6 +410,19 @@ export async function duplicateQuote(quoteId) {
   try {
     const r = await rpc('duplicateQuote', quoteId);
     toast('Duplicate created: ' + r.quoteId, 'ok');
+    STATE.loadedPanes.delete('quotes');
+    await loadQuotes();
+  } catch(e) { toast(e.message, 'err'); }
+  finally { hideLoading(); }
+}
+
+// ── Delete quote ──────────────────────────────────────────────────────────────
+export async function deleteQuote(quoteId) {
+  if (!confirm(`Delete quote ${quoteId}? This cannot be undone.`)) return;
+  showLoading('Deleting…'); closeModal();
+  try {
+    await rpc('deleteQuote', quoteId);
+    toast('Quote deleted', 'ok');
     STATE.loadedPanes.delete('quotes');
     await loadQuotes();
   } catch(e) { toast(e.message, 'err'); }
