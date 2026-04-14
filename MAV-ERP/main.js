@@ -256,20 +256,21 @@ function switchBundlesTab(tab) {
 
 // ── Demo helpers ──────────────────────────────────────────────────────────────
 async function runSeedDemo() {
-  if (!confirm('Seed demo data? Runs in 12 stages — ~15 minutes total. Don\'t close the tab.')) return;
+  if (!confirm('Seed demo data? Runs in 13 stages — ~20 minutes total. Don\'t close the tab.')) return;
   const stages = [
-    { fn: 'seedDemoStage1',  label: 'Stage 1/12: Suppliers, products & barcodes…' },
-    { fn: 'seedDemoStage2',  label: 'Stage 2/12: Clients & quotes…' },
-    { fn: 'seedDemoStage3',  label: 'Stage 3/12: Active jobs…' },
-    { fn: 'seedDemoStage3b', label: 'Stage 4/12: Historical jobs…' },
-    { fn: 'seedDemoStage4',  label: 'Stage 5/12: Maintenance & analytics…' },
-    { fn: 'seedDemoStage5',  label: 'Stage 6/12: More clients & quotes…' },
-    { fn: 'seedDemoStage5b', label: 'Stage 7/12: More jobs…' },
-    { fn: 'seedDemoStage5c', label: 'Stage 8/12: Crew, sub-rentals, POs…' },
-    { fn: 'seedDemoStage6',  label: 'Stage 9/12: 40 more clients & 20 quotes…' },
-    { fn: 'seedDemoStage6b', label: 'Stage 10/12: 40 more jobs…' },
-    { fn: 'seedDemoStage6c', label: 'Stage 11/12: 30 crew, 15 sub-rentals, 12 POs…' },
-    { fn: 'seedDemoStage6d', label: 'Stage 12/12: 30 maintenance records & rebuild…' },
+    { fn: 'seedDemoStage1',  label: 'Stage 1/13: Settings, suppliers, products & barcodes…' },
+    { fn: 'seedDemoStage2',  label: 'Stage 2/13: Clients & quotes…' },
+    { fn: 'seedDemoStage3',  label: 'Stage 3/13: Active jobs…' },
+    { fn: 'seedDemoStage3b', label: 'Stage 4/13: Historical jobs…' },
+    { fn: 'seedDemoStage4',  label: 'Stage 5/13: Maintenance & analytics…' },
+    { fn: 'seedDemoStage5',  label: 'Stage 6/13: More clients…' },
+    { fn: 'seedDemoStage5b', label: 'Stage 7/13: More jobs…' },
+    { fn: 'seedDemoStage5c', label: 'Stage 8/13: Crew, sub-rentals, POs…' },
+    { fn: 'seedDemoStage6',  label: 'Stage 9/13: 40 more clients…' },
+    { fn: 'seedDemoStage6b', label: 'Stage 10/13: 40 more jobs…' },
+    { fn: 'seedDemoStage6c', label: 'Stage 11/13: Crew, sub-rentals, POs bulk…' },
+    { fn: 'seedDemoStage6d', label: 'Stage 12/13: Maintenance records & rebuild…' },
+    { fn: 'seedDemoStageX',  label: 'Stage 13/13: Vehicles, warehouse, transport, stocktakes…' },
   ];
   for (const stage of stages) {
     showLoading(stage.label);
