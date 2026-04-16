@@ -180,8 +180,6 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Analytics</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__runSeedDemo()">⚡ Demo</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__runClearDemo()">🗑 Clear</button>
         <button class="btn btn-primary btn-sm" onclick="window.__exportJobsCsv()" title="Export to CSV">⬇ CSV</button>
         <button class="btn btn-primary btn-sm" onclick="window.__openNewJobModal()">+ New Job</button>
       </div>
@@ -1219,14 +1217,6 @@
           </div>
         </div>
 
-        <div class="section">
-          <div class="section-title">Data Management</div>
-          <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" onclick="window.__runSeedDemo()">⚡ Seed Demo Data</button>
-            <button class="btn btn-danger btn-sm" onclick="window.__runClearDemo()">✕ Clear Demo Data</button>
-          </div>
-          <p style="font-size:11px;color:var(--text3);margin-top:8px">Demo data is prefixed DEMO- and can be cleared without affecting real data.</p>
-        </div>
       </div>
 
       <!-- Services tab -->

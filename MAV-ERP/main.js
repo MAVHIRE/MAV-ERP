@@ -343,48 +343,6 @@ function switchBundlesTab(tab) {
   }
 }
 
-// ── Demo helpers ──────────────────────────────────────────────────────────────
-async function runSeedDemo() {
-  if (!confirm('Seed demo data? Runs in 13 stages — ~20 minutes total. Don\'t close the tab.')) return;
-  const stages = [
-    { fn: 'seedDemoStage1',  label: 'Stage 1/13: Settings, suppliers, products & barcodes…' },
-    { fn: 'seedDemoStage2',  label: 'Stage 2/13: Clients & quotes…' },
-    { fn: 'seedDemoStage3',  label: 'Stage 3/13: Active jobs…' },
-    { fn: 'seedDemoStage3b', label: 'Stage 4/13: Historical jobs…' },
-    { fn: 'seedDemoStage4',  label: 'Stage 5/13: Maintenance & analytics…' },
-    { fn: 'seedDemoStage5',  label: 'Stage 6/13: More clients…' },
-    { fn: 'seedDemoStage5b', label: 'Stage 7/13: More jobs…' },
-    { fn: 'seedDemoStage5c', label: 'Stage 8/13: Crew, sub-rentals, POs…' },
-    { fn: 'seedDemoStage6',  label: 'Stage 9/13: 40 more clients…' },
-    { fn: 'seedDemoStage6b', label: 'Stage 10/13: 40 more jobs…' },
-    { fn: 'seedDemoStage6c', label: 'Stage 11/13: Crew, sub-rentals, POs bulk…' },
-    { fn: 'seedDemoStage6d', label: 'Stage 12/13: Maintenance records & rebuild…' },
-    { fn: 'seedDemoStageX',  label: 'Stage 13/13: Vehicles, warehouse, transport, stocktakes…' },
-  ];
-  for (const stage of stages) {
-    showLoading(stage.label);
-    try {
-      const r = await rpc(stage.fn);
-      if (!r.ok) { toast(r.message, 'err'); hideLoading(); return; }
-      toast(r.message, 'ok');
-    } catch(e) { toast('Failed: ' + e.message, 'err'); hideLoading(); return; }
-  }
-  hideLoading();
-  toast('Demo data seeded!', 'ok');
-  await refreshAll();
-}
-
-async function runClearDemo() {
-  if (!confirm('Delete all DEMO- rows?')) return;
-  showLoading('Clearing…');
-  try {
-    const r = await rpc('clearDemoData');
-    toast(r.message, 'ok');
-    await refreshAll();
-  } catch(e) { toast(e.message, 'err'); }
-  finally { hideLoading(); }
-}
-
 // ── GAS URL modal ─────────────────────────────────────────────────────────────
 function showGasModal() {
   openModal('modal-gas-settings', '⚙ Connect to Google Apps Script', `
@@ -457,8 +415,6 @@ function exposeGlobals() {
   };
 
   // Dashboard
-  window.__runSeedDemo         = runSeedDemo;
-  window.__runClearDemo        = runClearDemo;
   window.__runAnalyticsRefresh = runAnalyticsRefresh;
 
   // Enquiries
