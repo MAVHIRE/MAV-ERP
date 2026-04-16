@@ -173,10 +173,9 @@
   <!-- ── DASHBOARD ─────────────────────────────────────────────────────── -->
   <div class="pane active" id="pane-dashboard">
     <div class="pane-inner">
-    <div class="page-header">
+    <div class="page-header" style="margin-bottom:14px">
       <div>
-        <div class="page-title">Dashboard</div>
-        <div class="page-subtitle" id="dash-ts">Loading…</div>
+        <div class="page-subtitle" id="dash-ts" style="font-size:11px;color:var(--text3);font-family:var(--mono)">Loading…</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Analytics</button>
@@ -185,22 +184,22 @@
       </div>
     </div>
 
-    <!-- KPI grid -->
-    <div class="kpi-grid" id="dash-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+    <!-- KPI strip — 4 across top, 4 across bottom -->
+    <div class="kpi-grid" id="dash-kpis" style="grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
 
     <!-- Row 1: Revenue chart + Job status + Utilisation -->
     <div class="dash-grid-3">
       <div class="section">
         <div class="section-title">Revenue</div>
-        <div id="dash-revenue-chart"></div>
+        <div id="dash-revenue-chart" style="min-height:160px"></div>
       </div>
       <div class="section">
         <div class="section-title">Job Status</div>
-        <div id="dash-status-chart"></div>
+        <div id="dash-status-chart" style="min-height:160px"></div>
       </div>
       <div class="section">
         <div class="section-title">Fleet Utilisation</div>
-        <div id="dash-util-chart"></div>
+        <div id="dash-util-chart" style="min-height:160px"></div>
       </div>
     </div>
 
@@ -208,15 +207,15 @@
     <div class="dash-grid-3">
       <div class="section">
         <div class="section-title">Jobs Departing Soon</div>
-        <div id="dash-upcoming"></div>
+        <div id="dash-upcoming" style="min-height:80px"></div>
       </div>
       <div class="section">
         <div class="section-title" id="dash-alerts-section">Alerts</div>
-        <div id="dash-alerts"></div>
+        <div id="dash-alerts" style="min-height:80px"></div>
       </div>
       <div class="section">
         <div class="section-title">Overdue Returns</div>
-        <div id="dash-overdue"></div>
+        <div id="dash-overdue" style="min-height:80px"></div>
       </div>
     </div>
 

@@ -69,7 +69,7 @@ function renderKPIs(ops, fin, stk, mnt) {
         <div class="kpi-label">${label}</div>
         ${icon?`<div style="font-size:18px;opacity:.6">${icon}</div>`:''}
       </div>
-      <div class="kpi-value ${color}" style="font-size:clamp(20px,3vw,28px)">${value}</div>
+      <div class="kpi-value ${color}" style="font-size:clamp(18px,2.2vw,24px)">${value}</div>
       ${sub?`<div style="font-size:11px;color:var(--text3);margin-top:4px;font-family:var(--mono)">${sub}</div>`:''}
     </div>`;
 

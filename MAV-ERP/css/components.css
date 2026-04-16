@@ -126,22 +126,22 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r2);
-  padding: 16px 18px;
+  padding: 12px 14px;
   transition: border-color var(--trans), transform var(--trans);
   cursor: default;
 }
 .kpi:hover { border-color: var(--border3); transform: translateY(-1px); }
 .kpi-label {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: .1em;
+  font-size: 9px;
+  letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--text3);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .kpi-value {
   font-family: var(--head);
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--text);
   line-height: 1;
@@ -718,10 +718,10 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
    Better density and layout on wide displays
    ═══════════════════════════════════════════════════════ */
 
-/* ── KPI cards — richer on large screens ─────────────── */
-@media (min-width: 1200px) {
-  .kpi { padding: 18px 22px; }
-  .kpi-value { font-size: 32px; }
+/* ── KPI cards — slightly richer on large screens ──────── */
+@media (min-width: 1400px) {
+  .kpi { padding: 14px 16px; }
+  .kpi-value { font-size: 24px; }
 }
 
 /* ── Table — better row density on large screens ──────── */
