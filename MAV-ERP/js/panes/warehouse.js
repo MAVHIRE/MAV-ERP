@@ -236,7 +236,21 @@ function init3D() {
 function build3DScene(wrap) {
   if (!window.THREE) { switchView('2d'); return; }
   const THREE = window.THREE;
-  const W = wrap.offsetWidth || 900, H = wrap.offsetHeight || 600;
+
+  // Measure after layout has settled — offsetWidth can be 0 if measured too early
+  const measure = () => {
+    const W = wrap.offsetWidth  || wrap.parentElement?.offsetWidth  || 900;
+    const H = wrap.offsetHeight || wrap.parentElement?.offsetHeight || 600;
+    return { W: W || 900, H: H || 600 };
+  };
+
+  // If the container has no size yet, defer one frame
+  if (!wrap.offsetWidth || !wrap.offsetHeight) {
+    requestAnimationFrame(() => build3DScene(wrap));
+    return;
+  }
+
+  const { W, H } = measure();
 
   const renderer = new THREE.WebGLRenderer({ antialias:true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -244,6 +258,8 @@ function build3DScene(wrap) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.setClearColor(0x080810);
+  // Force canvas to fill wrap — prevents partial render
+  renderer.domElement.style.cssText = 'display:block;width:100%;height:100%;';
   wrap.appendChild(renderer.domElement);
 
   const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 500);
