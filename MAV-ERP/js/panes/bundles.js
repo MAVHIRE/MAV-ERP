@@ -60,7 +60,12 @@ function render(bundles) {
 export async function openBundleDetail(bundleId) {
   showLoading('Loading bundle…');
   try {
-    const bundle = await rpc('getBundleById', bundleId);
+    const [bundle, items] = await Promise.all([
+      rpc('getBundleById', bundleId),
+      rpc('getBundleItems', bundleId).catch(() => null),
+    ]);
+    // Merge items from dedicated call if richer
+    if (items && items.length > (bundle.items||[]).length) bundle.items = items;
     hideLoading();
     showBundleModal(bundle);
   } catch(e) { hideLoading(); toast(e.message, 'err'); }

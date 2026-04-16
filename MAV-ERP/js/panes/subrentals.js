@@ -63,7 +63,14 @@ function render(items) {
         <td class="td-num">${r.hireDays}</td>
         <td class="td-num" style="font-weight:600">${fmtCurDec(r.totalCost)}</td>
         <td>${fmtDate(r.deliveryDate)}</td>
-        <td>${statusBadge(r.status)}</td>
+        <td>
+          <select onchange="window.__updateSubRentalStatus('${esc(r.subRentalId)}',this.value)"
+            style="font-size:11px;padding:2px 6px;background:var(--surface2);
+            border:1px solid var(--border);border-radius:3px;color:var(--text)">
+            ${['Ordered','Confirmed','Delivered','Returned','Cancelled'].map(s =>
+              `<option${r.status===s?' selected':''}>${s}</option>`).join('')}
+          </select>
+        </td>
         <td style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-sm" onclick="window.__editSubRental('${esc(r.subRentalId)}')">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="window.__deleteSubRental('${esc(r.subRentalId)}')">✕</button>
@@ -187,4 +194,16 @@ export async function deleteSubRental(subRentalId) {
     await loadSubRentals();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+// ── Quick status update ───────────────────────────────────────────────────────
+export async function updateSubRentalStatusFn(subRentalId, status) {
+  try {
+    await rpc('updateSubRentalStatus', subRentalId, status);
+    toast(`Status → ${status}`, 'ok');
+    STATE.loadedPanes.delete('subrentals');
+    STATE.subRentals = (STATE.subRentals||[]).map(r =>
+      r.subRentalId === subRentalId ? {...r, status} : r
+    );
+  } catch(e) { toast(e.message, 'err'); }
 }

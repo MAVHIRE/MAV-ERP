@@ -6,7 +6,7 @@
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast } from '../utils/dom.js';
 import { esc, statusBadge, fmtDate } from '../utils/format.js';
-import { rpc } from '../api/gas.js';
+import { rpc, rpcWithFallback } from '../api/gas.js';
 
 let _year  = new Date().getFullYear();
 let _month = new Date().getMonth(); // 0-based
@@ -24,17 +24,19 @@ const STATUS_COLOR = {
 };
 
 export async function loadCalendar() {
-  if (!STATE.jobs.length) {
-    showLoading('Loading jobs…');
-    try {
-      STATE.jobs = await rpc('getJobs', {});
-    } catch(e) {
-      toast(e.message, 'err');
-    } finally {
-      hideLoading();
-    }
+  showLoading('Loading calendar…');
+  try {
+    const [jobs, enquiries] = await Promise.all([
+      STATE.jobs.length ? Promise.resolve(STATE.jobs) : rpcWithFallback('getJobs', {}),
+      STATE.enquiries?.length ? Promise.resolve(STATE.enquiries) : rpc('getEnquiries', {}).catch(() => []),
+    ]);
+    STATE.jobs      = jobs;
+    STATE.enquiries = enquiries;
+  } catch(e) {
+    toast(e.message, 'err');
+  } finally {
+    hideLoading();
   }
-  // Small delay ensures pane DOM is visible before we write to it
   setTimeout(() => renderCalendar(), 10);
 }
 
@@ -71,21 +73,29 @@ function renderCalendar() {
 
   // Build job map: date string → jobs[]
   const jobMap = {};
+  const enqMap = {};
   const today = new Date();
   today.setHours(0,0,0,0);
 
   STATE.jobs.forEach(j => {
     if (j.status === 'Cancelled') return;
-    // Show on event date and start date
     const dates = [];
     if (j.eventDate) dates.push(j.eventDate.substring(0,10));
     if (j.startDate && j.startDate.substring(0,10) !== j.eventDate?.substring(0,10))
       dates.push(j.startDate.substring(0,10));
-
     dates.forEach(d => {
       if (!jobMap[d]) jobMap[d] = [];
       jobMap[d].push(j);
     });
+  });
+
+  // Build enquiry map: only active enquiries with an event date
+  (STATE.enquiries||[]).forEach(e => {
+    if (['Won','Lost','Spam'].includes(e.status)) return;
+    const d = (e.eventDate||'').substring(0,10);
+    if (!d || d.length < 10) return;
+    if (!enqMap[d]) enqMap[d] = [];
+    enqMap[d].push(e);
   });
 
   // Day headers
@@ -105,11 +115,12 @@ function renderCalendar() {
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${_year}-${String(_month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const jobs    = jobMap[dateStr] || [];
+    const enqs    = enqMap[dateStr] || [];
     const cellDate = new Date(_year, _month, day);
     const isToday  = cellDate.getTime() === today.getTime();
     const isWeekend = ((day + startOffset - 1) % 7) >= 5;
 
-    const jobPills = jobs.slice(0,4).map(j => {
+    const jobPills = jobs.slice(0,3).map(j => {
       const color = STATUS_COLOR[j.status] || '#5a5a70';
       return `<div onclick="event.stopPropagation();window.__openJobDetail('${esc(j.jobId)}')"
         style="font-size:9px;padding:2px 5px;border-radius:2px;margin-bottom:2px;
@@ -121,7 +132,20 @@ function renderCalendar() {
       </div>`;
     }).join('');
 
-    const moreCount = jobs.length > 4 ? `<div style="font-size:9px;color:var(--text3);padding:1px 4px">+${jobs.length-4} more</div>` : '';
+    const enqPills = enqs.slice(0,2).map(e => {
+      const prioColor = e.priority==='High'?'#ffaa00':e.priority==='Low'?'#888':'#cc8800';
+      return `<div onclick="event.stopPropagation();window.__openEnquiryDetail('${esc(e.enquiryId)}')"
+        style="font-size:9px;padding:2px 5px;border-radius:2px;margin-bottom:2px;
+               background:#ffaa0018;border-left:2px solid ${prioColor};
+               color:var(--text3);cursor:pointer;white-space:nowrap;overflow:hidden;
+               text-overflow:ellipsis;max-width:100%;font-style:italic"
+        title="Enquiry: ${esc(e.name||'')} — ${esc(e.eventType||'')}">
+        ◈ ${esc((e.name||e.enquiryId).substring(0,18))}
+      </div>`;
+    }).join('');
+
+    const totalExtra = (jobs.length > 3 ? jobs.length - 3 : 0) + (enqs.length > 2 ? enqs.length - 2 : 0);
+    const moreCount = totalExtra > 0 ? `<div style="font-size:9px;color:var(--text3);padding:1px 4px">+${totalExtra} more</div>` : '';
 
     html += `<div style="min-height:90px;background:${isWeekend?'var(--surface2)':'var(--surface)'};
                           border-radius:var(--r);padding:6px;cursor:default;
@@ -130,29 +154,25 @@ function renderCalendar() {
       onclick="window.__calDayClick('${dateStr}')">
       <div style="font-family:var(--mono);font-size:11px;font-weight:${isToday?'700':'400'};
                   color:${isToday?'var(--accent)':'var(--text3)'};margin-bottom:4px">${day}</div>
-      ${jobPills}${moreCount}
+      ${jobPills}${enqPills}${moreCount}
     </div>`;
   }
 
   el.innerHTML = html;
-
-  // Update legend
-  updateLegend(jobMap);
+  updateLegend(jobMap, enqMap);
 }
 
 function updateLegend(jobMap) {
   const legendEl = document.getElementById('calendar-legend');
   if (!legendEl) return;
 
-  // Count jobs this month
-  let total = 0;
   const statusCount = {};
   Object.values(jobMap).forEach(jobs => {
-    jobs.forEach(j => {
-      total++;
-      statusCount[j.status] = (statusCount[j.status] || 0) + 1;
-    });
+    jobs.forEach(j => { statusCount[j.status] = (statusCount[j.status] || 0) + 1; });
   });
+  const enqTotal = (STATE.enquiries||[]).filter(e =>
+    !['Won','Lost','Spam'].includes(e.status) && (e.eventDate||'').length >= 10
+  ).length;
 
   legendEl.innerHTML = Object.entries(statusCount)
     .sort((a,b) => b[1]-a[1])
@@ -162,7 +182,12 @@ function updateLegend(jobMap) {
         <div style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0"></div>
         ${esc(status)} <span style="color:var(--text3)">(${count})</span>
       </div>`;
-    }).join('');
+    }).join('') +
+    (enqTotal > 0 ? `
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);margin-left:8px;padding-left:8px;border-left:1px solid var(--border)">
+      <div style="width:10px;height:10px;border-radius:2px;background:#ffaa00;flex-shrink:0"></div>
+      Enquiries <span style="color:var(--text3)">(${enqTotal})</span>
+    </div>` : '');
 }
 
 export function calDayClick(dateStr) {
@@ -200,4 +225,121 @@ export function calDayClick(dateStr) {
       </div>`, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`);
   });
+}
+
+// ── Week view ─────────────────────────────────────────────────────────────────
+let _calView = 'month';
+let _weekStart = null; // Monday of current week
+
+export function calSetView(view) {
+  _calView = view;
+  document.querySelectorAll('.cal-view-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === view));
+  if (view === 'week') {
+    if (!_weekStart) {
+      const today = new Date();
+      const dow = (today.getDay() + 6) % 7; // Mon=0
+      _weekStart = new Date(today.getTime() - dow * 86400000);
+      _weekStart.setHours(0,0,0,0);
+    }
+    renderWeek();
+  } else {
+    renderCalendar();
+  }
+}
+
+function renderWeek() {
+  const el = document.getElementById('calendar-grid');
+  const titleEl = document.getElementById('calendar-title');
+  if (!el) return;
+
+  const ws = _weekStart || new Date();
+  const we = new Date(ws.getTime() + 6 * 86400000);
+
+  if (titleEl) {
+    titleEl.textContent = ws.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) +
+      ' – ' + we.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  }
+
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Build job map for the week
+  const jobMap = {};
+  STATE.jobs.forEach(j => {
+    if (j.status === 'Cancelled') return;
+    // Show across full date range (startDate → endDate)
+    const start = j.startDate ? new Date(j.startDate) : (j.eventDate ? new Date(j.eventDate) : null);
+    const end   = j.endDate   ? new Date(j.endDate)   : start;
+    if (!start) return;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const key = d.toISOString().substring(0,10);
+      if (!jobMap[key]) jobMap[key] = [];
+      if (!jobMap[key].find(x => x.jobId === j.jobId)) jobMap[key].push(j);
+    }
+  });
+
+  // Render 7-column week grid
+  el.style.gridTemplateColumns = 'repeat(7,1fr)';
+  let html = days.map((d, i) => {
+    const date = new Date(ws.getTime() + i * 86400000);
+    const isToday = date.getTime() === today.getTime();
+    return `<div style="text-align:center;font-family:var(--mono);font-size:10px;
+      color:${isToday?'var(--accent)':'var(--text3)'};padding:6px 0;font-weight:${isToday?'700':'400'}">
+      ${d} ${date.getDate()}</div>`;
+  }).join('');
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(ws.getTime() + i * 86400000);
+    const dateStr = date.toISOString().substring(0,10);
+    const jobs = jobMap[dateStr] || [];
+    const isToday = date.getTime() === today.getTime();
+    const isWeekend = i >= 5;
+
+    const pills = jobs.map(j => {
+      const color = STATUS_COLOR[j.status] || '#5a5a70';
+      return `<div onclick="window.__openJobDetail('${esc(j.jobId)}')"
+        style="font-size:10px;padding:4px 6px;border-radius:3px;margin-bottom:3px;
+          background:${color}22;border-left:3px solid ${color};
+          color:var(--text);cursor:pointer;line-height:1.3"
+        title="${esc(j.jobName||j.jobId)}">
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((j.jobName||j.jobId).substring(0,18))}</div>
+        <div style="font-size:9px;color:var(--text3)">${esc(j.clientName||'')}</div>
+      </div>`;
+    }).join('');
+
+    html += `<div style="min-height:160px;background:${isWeekend?'var(--surface2)':'var(--surface)'};
+      border-radius:var(--r);padding:6px;
+      border:1px solid ${isToday?'var(--accent)':'var(--border)'};
+      ${isToday?'box-shadow:0 0 0 1px var(--accent)':''}">
+      ${pills || '<div style="font-size:10px;color:var(--text4);padding-top:8px;text-align:center">—</div>'}
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+// Override nav functions to support week view
+const _origCalPrev = calPrev;
+const _origCalNext = calNext;
+const _origCalToday = calToday;
+
+// Patch calPrev/Next to handle week view
+export function calPrevWeekAware() {
+  if (_calView === 'week') {
+    _weekStart = new Date((_weekStart||new Date()).getTime() - 7*86400000);
+    renderWeek();
+  } else { calPrev(); }
+}
+export function calNextWeekAware() {
+  if (_calView === 'week') {
+    _weekStart = new Date((_weekStart||new Date()).getTime() + 7*86400000);
+    renderWeek();
+  } else { calNext(); }
+}
+export function calTodayWeekAware() {
+  if (_calView === 'week') {
+    const t = new Date(); const dow = (t.getDay()+6)%7;
+    _weekStart = new Date(t.getTime()-dow*86400000); _weekStart.setHours(0,0,0,0);
+    renderWeek();
+  } else { calToday(); }
 }

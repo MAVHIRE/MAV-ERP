@@ -5,7 +5,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 export async function loadPurchaseOrders() {
@@ -279,4 +279,18 @@ export async function deletePO(poId) {
     await loadPurchaseOrders();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+
+export function exportPOsCsv() {
+  const rows = (STATE.purchaseOrders || []).map(po => ({
+    'PO ID':         po.poId,
+    'Supplier':      po.supplierName,
+    'Status':        po.status,
+    'Order Date':    po.orderDate ? String(po.orderDate).substring(0,10) : '',
+    'Expected Date': po.expectedDate ? String(po.expectedDate).substring(0,10) : '',
+    'Total (£)':     po.totalValue || 0,
+    'Notes':         po.notes || '',
+  }));
+  exportCsv(`MAV_PurchaseOrders_${new Date().toISOString().substring(0,10)}.csv`, rows);
 }

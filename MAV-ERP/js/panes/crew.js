@@ -5,7 +5,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 const ROLES = ['Engineer','Rigger','Driver','Crew Chief','Lighting Tech','Audio Tech',
@@ -181,4 +181,20 @@ export async function deleteCrew(crewId) {
     await loadCrew();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+
+export function exportCrewCsv() {
+  const rows = (STATE.crew || []).map(c => ({
+    'Job ID':     c.jobId,
+    'Staff Name': c.staffName || c.crewName || '',
+    'Role':       c.role || '',
+    'Day Rate (£)': c.dayRate || 0,
+    'Days':         c.days || 0,
+    'Total Fee (£)': c.totalFee || 0,
+    'Status':       c.status || '',
+    'Start Date':   c.startDate ? String(c.startDate).substring(0,10) : '',
+    'End Date':     c.endDate   ? String(c.endDate).substring(0,10)   : '',
+  }));
+  exportCsv(`MAV_Crew_${new Date().toISOString().substring(0,10)}.csv`, rows);
 }

@@ -2,7 +2,7 @@
  * MAV HIRE ERP — js/panes/quotes.js  v3.0
  * Full quote management: create, edit, status workflow, PDF, email.
  */
-import { rpc }                from '../api/gas.js';
+import { rpc, rpcWithFallback }                from '../api/gas.js';
 import { STATE }              from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState, setupClientAutocomplete } from '../utils/dom.js';
 import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
@@ -14,7 +14,7 @@ import { generateQuotePdf } from '../components/quotePdf.js';
 export async function loadQuotes() {
   showLoading('Loading quotes…');
   try {
-    STATE.quotes = await rpc('getQuotes', {});
+    STATE.quotes = await rpcWithFallback('getQuotes', {});
     render(STATE.quotes);
     const el = document.getElementById('quotes-subtitle');
     if (el) el.textContent = STATE.quotes.length + ' quotes';
@@ -168,6 +168,7 @@ function showQuoteModal(q) {
     <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${esc(q.quoteId)}')">⬇ PDF</button>
     ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${esc(q.quoteId)}')">✉ Email</button>`:''} ${['Draft','Sent','Accepted'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${esc(q.quoteId)}')">🔗 Approval Link</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${esc(q.quoteId)}')">✏ Edit</button>
+    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__openApplyBundleToQuote('${esc(q.quoteId)}')">◫ Bundle</button>`:''}
     ${statusBtns}
     ${!q.linkedJobId?`<button class="btn btn-ghost btn-sm" onclick="window.__convertQuoteToJob('${esc(q.quoteId)}')">→ Convert to Job</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__duplicateQuote('${esc(q.quoteId)}')">⎘ Duplicate</button>
@@ -290,7 +291,17 @@ function buildQuoteFormHtml(q) {
     <div class="form-group"><label>Event Name</label>
       <input type="text" id="fq-event-name" value="${v('eventName')}" placeholder="e.g. Smith Wedding"></div>
     <div class="form-group"><label>Event Date</label>
-      <input type="date" id="fq-event-date" value="${d('eventDate')}"></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="date" id="fq-event-date" value="${d('eventDate')}"
+          oninput="window.__quoteCheckDate(this.value)" style="flex:1">
+        <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:11px"
+          onclick="window.__quoteCheckDate(document.getElementById('fq-event-date')?.value)"
+          title="Check what's already booked on this date">
+          📅 Check
+        </button>
+      </div>
+      <div id="quote-date-availability" style="margin-top:6px"></div>
+    </div>
     <div class="form-group span-2"><label>Venue</label>
       <input type="text" id="fq-venue" value="${v('venue')}"></div>
     <div class="form-group"><label>Delivery Date</label>
@@ -427,4 +438,117 @@ export async function deleteQuote(quoteId) {
     await loadQuotes();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+// ── Apply bundle to quote ─────────────────────────────────────────────────────
+export async function openApplyBundleToQuote(quoteId) {
+  if (!(STATE.bundles||[]).length) {
+    showLoading('Loading bundles…');
+    try { STATE.bundles = await rpc('getBundles', {}); } catch(e) {}
+    hideLoading();
+  }
+  const bundles = (STATE.bundles||[]).filter(b => b.active !== false);
+  if (!bundles.length) { toast('No bundles configured', 'warn'); return; }
+  const opts = bundles.map(b =>
+    `<option value="${esc(b.bundleId)}">${esc(b.name)}${b.description?' — '+esc(b.description.substring(0,40)):''}</option>`
+  ).join('');
+  openModal('modal-apply-bundle-q', '◫ Apply Bundle to Quote', `
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">
+      Add all items from a saved bundle to this quote.
+    </p>
+    <div class="form-grid">
+      <div class="form-group span-2">
+        <label>Bundle *</label>
+        <select id="abq-bundle"><option value="">— Select bundle —</option>${opts}</select>
+      </div>
+      <div class="form-group">
+        <label>Quantity Multiplier</label>
+        <input type="number" id="abq-qty" value="1" min="1" max="100">
+      </div>
+      <div class="form-group">
+        <label>Price Override (£, optional)</label>
+        <input type="number" id="abq-price" placeholder="Leave blank for bundle default" step="0.01" min="0">
+      </div>
+    </div>`, `
+    <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
+    <button class="btn btn-primary btn-sm" onclick="window.__submitApplyBundleToQuote('${esc(quoteId)}')">Apply Bundle</button>`
+  );
+  window.__submitApplyBundleToQuote = async (qId) => {
+    const bundleId = document.getElementById('abq-bundle')?.value;
+    const qty      = parseInt(document.getElementById('abq-qty')?.value || '1', 10);
+    const price    = document.getElementById('abq-price')?.value;
+    if (!bundleId) { toast('Select a bundle', 'warn'); return; }
+    showLoading('Applying bundle…'); closeModal();
+    try {
+      await rpc('applyBundleToQuote', qId, bundleId, {
+        quantityMultiplier: qty,
+        priceOverride: price ? +price : null
+      });
+      toast('Bundle applied to quote', 'ok');
+      STATE.loadedPanes.delete('quotes');
+      await loadQuotes();
+    } catch(e) { toast(e.message, 'err'); }
+    finally { hideLoading(); }
+  };
+}
+
+// ── Availability overlay for quote form ───────────────────────────────────────
+export async function quoteCheckDate(dateStr) {
+  const el = document.getElementById('quote-date-availability');
+  if (!el || !dateStr) return;
+
+  el.innerHTML = `<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Checking…</div>`;
+
+  try {
+    // Get all jobs on or overlapping this date
+    const jobs = (STATE.jobs||[]).filter(j => {
+      if (['Cancelled','Draft'].includes(j.status)) return false;
+      const eDate = (j.eventDate||'').substring(0,10);
+      const sDate = (j.startDate||eDate).substring(0,10);
+      const xDate = (j.endDate||eDate).substring(0,10);
+      return dateStr >= sDate && dateStr <= xDate;
+    });
+
+    // Also check quotes already on this date (may clash)
+    const existingQuotes = (STATE.quotes||[]).filter(q => {
+      if (['Declined','Expired'].includes(q.status)) return false;
+      return (q.eventDate||'').substring(0,10) === dateStr;
+    });
+
+    if (!jobs.length && !existingQuotes.length) {
+      el.innerHTML = `<div style="font-size:11px;color:var(--ok);padding:4px 0">
+        ✓ Date looks clear — no confirmed jobs or active quotes
+      </div>`;
+      return;
+    }
+
+    const jobColor = jobs.length > 0 ? 'var(--warn)' : 'var(--ok)';
+    const quoteColor = existingQuotes.length > 0 ? 'var(--info)' : 'var(--ok)';
+
+    el.innerHTML = `
+      <div style="background:var(--surface2);border-radius:var(--r);padding:8px 10px;font-size:11px">
+        ${jobs.length ? `
+        <div style="color:${jobColor};font-weight:600;margin-bottom:4px">
+          ⚠ ${jobs.length} job${jobs.length!==1?'s':''} already booked on this date
+        </div>
+        ${jobs.slice(0,4).map(j => `
+          <div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--text2)">
+            <span>• ${esc(j.jobName||j.jobId)} — ${esc(j.clientName||'')}</span>
+            <span style="color:var(--text3);font-family:var(--mono)">${esc(j.status)}</span>
+          </div>`).join('')}
+        ${jobs.length > 4 ? `<div style="color:var(--text3)">+ ${jobs.length-4} more</div>` : ''}
+        ` : ''}
+        ${existingQuotes.length ? `
+        <div style="color:${quoteColor};font-weight:600;margin-top:${jobs.length?6:0}px;margin-bottom:4px">
+          ${esc(String(existingQuotes.length))} quote${existingQuotes.length!==1?'s':''} also on this date
+        </div>
+        ${existingQuotes.slice(0,3).map(q => `
+          <div style="padding:2px 0;color:var(--text3)">
+            • ${esc(q.quoteName||q.quoteId)} — ${esc(q.clientName||'')} (${esc(q.status)})
+          </div>`).join('')}
+        ` : ''}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="font-size:11px;color:var(--danger)">${esc(e.message)}</div>`;
+  }
 }

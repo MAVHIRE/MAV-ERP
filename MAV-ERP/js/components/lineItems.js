@@ -152,7 +152,7 @@ function renderLine(l, serviceOpts) {
 
   return `<div class="line-item-row"
              style="grid-template-columns:2.5fr .55fr .9fr .55fr .9fr 36px"
-             id="li-row-${id}">
+             id="li-row-${id}" data-lid="${id}">
     <div style="position:relative">
       <div style="display:flex;gap:5px;align-items:center">
         <span class="line-type-badge line-type-${(l.lineType||'rental').toLowerCase()}">
@@ -163,7 +163,7 @@ function renderLine(l, serviceOpts) {
     </div>
     <input type="number" min="1" value="${qty}"
            onchange="window.__liChange(${id},'quantity',this.value)">
-    <input type="number" min="0" step="0.01" value="${price}" id="li-price-${id}"
+    <input type="number" min="0" step="0.01" value="${price}" id="li-price-${id}" class="li-price"
            onchange="window.__liChange(${id},'unitPrice',this.value)">
     <input type="number" min="0" max="100" value="${disc}"
            onchange="window.__liChange(${id},'discountPct',this.value)">
@@ -243,13 +243,103 @@ async function pickProduct(id, productId) {
 
   render();
 
-  // Suggest accessories if any
+  // Fetch rate cards — if product has custom rates, show a selector
+  try {
+    const rates = await rpc('getProductRates', productId);
+    const activeRates = (rates || []).filter(r => r.active);
+    if (activeRates.length) {
+      // Show rate picker tooltip near the price field
+      showRatePicker(id, product, activeRates);
+    }
+  } catch(e) { /* non-fatal */ }
+
+  // Suggest accessories
   try {
     const accessories = await rpc('getProductAccessories', productId);
     if (accessories && accessories.length) {
       suggestAccessories(accessories, productId, product.name);
     }
   } catch(e) { /* non-fatal */ }
+}
+
+function showRatePicker(lineId, product, rates) {
+  // Show a small rate selector near the line item price field
+  const priceEl = document.querySelector(`[data-lid="${lineId}"] .li-price`);
+  if (!priceEl) return;
+
+  // Remove any existing picker
+  document.querySelectorAll('.rate-picker').forEach(el => el.remove());
+
+  const picker = document.createElement('div');
+  picker.className = 'rate-picker';
+  picker.style.cssText = `
+    position:absolute; z-index:500;
+    background:var(--surface); border:1px solid var(--border2);
+    border-radius:var(--r2); box-shadow:var(--shadow-md);
+    padding:10px; min-width:220px; font-size:12px;
+  `;
+
+  // Group by duration type
+  const byType = {};
+  rates.forEach(r => { if (!byType[r.durationType]) byType[r.durationType] = []; byType[r.durationType].push(r); });
+
+  picker.innerHTML = `
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">
+      Rate Cards — ${esc(product.name)}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:200px;overflow-y:auto">
+      <div class="rate-picker-item" data-price="${product.baseHireRate||0}"
+        style="padding:5px 8px;border-radius:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--accent-bg)">
+        <span style="color:var(--accent)">Base Rate</span>
+        <span style="font-family:var(--mono);font-weight:600;color:var(--accent)">${fmtCurDec(product.baseHireRate||0)}</span>
+      </div>
+      ${Object.entries(byType).map(([type, typeRates]) => `
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);padding:5px 8px 2px;text-transform:uppercase">${esc(type)}</div>
+        ${typeRates.map(r => {
+          const qtyLabel = r.quantityBreakFrom > 1 || r.quantityBreakTo < 999999
+            ? ` (${r.quantityBreakFrom}${r.quantityBreakTo<999999?'–'+r.quantityBreakTo:'+'})`
+            : '';
+          return `<div class="rate-picker-item" data-price="${r.price}"
+            style="padding:5px 8px;border-radius:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center"
+            onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+            <span>${esc(r.rateName)}${qtyLabel}</span>
+            <span style="font-family:var(--mono);font-weight:600">${fmtCurDec(r.price)}</span>
+          </div>`;
+        }).join('')}`).join('')}
+    </div>
+    <button style="margin-top:8px;width:100%;padding:4px 8px;background:transparent;border:1px solid var(--border2);
+      border-radius:4px;color:var(--text3);font-size:11px;cursor:pointer"
+      onclick="this.closest('.rate-picker').remove()">Keep current price</button>
+  `;
+
+  // Position below price field
+  const rect = priceEl.getBoundingClientRect();
+  const appRect = document.getElementById('app').getBoundingClientRect();
+  picker.style.top  = (rect.bottom - appRect.top + 4) + 'px';
+  picker.style.left = Math.max(0, rect.left - appRect.left - 80) + 'px';
+  document.getElementById('app').appendChild(picker);
+
+  // Wire clicks on rate items
+  picker.querySelectorAll('.rate-picker-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const price = parseFloat(item.dataset.price) || 0;
+      const line  = _lines.find(l => l._id === lineId);
+      if (line) {
+        line.unitPrice = price;
+        if (priceEl) priceEl.value = price.toFixed(2);
+        updateField(lineId, 'unitPrice', price);
+        render();
+      }
+      picker.remove();
+    });
+  });
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('click', handler); }
+    });
+  }, 50);
 }
 
 function clearProductOnLine(id) {

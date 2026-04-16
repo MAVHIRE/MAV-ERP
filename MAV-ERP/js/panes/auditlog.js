@@ -6,7 +6,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { esc } from '../utils/format.js';
+import { esc, exportCsv } from '../utils/format.js';
 
 let _logs = [];
 
@@ -14,6 +14,7 @@ export async function loadAuditLog() {
   showLoading('Loading audit trail…');
   try {
     _logs = await rpc('getAuditLog', { limit: 500 });
+    populateAuditFilters();
     renderLogs(_logs);
     const el = document.getElementById('auditlog-subtitle');
     if (el) el.textContent = `${_logs.length} entries (latest 500)`;
@@ -26,15 +27,63 @@ export function filterAuditLog() {
   const type   = document.getElementById('al-type-filter')?.value   || '';
   const action = document.getElementById('al-action-filter')?.value || '';
   const user   = document.getElementById('al-user-filter')?.value   || '';
+  const from   = document.getElementById('al-date-from')?.value || '';
+  const to     = document.getElementById('al-date-to')?.value   || '';
 
   renderLogs(_logs.filter(l => {
     const hay = [l.entityType, l.entityId, l.action, l.user, l.notes, l.newValue, l.oldValue, l.field]
       .join(' ').toLowerCase();
-    return (!q      || hay.includes(q))
-        && (!type   || l.entityType === type)
-        && (!action || l.action     === action)
-        && (!user   || l.user       === user);
+    if (q      && !hay.includes(q))       return false;
+    if (type   && l.entityType !== type)  return false;
+    if (action && l.action     !== action)return false;
+    if (user   && l.user       !== user)  return false;
+    if (from || to) {
+      const ts = l.timestamp ? new Date(l.timestamp) : null;
+      if (!ts) return false;
+      if (from && ts < new Date(from))               return false;
+      if (to   && ts > new Date(to + 'T23:59:59'))   return false;
+    }
+    return true;
   }));
+}
+
+export function exportAuditLogCsv() {
+  const q      = (document.getElementById('al-search')?.value || '').toLowerCase();
+  const type   = document.getElementById('al-type-filter')?.value   || '';
+  const action = document.getElementById('al-action-filter')?.value || '';
+  const user   = document.getElementById('al-user-filter')?.value   || '';
+  const from   = document.getElementById('al-date-from')?.value || '';
+  const to     = document.getElementById('al-date-to')?.value   || '';
+
+  const filtered = _logs.filter(l => {
+    const hay = [l.entityType, l.entityId, l.action, l.user, l.notes, l.newValue, l.oldValue, l.field]
+      .join(' ').toLowerCase();
+    if (q      && !hay.includes(q))       return false;
+    if (type   && l.entityType !== type)  return false;
+    if (action && l.action     !== action)return false;
+    if (user   && l.user       !== user)  return false;
+    if (from || to) {
+      const ts = l.timestamp ? new Date(l.timestamp) : null;
+      if (!ts) return false;
+      if (from && ts < new Date(from))               return false;
+      if (to   && ts > new Date(to + 'T23:59:59'))   return false;
+    }
+    return true;
+  });
+
+  const rows = filtered.map(l => ({
+    'Timestamp':   l.timestamp ? new Date(l.timestamp).toISOString() : '',
+    'Entity Type': l.entityType || '',
+    'Entity ID':   l.entityId   || '',
+    'Action':      l.action     || '',
+    'Field':       l.field      || '',
+    'Old Value':   l.oldValue   || '',
+    'New Value':   l.newValue   || '',
+    'User':        l.user       || '',
+    'Notes':       l.notes      || '',
+  }));
+  exportCsv(`MAV_AuditLog_${new Date().toISOString().substring(0,10)}.csv`, rows);
+  toast(`Exported ${rows.length} entries`, 'ok');
 }
 
 function renderLogs(logs) {

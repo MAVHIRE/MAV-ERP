@@ -1,0 +1,31 @@
+{
+  "name": "MAV Hire ERP",
+  "short_name": "MAV Hire",
+  "description": "Rental ERP — jobs, inventory, quotes, fleet management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='24' fill='%230a0a0c'/><rect x='40' y='40' width='112' height='112' rx='12' fill='%23c8ff00'/><text x='96' y='115' text-anchor='middle' font-family='sans-serif' font-size='60' font-weight='900' fill='%23000'>M</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='64' fill='%230a0a0c'/><rect x='96' y='96' width='320' height='320' rx='32' fill='%23c8ff00'/><text x='256' y='310' text-anchor='middle' font-family='sans-serif' font-size='160' font-weight='900' fill='%23000'>M</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    { "name": "New Job",   "url": "/?pane=jobs",      "description": "Create a new job" },
+    { "name": "New Quote", "url": "/?pane=quotes",    "description": "Create a new quote" },
+    { "name": "Dashboard", "url": "/?pane=dashboard", "description": "View dashboard" },
+    { "name": "Scan",      "url": "/?pane=scan",      "description": "Scan station" }
+  ]
+}

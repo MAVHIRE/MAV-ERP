@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MAV Hire — Rental ERP</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a0c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MAV Hire">
 
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/layout.css">
@@ -38,8 +43,13 @@
 
     <div class="nav-group">
       <span class="nav-group-label">Operations</span>
+      <div class="nav-item" data-pane="enquiries">
+        <span class="nav-icon">◈</span><span>Enquiries</span>
+        <span class="nav-badge warn" id="badge-enquiries" style="display:none"></span>
+      </div>
       <div class="nav-item" data-pane="jobs">
         <span class="nav-icon">◉</span><span>Jobs</span>
+        <span class="nav-badge" id="badge-jobs" style="display:none"></span>
       </div>
       <div class="nav-item" data-pane="quotes">
         <span class="nav-icon">◎</span><span>Quotes</span>
@@ -65,6 +75,7 @@
       </div>
       <div class="nav-item" data-pane="maintenance">
         <span class="nav-icon">⟳</span><span>Maintenance</span>
+        <span class="nav-badge danger" id="badge-maintenance" style="display:none"></span>
       </div>
     </div>
 
@@ -85,6 +96,7 @@
       <span class="nav-group-label">Finance</span>
       <div class="nav-item" data-pane="invoices">
         <span class="nav-icon">£</span><span>Invoices</span>
+        <span class="nav-badge warn" id="badge-invoices" style="display:none"></span>
       </div>
       <div class="nav-item" data-pane="purchaseorders">
         <span class="nav-icon">◎</span><span>Purchase Orders</span>
@@ -101,6 +113,7 @@
       </div>
       <div class="nav-item" data-pane="forecast">
         <span class="nav-icon">◌</span><span>Forecast</span>
+        <span class="nav-badge warn" id="badge-forecast" style="display:none"></span>
       </div>
       <div class="nav-item" data-pane="auditlog">
         <span class="nav-icon">◉</span><span>Audit Log</span>
@@ -159,6 +172,7 @@
 
   <!-- ── DASHBOARD ─────────────────────────────────────────────────────── -->
   <div class="pane active" id="pane-dashboard">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Dashboard</div>
@@ -168,6 +182,7 @@
         <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Analytics</button>
         <button class="btn btn-ghost btn-sm" onclick="window.__runSeedDemo()">⚡ Demo</button>
         <button class="btn btn-ghost btn-sm" onclick="window.__runClearDemo()">🗑 Clear</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__exportJobsCsv()" title="Export to CSV">⬇ CSV</button>
         <button class="btn btn-primary btn-sm" onclick="window.__openNewJobModal()">+ New Job</button>
       </div>
     </div>
@@ -176,7 +191,7 @@
     <div class="kpi-grid" id="dash-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
 
     <!-- Row 1: Revenue chart + Job status + Utilisation -->
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="dash-grid-3">
       <div class="section">
         <div class="section-title">Revenue</div>
         <div id="dash-revenue-chart"></div>
@@ -192,7 +207,7 @@
     </div>
 
     <!-- Row 2: Upcoming + Alerts + Overdue -->
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="dash-grid-3">
       <div class="section">
         <div class="section-title">Jobs Departing Soon</div>
         <div id="dash-upcoming"></div>
@@ -207,8 +222,8 @@
       </div>
     </div>
 
-    <!-- Row 3: Low stock + Finance summary -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <!-- Row 3: Low stock + Finance summary + Service due -->
+    <div class="three-col">
       <div class="section">
         <div class="section-title">Low Stock</div>
         <div id="dash-lowstock"></div>
@@ -217,16 +232,79 @@
         <div class="section-title">Finance Summary</div>
         <div id="dash-finance"></div>
       </div>
+      <div class="section">
+        <div class="section-title">Service Due (14 days)</div>
+        <div id="dash-service-due"></div>
+      </div>
+    </div>
+
+    <!-- Row 4: New enquiries -->
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>New Enquiries</span>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px"
+          onclick="window.__switchPane('enquiries')">View all →</button>
+      </div>
+      <div id="dash-new-enquiries"></div>
     </div>
 
     <!-- Row 4: Management insights (loads async) -->
     <div class="section" id="dash-brain" style="display:none">
       <div class="section-title">Management Insights</div>
     </div>
+    </div><!-- /pane-inner -->
+  </div>
+
+  <!-- ── ENQUIRIES ─────────────────────────────────────────────────────── -->
+  <div class="pane" id="pane-enquiries">
+    <div class="pane-inner">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Enquiries</div>
+        <div class="page-subtitle" id="enq-subtitle">Inbound leads &amp; triage</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-ghost btn-sm enq-view-btn active" data-view="pipeline"
+          onclick="window.__setEnquiryView('pipeline')">◫ Pipeline</button>
+        <button class="btn btn-ghost btn-sm enq-view-btn" data-view="list"
+          onclick="window.__setEnquiryView('list')">☰ List</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__syncShopifyEnquiries()" title="Sync from Shopify Gmail sheet">⟳ Sync Shopify</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__triageAllEnquiries()" title="Run distance + rules triage on all New enquiries">⚡ Triage All</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__exportEnquiriesCsv()">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__openNewEnquiryModal()">+ New Enquiry</button>
+      </div>
+    </div>
+
+    <!-- KPI summary -->
+    <div id="enq-kpis"></div>
+
+    <!-- Filters toolbar -->
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="enq-search" placeholder="Search name, email, event…" oninput="window.__filterEnquiries()">
+      </div>
+      <select class="filter-select" id="enq-status-filter" onchange="window.__filterEnquiries()">
+        <option value="">All Statuses</option>
+        <option>New</option><option>Contacted</option><option>Qualified</option>
+        <option>Quoted</option><option>Won</option><option>Lost</option><option>Spam</option>
+      </select>
+      <select class="filter-select" id="enq-source-filter" onchange="window.__filterEnquiries()">
+        <option value="">All Sources</option>
+        <option>Shopify</option><option>Email</option><option>Phone</option>
+        <option>Referral</option><option>Walk-in</option><option>Other</option>
+      </select>
+    </div>
+
+    <!-- Pipeline / List container -->
+    <div id="enq-pipeline" style="overflow-x:auto"></div>
+
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── JOBS ──────────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-jobs">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Jobs</div>
@@ -250,10 +328,12 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('jobs')">↺</button>
     </div>
     <div id="jobs-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── QUOTES ────────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-quotes">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Quotes</div>
@@ -274,10 +354,12 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('quotes')">↺</button>
     </div>
     <div id="quotes-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── INVENTORY ─────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-inventory">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Inventory</div>
@@ -287,9 +369,11 @@
         <button class="btn btn-ghost btn-sm" onclick="window.__openProductCsvImport()">⬆ Import Products</button>
         <button class="btn btn-ghost btn-sm" onclick="window.__openBulkBarcodeImport()">⬆ Import Barcodes</button>
         <button class="btn btn-ghost btn-sm" onclick="window.__openAddBarcodeModal()">+ Barcode</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__exportInventoryCsv()" title="Export to CSV">⬇ CSV</button>
         <button class="btn btn-primary btn-sm" onclick="window.__openNewProductModal()">+ Product</button>
       </div>
     </div>
+    <div id="inv-snapshot"></div>
     <div class="toolbar">
       <div class="search-box">
         <span class="search-icon">⌕</span>
@@ -318,16 +402,19 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('inventory')">↺</button>
     </div>
     <div id="products-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── CLIENTS ───────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-clients">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Clients</div>
         <div class="page-subtitle" id="clients-subtitle">Client records</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewClientModal()">+ New Client</button>
+      <button class="btn btn-primary" onclick="window.__exportClientsCsv()" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__openNewClientModal()">+ New Client</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -344,10 +431,12 @@
         padding:12px;color:var(--text3);font-size:11px">Loading…</div>
     </div>
     <div id="clients-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── SUPPLIERS ─────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-suppliers">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Suppliers</div>
@@ -363,16 +452,20 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('suppliers')">↺</button>
     </div>
     <div id="suppliers-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── MAINTENANCE ───────────────────────────────────────────────────── -->
   <div class="pane" id="pane-maintenance">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Maintenance</div>
         <div class="page-subtitle" id="maint-subtitle">Service &amp; repairs</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewMaintenanceModal()">+ New Record</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__printMaintenanceReport()">⎙ Report</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__exportMaintenanceCsv()" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__openNewMaintenanceModal()">+ New Record</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -387,22 +480,28 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('maintenance')">↺</button>
     </div>
     <div id="maint-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── ANALYTICS ─────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-analytics">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Analytics</div>
         <div class="page-subtitle" id="analytics-subtitle">ROI, utilisation &amp; performance</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Refresh</button>
+      <div class="page-actions">
+        <button class="btn btn-ghost btn-sm" onclick="window.__generateExecReport()">⎙ Executive Report</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__refreshAnalyticsStats()">⟳ Refresh Stats</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Refresh</button>
+      </div>
     </div>
 
     <div class="kpi-grid" id="analytics-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
 
     <!-- Charts row -->
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="dash-grid-3">
       <div class="section">
         <div class="section-title">Revenue by SKU (Top 12)</div>
         <div id="analytics-revenue-chart"></div>
@@ -429,6 +528,78 @@
       </div>
     </div>
 
+    <!-- Top SKUs + Pipeline + Slow moving -->
+    <div class="three-col" style="margin-bottom:16px">
+      <div class="section">
+        <div class="section-title">Top 10 SKUs by Revenue</div>
+        <div id="top-skus-list"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Sales Pipeline</div>
+        <div id="pipeline-report"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Slow Moving Stock</div>
+        <div id="slow-moving-list"></div>
+      </div>
+    </div>
+
+    <!-- Worst SKUs + High Utilisation + Repair vs Replace -->
+    <div class="three-col" style="margin-bottom:16px">
+      <div class="section">
+        <div class="section-title">Worst Performing SKUs</div>
+        <div id="worst-skus-list"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">High Utilisation (70%+)</div>
+        <div id="high-util-list"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Repair vs Replace Review</div>
+        <div id="repair-replace-list"></div>
+      </div>
+    </div>
+
+    <!-- Category revenue breakdown -->
+    <div class="two-col" style="margin-bottom:16px">
+      <div class="section">
+        <div class="section-title">Revenue by Category</div>
+        <div id="category-revenue-list"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Category Forecasts</div>
+        <div id="category-forecasts"></div>
+      </div>
+    </div>
+
+    <!-- Revenue Summary with date range -->
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-title">Revenue Summary</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:11px;color:var(--text3);font-family:var(--mono)">From</label>
+        <input type="date" id="rev-from" class="filter-select" style="max-width:150px"
+          value="">
+        <label style="font-size:11px;color:var(--text3);font-family:var(--mono)">To</label>
+        <input type="date" id="rev-to" class="filter-select" style="max-width:150px"
+          value="">
+        <button class="btn btn-ghost btn-sm"
+          onclick="window.__loadRevenueSummary(document.getElementById('rev-from').value,document.getElementById('rev-to').value)">
+          Load Report
+        </button>
+        <button class="btn btn-ghost btn-sm"
+          onclick="const y=new Date().getFullYear();document.getElementById('rev-from').value=y+'-01-01';document.getElementById('rev-to').value=y+'-12-31';window.__loadRevenueSummary(y+'-01-01',y+'-12-31')">
+          This Year
+        </button>
+        <button class="btn btn-ghost btn-sm"
+          onclick="const n=new Date(),f=new Date(n.getFullYear(),n.getMonth()-11,1);document.getElementById('rev-from').value=f.toISOString().substring(0,10);document.getElementById('rev-to').value=n.toISOString().substring(0,10);window.__loadRevenueSummary(f.toISOString().substring(0,10),n.toISOString().substring(0,10))">
+          Last 12 Months
+        </button>
+      </div>
+      <div id="revenue-summary-content">
+        <div style="font-size:12px;color:var(--text3)">Select a date range and click Load Report</div>
+      </div>
+    </div>
+
     <!-- Full SKU table -->
     <div class="section">
       <div class="section-title">Full SKU Performance</div>
@@ -449,10 +620,12 @@
         </table>
       </div>
     </div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── FORECAST ──────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-forecast">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Forecast</div>
@@ -480,6 +653,12 @@
       </div>
     </div>
 
+    <!-- Category forecasts -->
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-title">Category Forecasts (90 days)</div>
+      <div id="category-forecasts"></div>
+    </div>
+
     <div class="section">
       <div class="section-title">All Forecast Lines</div>
       <div class="tbl-wrap">
@@ -492,11 +671,13 @@
         </table>
       </div>
     </div>
+    </div><!-- /pane-inner -->
   </div>
 
 
   <!-- ── BUNDLES ───────────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-bundles">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Bundles</div>
@@ -525,113 +706,150 @@
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Product accessories are automatically suggested when adding a product to a quote or job.</p>
       <div id="accessories-list"></div>
     </div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── STORAGE / WAREHOUSE DESIGNER ─────────────────────────────────────── -->
-  <div class="pane" id="pane-storage" style="padding:0;flex-direction:column;height:100%">
+  <div class="pane" id="pane-storage">
 
     <!-- Toolbar -->
-    <div style="display:flex;align-items:center;gap:5px;padding:6px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;min-height:44px">
-      <div style="font-family:var(--head);font-weight:900;font-size:15px;letter-spacing:.06em;text-transform:uppercase;margin-right:6px;color:var(--text)">Warehouse</div>
+    <div style="display:flex;align-items:center;gap:5px;padding:6px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;min-height:48px">
+      <div style="font-family:var(--head);font-weight:800;font-size:15px;letter-spacing:-.01em;margin-right:4px;color:var(--text)" id="wh-title">Warehouse</div>
 
-      <button class="btn btn-ghost btn-sm wh-view-btn active" data-view="designer" onclick="window.__whSwitchView('designer')">◈ 3D View</button>
+      <!-- View switcher -->
+      <button class="btn btn-ghost btn-sm wh-view-btn active" data-view="3d" onclick="window.__whSwitchView('3d')">◈ 3D</button>
+      <button class="btn btn-ghost btn-sm wh-view-btn" data-view="2d" onclick="window.__whSwitchView('2d')">▭ Floor Plan</button>
       <button class="btn btn-ghost btn-sm wh-view-btn" data-view="list" onclick="window.__whSwitchView('list')">☰ Locations</button>
 
-      <div style="width:1px;height:20px;background:var(--border);margin:0 3px"></div>
+      <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
 
-      <!-- Camera views -->
-      <button class="btn btn-ghost btn-sm" onclick="window.__whResetView&&window.__whResetView()" title="Perspective view">⊙ 3D</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whTopView&&window.__whTopView()" title="Top-down view">⊡ Top</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whFrontView&&window.__whFrontView()" title="Front view">▭ Front</button>
+      <!-- 3D camera presets (hidden in 2D) -->
+      <div id="wh-cam-buttons" style="display:flex;gap:4px">
+        <button class="btn btn-ghost btn-sm" onclick="window.__whResetView&&window.__whResetView()" title="Perspective view">⊙ 3D</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__whTopView&&window.__whTopView()" title="Top-down">⊡ Top</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__whFrontView&&window.__whFrontView()" title="Front elevation">▭ Front</button>
+      </div>
 
-      <div style="width:1px;height:20px;background:var(--border);margin:0 3px"></div>
+      <!-- 2D fit button (hidden in 3D) -->
+      <div id="wh-fit-button" style="display:none">
+        <button class="btn btn-ghost btn-sm" onclick="window.__whFitFloor&&window.__whFitFloor()" title="Fit to screen">⊡ Fit</button>
+      </div>
+
+      <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
 
       <!-- Add items -->
-      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('rack')" title="Add racking unit">+ Rack</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('shelf')" title="Add shelf unit">+ Shelf</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('zone')" title="Add zone">+ Zone</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('wall')" title="Add wall">+ Wall</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('rack')">+ Rack</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('shelf')">+ Shelf</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('zone')">+ Zone</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('wall')">+ Wall</button>
 
-      <div style="width:1px;height:20px;background:var(--border);margin:0 3px"></div>
+      <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
 
-      <button class="btn btn-ghost btn-sm" onclick="window.__whRebuild&&window.__whRebuild()" title="Rebuild scene">↺ Rebuild</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whFloorSettings()">⚙ Dimensions</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__seedWarehouse()">⚡ Seed</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__whSave()" style="margin-left:auto">💾 Save</button>
-    </div>
+      <!-- Barcode lookup -->
+      <div style="display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:3px 8px">
+        <span style="color:var(--text3);font-size:12px">⊡</span>
+        <input id="wh-barcode-lookup" type="text" placeholder="Barcode lookup…"
+          style="background:none;border:none;outline:none;width:130px;font-size:11px;font-family:var(--mono);color:var(--text)"
+          onkeydown="if(event.key==='Enter')window.__whLookupBarcode(this.value.trim())">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:10px"
+          onclick="window.__whLookupBarcode(document.getElementById('wh-barcode-lookup').value.trim())">Find</button>
+      </div>
 
-    <!-- Designer view -->
-    <div id="wh-designer-view" style="flex:1;display:flex;overflow:hidden;min-height:0">
-      <!-- Canvas -->
-      <div id="warehouse-canvas-wrap" style="flex:1;overflow:hidden;background:#0d0d0f;position:relative;min-height:0"></div>
-
-      <!-- Properties sidebar -->
-      <div style="width:220px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;padding:14px">
-        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">3D Warehouse</div>
-        <div id="wh-props-panel">
-          <div style="color:var(--text3);font-size:11px;line-height:1.9">
-            <strong style="color:var(--text2)">Navigate</strong><br>
-            Drag — rotate view<br>
-            Right-drag — pan<br>
-            Scroll — zoom<br>
-            Pinch — zoom (mobile)<br><br>
-            <strong style="color:var(--text2)">Camera</strong><br>
-            ⊙ 3D — perspective<br>
-            ⊡ Top — overhead<br>
-            ▭ Front — elevation<br><br>
-            <strong style="color:var(--text2)">Add items</strong><br>
-            Use + buttons above<br>
-            Click Rebuild to refresh
-          </div>
-        </div>
-
-        <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
-        <div id="wh-stats"></div>
-
-        <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Occupancy</div>
-        <div style="display:flex;flex-direction:column;gap:5px;font-size:11px">
-          <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#00ff88"></div>Available</div>
-          <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#ff8800"></div>70%+ full</div>
-          <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#ff2222"></div>90%+ full</div>
-        </div>
+      <div style="margin-left:auto;display:flex;gap:5px">
+        <button class="btn btn-ghost btn-sm" onclick="window.__whRebuild&&window.__whRebuild()" title="Rebuild scene">↺</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__whFloorSettings()">⚙ Dimensions</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__seedWarehouse()">⚡ Seed</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__whSave()">💾 Save</button>
       </div>
     </div>
 
-    <!-- List view (hidden by default) -->
+    <!-- Designer view (3D + 2D canvas) -->
+    <div id="wh-designer-view" style="flex:1;display:flex;overflow:hidden;min-height:0">
+      <!-- Canvas fills main area -->
+      <div id="warehouse-canvas-wrap" style="flex:1;overflow:hidden;background:#080810;position:relative;min-height:0"></div>
+
+      <!-- Properties sidebar -->
+      <div style="width:260px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px">
+
+        <!-- Selection / help panel -->
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Properties</div>
+          <div id="wh-props-panel">
+            <div style="color:var(--text3);font-size:11px;line-height:2">
+              <strong style="color:var(--text2)">3D view</strong><br>
+              Drag — rotate · Right-drag — pan<br>
+              Scroll — zoom · Click — select<br><br>
+              <strong style="color:var(--text2)">Floor plan (2D)</strong><br>
+              Click — select<br>
+              Drag item — move it<br>
+              Scroll/pinch — zoom<br>
+              Alt+drag — pan<br><br>
+              Click any rack to inspect it.
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div>
+          <div style="border-top:1px solid var(--border);padding-top:12px">
+            <div id="wh-stats"></div>
+          </div>
+        </div>
+
+        <!-- Occupancy legend -->
+        <div>
+          <div style="border-top:1px solid var(--border);padding-top:12px">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Occupancy Key</div>
+            <div style="display:flex;flex-direction:column;gap:5px;font-size:11px">
+              <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--ok)"></div><span style="color:var(--text2)">Available (&lt;70%)</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--warn)"></div><span style="color:var(--text2)">High (70–90%)</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--danger)"></div><span style="color:var(--text2)">Full (&gt;90%)</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- List view (Locations tab) -->
     <div id="wh-list-view" style="flex:1;display:none;overflow-y:auto;padding:20px">
       <div class="page-header" style="margin-bottom:16px">
         <div>
-          <div class="page-title">Location List</div>
-          <div class="page-subtitle" id="storage-subtitle">Warehouse locations &amp; stock placement</div>
+          <div class="page-title">Locations</div>
+          <div class="page-subtitle" id="storage-subtitle">Warehouse layout &amp; stock placement</div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('','Zone','')">+ Zone</button>
           <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('storage')">↺</button>
         </div>
       </div>
-      <div class="kpi-grid" id="occupancy-summary" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+      <div class="kpi-grid" id="occupancy-summary" style="margin-bottom:20px"></div>
       <div class="two-col">
         <div class="section">
           <div class="section-title">Warehouse Layout</div>
           <div id="warehouse-tree"></div>
         </div>
         <div class="section">
-          <div class="section-title">Unlocated Available Stock</div>
+          <div class="section-title">Unlocated Stock</div>
           <div id="unlocated-list"></div>
         </div>
       </div>
     </div>
+
   </div>
 
   <!-- ── INVOICES ──────────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-invoices">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Outstanding Invoices</div>
         <div class="page-subtitle" id="invoices-subtitle">Jobs with balance due</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('invoices')">↺ Refresh</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="window.__exportInvoicesCsv()">⬇ CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('invoices')">↺ Refresh</button>
+      </div>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -646,10 +864,12 @@
       </select>
     </div>
     <div id="invoices-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── SETTINGS ──────────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-settings">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Settings</div>
@@ -667,6 +887,8 @@
       <button class="settings-tab-btn" data-tab="pdf"             onclick="window.__activateSettingsTab('pdf')">PDF Designer</button>
       <button class="settings-tab-btn" data-tab="notifications"   onclick="window.__activateSettingsTab('notifications')">Notifications</button>
       <button class="settings-tab-btn" data-tab="system"          onclick="window.__activateSettingsTab('system')">System</button>
+      <button class="settings-tab-btn" data-tab="services"        onclick="window.__activateSettingsTab('services')">Services</button>
+      <button class="settings-tab-btn" data-tab="categories"      onclick="window.__activateSettingsTab('categories')">Categories</button>
     </div>
 
     <div style="max-width:860px">
@@ -946,6 +1168,55 @@
               style="display:flex;align-items:center;gap:8px">☀ Light mode</button>
           </div>
         </div>
+
+        <!-- Enquiries & Distance -->
+        <div class="section" style="margin-bottom:16px">
+          <div class="section-title">Enquiries &amp; CRM</div>
+          <div class="form-grid" style="margin-top:10px">
+            <div class="form-group">
+              <label>Home / Base Postcode</label>
+              <input type="text" id="s-home-postcode" placeholder="e.g. M4 1AB"
+                style="text-transform:uppercase">
+              <p style="font-size:11px;color:var(--text3);margin-top:4px">
+                Used to calculate travel distance to each enquiry venue via postcodes.io.
+              </p>
+            </div>
+            <div class="form-group">
+              <label>Triage Rules (JSON) <span style="font-size:11px;font-weight:400;color:var(--text3)">— leave blank for defaults</span></label>
+              <textarea id="s-triage-rules" rows="4"
+                placeholder='[{"field":"guests","op":"gt","value":500,"setPriority":"High","addNote":"Large event"}]'
+                style="font-family:var(--mono);font-size:11px"></textarea>
+              <p style="font-size:11px;color:var(--text3);margin-top:4px">
+                Fields: guests, eventType, emailDomain, countryCode, venuePostcode<br>
+                Ops: gt, lt, equals, contains, startsWith, in · Actions: setPriority, setStatus, addNote
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security / Auth -->
+        <div class="section" style="margin-bottom:16px">
+          <div class="section-title">Security</div>
+          <div class="form-grid" style="margin-top:10px">
+            <div class="form-group">
+              <label>GAS Auth Token <span style="font-size:11px;font-weight:400;color:var(--text3)">— protects the API endpoint</span></label>
+              <input type="password" id="s-auth-token" placeholder="Set a secret token here and in your GAS Settings sheet"
+                autocomplete="new-password">
+              <p style="font-size:11px;color:var(--text3);margin-top:4px">
+                When set: GAS validates every API request. Set the same value in the GAS Settings sheet row <code>AUTH_TOKEN</code>. Store it here so the app sends it automatically.
+              </p>
+            </div>
+            <div class="form-group">
+              <label style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="s-show-token"> Show token
+              </label>
+              <div style="margin-top:10px">
+                <button class="btn btn-ghost btn-sm" onclick="window.__generateAuthToken()">⟳ Generate random token</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="section">
           <div class="section-title">Data Management</div>
           <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
@@ -956,17 +1227,57 @@
         </div>
       </div>
 
+      <!-- Services tab -->
+      <div class="settings-section" data-section="services" style="display:none">
+        <div class="page-header" style="margin-bottom:16px">
+          <div>
+            <div class="section-title">Services Catalogue</div>
+            <p style="font-size:12px;color:var(--text3);margin-top:4px">
+              Labour, delivery, damage waiver and other service line items available on quotes and jobs.
+            </p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="window.__openNewServiceModal()">+ New Service</button>
+        </div>
+        <div id="services-list">
+          <div style="color:var(--text3);font-size:12px">Loading services…</div>
+        </div>
+      </div>
+
+      <!-- Categories tab -->
+      <div class="settings-section" data-section="categories" style="display:none">
+        <div class="page-header" style="margin-bottom:16px">
+          <div>
+            <div class="section-title">Product Categories</div>
+            <p style="font-size:12px;color:var(--text3);margin-top:4px">
+              Define product groups, categories and subcategories used across Inventory, Analytics and Forecasting.
+            </p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="window.__openNewCategoryModal()">+ New Category</button>
+        </div>
+        <div id="categories-list">
+          <div style="color:var(--text3);font-size:12px">Loading categories…</div>
+        </div>
+      </div>
+
     </div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── CALENDAR ──────────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-calendar">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Job Calendar</div>
         <div class="page-subtitle" id="calendar-title">Loading…</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:0;border:1px solid var(--border2);border-radius:var(--r);overflow:hidden">
+          <button class="btn btn-ghost btn-sm cal-view-btn active" data-view="month"
+            onclick="window.__calSetView('month')" style="border-radius:0;border:none">Month</button>
+          <button class="btn btn-ghost btn-sm cal-view-btn" data-view="week"
+            onclick="window.__calSetView('week')" style="border-radius:0;border:none;border-left:1px solid var(--border2)">Week</button>
+        </div>
         <button class="btn btn-ghost btn-sm" onclick="window.__calPrev()">← Prev</button>
         <button class="btn btn-ghost btn-sm" onclick="window.__calToday()">Today</button>
         <button class="btn btn-ghost btn-sm" onclick="window.__calNext()">Next →</button>
@@ -974,10 +1285,12 @@
     </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px" id="calendar-legend"></div>
     <div id="calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── SUB-RENTALS ────────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-subrentals">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Sub-Rentals</div>
@@ -998,16 +1311,19 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('subrentals')">↺</button>
     </div>
     <div id="sr-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── CREW ──────────────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-crew">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Crew</div>
         <div class="page-subtitle" id="crew-subtitle">Staff assignments</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewCrewModal()">+ Assign Crew</button>
+      <button class="btn btn-primary" onclick="window.__exportCrewCsv()" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__openNewCrewModal()">+ Assign Crew</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -1022,16 +1338,19 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('crew')">↺</button>
     </div>
     <div id="crew-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── PURCHASE ORDERS ────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-purchaseorders">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Purchase Orders</div>
         <div class="page-subtitle" id="po-subtitle">Supplier orders</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewPOModal()">+ New PO</button>
+      <button class="btn btn-primary" onclick="window.__exportPOsCsv()" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="window.__openNewPOModal()">+ New PO</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -1046,10 +1365,12 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('purchaseorders')">↺</button>
     </div>
     <div id="po-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── SCAN STATION ──────────────────────────────────────────────────── -->
   <div class="pane" id="pane-scan">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Scan Station</div>
@@ -1057,10 +1378,12 @@
       </div>
     </div>
     <div id="scan-pane-body"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── TRANSPORT ─────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-transport">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Transport</div>
@@ -1091,16 +1414,21 @@
       <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('transport')">↺</button>
     </div>
     <div id="transport-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
   <!-- ── AUDIT LOG ──────────────────────────────────────────────────────── -->
   <div class="pane" id="pane-auditlog">
+    <div class="pane-inner">
     <div class="page-header">
       <div>
         <div class="page-title">Audit Log</div>
         <div class="page-subtitle" id="auditlog-subtitle">Full activity trail</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('auditlog')">↺ Refresh</button>
+      <div class="page-actions">
+        <button class="btn btn-ghost btn-sm" onclick="window.__exportAuditLogCsv()">⬇ CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('auditlog')">↺ Refresh</button>
+      </div>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -1116,8 +1444,17 @@
       <select class="filter-select" id="al-user-filter" onchange="window.__filterAuditLog()">
         <option value="">All Users</option>
       </select>
+      <input type="date" id="al-date-from" class="filter-select"
+        onchange="window.__filterAuditLog()" title="From date" style="max-width:140px">
+      <input type="date" id="al-date-to" class="filter-select"
+        onchange="window.__filterAuditLog()" title="To date" style="max-width:140px">
+      <button class="btn btn-ghost btn-sm" onclick="
+        document.getElementById('al-date-from').value='';
+        document.getElementById('al-date-to').value='';
+        window.__filterAuditLog()">Clear dates</button>
     </div>
     <div id="auditlog-list"></div>
+    </div><!-- /pane-inner -->
   </div>
 
 </div><!-- #app -->

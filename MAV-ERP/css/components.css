@@ -712,3 +712,135 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 /* ── Vehicle manager ─────────────────────────────────── */
 
 /* ── Product form tab panels ─────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════
+   LARGE SCREEN IMPROVEMENTS — v3.1
+   Better density and layout on wide displays
+   ═══════════════════════════════════════════════════════ */
+
+/* ── KPI cards — richer on large screens ─────────────── */
+@media (min-width: 1200px) {
+  .kpi { padding: 18px 22px; }
+  .kpi-value { font-size: 32px; }
+}
+
+/* ── Table — better row density on large screens ──────── */
+@media (min-width: 1400px) {
+  .tbl-wrap th { padding: 10px 16px; }
+  .tbl-wrap td { padding: 11px 16px; }
+}
+
+/* ── Cards grid — 3 cols on large, 4 on very large ────── */
+@media (min-width: 1600px) {
+  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+}
+@media (min-width: 2200px) {
+  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .kpi-grid   { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+}
+
+/* ── Job/product/client card — more info on hover ──────── */
+.job-card, .product-card, .quote-card, .client-card {
+  position: relative;
+}
+
+/* ── Rate picker ─────────────────────────────────────── */
+.rate-picker {
+  font-family: var(--body);
+  z-index: 500;
+}
+.rate-picker-item:hover { background: var(--surface2); }
+
+/* ── Damage modal ────────────────────────────────────── */
+#modal-damage-charge .modal { max-width: 480px; }
+
+/* ── Buy list PO modal ───────────────────────────────── */
+#modal-buy-list-po .modal { max-width: 640px; }
+
+/* ── Add item to job modal ───────────────────────────── */
+#modal-add-item .modal { max-width: 520px; }
+
+/* ── Forecast buy list total row ─────────────────────── */
+.buy-list-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+/* ── Transport section in job modal ─────────────────── */
+.transport-run {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: var(--r);
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+/* ── CSV export button ───────────────────────────────── */
+.btn-ghost[onclick*="Csv"] {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .02em;
+}
+
+/* ── Page header on wide screens: actions on right, not wrapped ── */
+@media (min-width: 900px) {
+  .page-header { align-items: center; }
+  .page-actions { flex-wrap: nowrap; }
+}
+
+/* ── Section title refinement ────────────────────────── */
+.section-title {
+  padding-bottom: 2px;
+}
+
+/* ── Detail row — more readable ──────────────────────── */
+.detail-row { min-height: 28px; }
+.detail-label { min-width: 120px; }
+
+/* ── Forecast table shortfall column ─────────────────── */
+.td-num.accent { color: var(--accent); }
+.td-num.danger { color: var(--danger); }
+.td-num.warn   { color: var(--warn);   }
+.td-num.ok     { color: var(--ok);     }
+
+/* ── Modal body — better scroll on small screens ──────── */
+@media (max-width: 600px) {
+  .modal-body { max-height: 60vh; }
+  .modal { border-radius: var(--r2); }
+  .modal-outer { padding: 12px; }
+}
+
+/* ── Pane scroll indicator (subtle) ──────────────────── */
+.pane { scroll-behavior: smooth; }
+
+/* ── Sidebar nav item tooltip on collapsed mobile ──────── */
+@media (max-width: 768px) {
+  .nav-item { position: relative; }
+}
+
+/* ── Global search results better styled ─────────────── */
+#global-search-results .search-result-item {
+  padding: 9px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  transition: background var(--trans);
+}
+#global-search-results .search-result-item:hover { background: var(--surface2); }
+#global-search-results .search-result-item:last-child { border-bottom: none; }
+#global-search-results .search-result-type {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}

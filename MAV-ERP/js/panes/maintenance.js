@@ -6,19 +6,24 @@
 import { rpc }       from '../api/gas.js';
 import { STATE }     from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
 import { openModal, closeModal, confirmDialog } from '../components/modal.js';
 import { ensureProductsLoaded } from './inventory.js';
 
 export async function loadMaintenance() {
   showLoading('Loading maintenance…');
   try {
-    STATE.maintenance = await rpc('getMaintenanceRecords', {});
-    render(STATE.maintenance);
+    const [records, upcoming] = await Promise.all([
+      rpc('getMaintenanceRecords', {}),
+      rpc('getUpcomingServiceDue', 30).catch(() => []),
+    ]);
+    STATE.maintenance = records;
+    STATE.upcomingService = upcoming;
+    render(records, upcoming);
     const el = document.getElementById('maint-subtitle');
     if (el) {
-      const open = STATE.maintenance.filter(m => !['Complete','Cancelled'].includes(m.status)).length;
-      el.textContent = `${STATE.maintenance.length} records · ${open} open`;
+      const open = records.filter(m => !['Complete','Cancelled'].includes(m.status)).length;
+      el.textContent = `${records.length} records · ${open} open · ${(upcoming||[]).length} service due 30d`;
     }
   } catch(e) { toast('Maintenance failed: ' + e.message, 'err'); }
   finally { hideLoading(); }
@@ -30,29 +35,48 @@ export function filterMaintenance() {
   render(STATE.maintenance.filter(m => {
     const hay = [m.maintenanceId, m.sku, m.barcode, m.technician, m.faultDescription, m.status, m.type].join(' ').toLowerCase();
     return (!q || hay.includes(q)) && (!s || m.status === s);
-  }));
+  }), STATE.upcomingService);
 }
 
-function render(records) {
+function render(records, upcoming) {
   const el = document.getElementById('maint-list');
   if (!el) return;
-  if (!records.length) { el.innerHTML = emptyState('⟳', 'No records found'); return; }
 
   const today = new Date(); today.setHours(0,0,0,0);
   const priorityColors = { High:'var(--danger)', Medium:'var(--warn)', Normal:'var(--info)', Low:'var(--text3)' };
   const statusColors   = { Scheduled:'var(--info)', 'In Progress':'var(--warn)', 'Awaiting Parts':'var(--warn)', Complete:'var(--ok)', Cancelled:'var(--text3)' };
 
-  // Summary stats
+  // Upcoming service due alert
+  const upcomingBanner = (upcoming||[]).length ? `
+    <div style="background:var(--warn-bg);border:1px solid var(--warn);border-radius:var(--r2);
+      padding:12px 16px;margin-bottom:16px">
+      <div style="font-weight:600;font-size:13px;color:var(--warn);margin-bottom:8px">
+        ⚠ ${upcoming.length} item${upcoming.length!==1?'s':''} due for service in next 30 days
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${(upcoming||[]).slice(0,5).map(u => `
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+            <span>${esc(u.productName||u.productId)} <span style="color:var(--text3);font-family:var(--mono)">${esc(u.barcode||'')}</span></span>
+            <span style="font-family:var(--mono);color:var(--warn)">${esc(u.serviceType||'Service')} · ${esc(u.daysUntilDue!=null?u.daysUntilDue+'d':'—')}</span>
+          </div>`).join('')}
+        ${upcoming.length > 5 ? `<div style="font-size:11px;color:var(--text3)">+ ${upcoming.length-5} more…</div>` : ''}
+      </div>
+    </div>` : '';
+
+  if (!records.length) { el.innerHTML = upcomingBanner + emptyState('⟳', 'No records found'); return; }
+
   const open   = records.filter(r=>!['Complete','Cancelled'].includes(r.status));
   const high   = open.filter(r=>r.priority==='High');
+  const overdue= open.filter(r=>{const d=new Date(r.scheduledDate||'');return !isNaN(d)&&d<today;});
   const totCost= records.reduce((s,r)=>s+(+r.totalCost||0),0);
 
   const summary = `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px">
       ${[
         ['Open', open.length, 'var(--text2)'],
         ['High Priority', high.length, high.length>0?'var(--danger)':'var(--ok)'],
-        ['Scheduled', records.filter(r=>r.status==='Scheduled').length, 'var(--info)'],
+        ['Overdue', overdue.length, overdue.length>0?'var(--danger)':'var(--ok)'],
+        ['Due 30d', (upcoming||[]).length, (upcoming||[]).length>0?'var(--warn)':'var(--ok)'],
         ['Total Cost', fmtCurDec(totCost), 'var(--warn)'],
       ].map(([l,v,c])=>`<div style="background:var(--surface2);border-radius:8px;padding:10px">
         <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">${l}</div>
@@ -102,21 +126,25 @@ function render(records) {
     </div>`;
   }).join('');
 
-  el.innerHTML = summary + cards;
+  el.innerHTML = upcomingBanner + summary + cards;
 }
 
 // ── Detail modal ──────────────────────────────────────────────────────────────
 export async function openMaintDetail(maintenanceId) {
   showLoading('Loading record…');
   try {
-    const record = await rpc('getMaintenanceById', maintenanceId);
+    const [record, kpis, parts] = await Promise.all([
+      rpc('getMaintenanceById', maintenanceId),
+      rpc('getMaintenanceRecordKpis', maintenanceId).catch(() => null),
+      rpc('getMaintenanceParts', maintenanceId).catch(() => []),
+    ]);
     hideLoading();
-    showMaintModal(record);
+    showMaintModal(record, kpis, parts.length ? parts : (record.parts || []));
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }
 
-function showMaintModal(m) {
-  const parts = m.parts || [];
+function showMaintModal(m, kpis, parts) {
+  parts = parts || m.parts || [];
   const partRows = parts.map(p => `<tr>
     <td>${esc(p.partName||'—')}</td>
     <td class="td-id">${esc(p.partNumber||'—')}</td>
@@ -131,7 +159,21 @@ function showMaintModal(m) {
   const canAddPart  = !['Complete','Cancelled'].includes(m.status);
   const canCancel   = !['Complete','Cancelled'].includes(m.status);
 
+  const kpisPanel = kpis ? `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px">
+      ${[
+        ['Days Open',        kpis.daysOpen ?? '—',              'var(--text2)'],
+        ['Parts Cost',       fmtCurDec(kpis.totalPartsCost||0), 'var(--warn)'],
+        ['Labour Cost',      fmtCurDec(kpis.labourCost||0),     'var(--warn)'],
+        ['Total Cost',       fmtCurDec(kpis.totalCost||0),      'var(--accent)'],
+      ].map(([l,v,c]) => `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px">
+        <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:3px">${l}</div>
+        <div style="font-size:15px;font-weight:700;color:${c};font-family:var(--mono)">${v}</div>
+      </div>`).join('')}
+    </div>` : '';
+
   openModal('modal-maint-detail', `${esc(m.type)} — ${esc(m.maintenanceId)}`, `
+    ${kpisPanel}
     <div class="two-col" style="gap:12px;margin-bottom:16px">
       <div>
         <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${statusBadge(m.status)}</div></div>
@@ -164,6 +206,7 @@ function showMaintModal(m) {
     ${canStart    ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${esc(m.maintenanceId)}')">▶ Start</button>` : ''}
     ${canAddPart  ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintAddPart('${esc(m.maintenanceId)}')">+ Part</button>` : ''}
     ${canAddPart  ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintEditCosts('${esc(m.maintenanceId)}',${+m.partsCost||0},${+m.labourCost||0},${+m.otherCost||0})">£ Costs</button>` : ''}
+    <button class="btn btn-ghost btn-sm" onclick="window.__openMaintEdit('${esc(m.maintenanceId)}')">✏ Edit</button>
     ${canComplete ? `<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${esc(m.maintenanceId)}')">✓ Complete</button>` : ''}
     ${canCancel   ? `<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${esc(m.maintenanceId)}')">✕ Cancel</button>` : ''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
@@ -380,4 +423,171 @@ async function submitNewMaintenance() {
     await loadMaintenance();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+
+export function exportMaintenanceCsv() {
+  const rows = (STATE.maintenance || []).map(m => ({
+    'Record ID':    m.maintenanceId || m.recordId || '',
+    'Product ID':   m.productId,
+    'Barcode':      m.barcode || '',
+    'Type':         m.type || '',
+    'Status':       m.status || '',
+    'Priority':     m.priority || '',
+    'Technician':   m.technician || '',
+    'Scheduled':    m.scheduledDate ? String(m.scheduledDate).substring(0,10) : '',
+    'Description':  m.faultDescription || '',
+    'Labour (£)':   m.labourCost || 0,
+    'Parts (£)':    m.partsCost || 0,
+    'Total (£)':    (m.labourCost||0) + (m.partsCost||0),
+  }));
+  exportCsv(`MAV_Maintenance_${new Date().toISOString().substring(0,10)}.csv`, rows);
+}
+
+// ── Inline edit maintenance record ────────────────────────────────────────────
+export async function openMaintEdit(maintenanceId) {
+  showLoading('Loading…');
+  try {
+    const record = await rpc('getMaintenanceById', maintenanceId);
+    hideLoading();
+    openModal('modal-maint-edit', `Edit — ${esc(record.maintenanceId)}`, `
+      <div class="form-grid">
+        <div class="form-group"><label>Type</label>
+          <select id="me-type">
+            ${['PAT Test','Service','Repair','Inspection','Calibration','Other'].map(t=>
+              `<option${record.type===t?' selected':''}>${t}</option>`).join('')}
+          </select></div>
+        <div class="form-group"><label>Priority</label>
+          <select id="me-priority">
+            ${['High','Medium','Normal','Low'].map(p=>
+              `<option${record.priority===p?' selected':''}>${p}</option>`).join('')}
+          </select></div>
+        <div class="form-group"><label>Scheduled Date</label>
+          <input type="date" id="me-scheduled" value="${(record.scheduledDate||'').substring(0,10)}"></div>
+        <div class="form-group"><label>Next Service Due</label>
+          <input type="date" id="me-nextservice" value="${(record.nextServiceDue||'').substring(0,10)}"></div>
+        <div class="form-group"><label>Technician</label>
+          <input type="text" id="me-tech" value="${esc(record.technician||'')}"></div>
+        <div class="form-group"><label>Labour Cost (£)</label>
+          <input type="number" id="me-labour" value="${+record.labourCost||0}" step="0.01" min="0"></div>
+        <div class="form-group"><label>Other Cost (£)</label>
+          <input type="number" id="me-other" value="${+record.otherCost||0}" step="0.01" min="0"></div>
+        <div class="form-group span-2"><label>Fault Description</label>
+          <input type="text" id="me-fault" value="${esc(record.faultDescription||'')}"></div>
+        <div class="form-group span-2"><label>Work Carried Out</label>
+          <textarea id="me-work" rows="2">${esc(record.workCarriedOut||'')}</textarea></div>
+        <div class="form-group span-2"><label>Notes</label>
+          <textarea id="me-notes" rows="2">${esc(record.notes||'')}</textarea></div>
+      </div>`, `
+      <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="window.__submitMaintEdit('${esc(maintenanceId)}')">Save Changes</button>`
+    );
+    window.__submitMaintEdit = async (mId) => {
+      showLoading('Saving…'); closeModal();
+      try {
+        await rpc('updateMaintenanceRecord', mId, {
+          type:             document.getElementById('me-type')?.value,
+          priority:         document.getElementById('me-priority')?.value,
+          scheduledDate:    document.getElementById('me-scheduled')?.value,
+          nextServiceDue:   document.getElementById('me-nextservice')?.value,
+          technician:       document.getElementById('me-tech')?.value,
+          labourCost:       parseFloat(document.getElementById('me-labour')?.value||0),
+          otherCost:        parseFloat(document.getElementById('me-other')?.value||0),
+          faultDescription: document.getElementById('me-fault')?.value,
+          workCarriedOut:   document.getElementById('me-work')?.value,
+          notes:            document.getElementById('me-notes')?.value,
+        });
+        toast('Record updated', 'ok');
+        await refreshMaintenance();
+      } catch(e) { toast(e.message, 'err'); }
+      finally { hideLoading(); }
+    };
+  } catch(e) { hideLoading(); toast(e.message, 'err'); }
+}
+
+// ── Quick status change ───────────────────────────────────────────────────────
+export async function setMaintenanceStatus(maintenanceId, status) {
+  showLoading('Updating…');
+  try {
+    await rpc('updateMaintenanceStatus', maintenanceId, status, {});
+    toast(`Status → ${status}`, 'ok');
+    await refreshMaintenance();
+  } catch(e) { toast(e.message, 'err'); }
+  finally { hideLoading(); }
+}
+
+// ── Maintenance summary report (printable) ────────────────────────────────────
+export async function printMaintenanceReport() {
+  showLoading('Generating report…');
+  try {
+    const report = await rpc('getMaintenanceSummaryReport');
+    hideLoading();
+    const s = report.summary || {};
+    const win = window.open('', '_blank');
+    if (!win) { toast('Allow pop-ups to view report', 'warn'); return; }
+    win.document.write(`<!DOCTYPE html><html><head>
+      <title>MAV Hire — Maintenance Report</title>
+      <style>
+        body{font-family:system-ui,sans-serif;max-width:1000px;margin:40px auto;padding:0 20px;color:#1a1a2e}
+        h1{font-size:26px;font-weight:900;margin-bottom:4px}
+        .sub{color:#666;font-size:13px;margin-bottom:24px}
+        .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px}
+        .kpi{background:#f5f5fa;border-radius:8px;padding:12px;text-align:center}
+        .kpi-v{font-size:20px;font-weight:700;color:#4a4af0}
+        .kpi-l{font-size:10px;color:#666;margin-top:3px;text-transform:uppercase}
+        h2{font-size:15px;font-weight:700;margin:20px 0 8px;border-bottom:2px solid #eee;padding-bottom:4px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th{background:#f0f0f8;padding:8px;text-align:left;font-weight:600}
+        td{padding:7px 8px;border-bottom:1px solid #eee}
+        .badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+        .high{background:#ffe4e4;color:#c00}
+        .ok{background:#e4ffe8;color:#006}
+        @media print{body{margin:0}}
+      </style>
+    </head><body>
+      <h1>Maintenance Report</h1>
+      <div class="sub">Generated ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+      <div class="kpis">
+        ${[
+          ['Total Records', s.totalCount??'—'],
+          ['Open', s.openCount??'—'],
+          ['High Priority', s.highPriorityOpen??'—'],
+          ['Overdue', s.overdueCount??'—'],
+          ['Total Cost', '£'+((s.totalCost||0).toLocaleString('en-GB',{minimumFractionDigits:2}))],
+        ].map(([l,v])=>`<div class="kpi"><div class="kpi-v">${v}</div><div class="kpi-l">${l}</div></div>`).join('')}
+      </div>
+      ${(report.overdueItems||[]).length ? `
+        <h2>⚠ Overdue Service Items (${report.overdueItems.length})</h2>
+        <table><thead><tr><th>Product</th><th>Barcode</th><th>Type</th><th>Due</th></tr></thead>
+        <tbody>${report.overdueItems.slice(0,20).map(i=>`<tr>
+          <td>${i.productName||i.productId||'—'}</td>
+          <td style="font-family:monospace">${i.barcode||'—'}</td>
+          <td>${i.serviceType||'—'}</td>
+          <td>${i.dueDate?new Date(i.dueDate).toLocaleDateString('en-GB'):'—'}</td>
+        </tr>`).join('')}</tbody></table>` : ''}
+      ${(report.upcoming30||[]).length ? `
+        <h2>Service Due — Next 30 Days (${report.upcoming30.length})</h2>
+        <table><thead><tr><th>Product</th><th>Barcode</th><th>Service Type</th><th>Days Until Due</th></tr></thead>
+        <tbody>${report.upcoming30.slice(0,20).map(i=>`<tr>
+          <td>${i.productName||i.productId||'—'}</td>
+          <td style="font-family:monospace">${i.barcode||'—'}</td>
+          <td>${i.serviceType||'—'}</td>
+          <td><span class="badge ${(i.daysUntilDue||99)<=7?'high':'ok'}">${i.daysUntilDue??'—'}d</span></td>
+        </tr>`).join('')}</tbody></table>` : ''}
+      <h2>Recent Records (last 50)</h2>
+      <table><thead><tr><th>ID</th><th>Product</th><th>Type</th><th>Status</th><th>Priority</th><th>Cost</th><th>Date</th></tr></thead>
+      <tbody>${(report.recentHistory||[]).slice(0,50).map(m=>`<tr>
+        <td style="font-family:monospace;font-size:10px">${m.maintenanceId}</td>
+        <td>${m.productName||m.sku||'—'}</td>
+        <td>${m.type||'—'}</td>
+        <td><span class="badge ${m.status==='Complete'?'ok':m.priority==='High'?'high':''}">${m.status}</span></td>
+        <td><span class="badge ${m.priority==='High'?'high':''}">${m.priority}</span></td>
+        <td>£${(+m.totalCost||0).toFixed(2)}</td>
+        <td>${m.scheduledDate?new Date(m.scheduledDate).toLocaleDateString('en-GB'):'—'}</td>
+      </tr>`).join('')}</tbody></table>
+    </body></html>`);
+    win.document.close();
+    win.print();
+    toast('Maintenance report opened', 'ok');
+  } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }

@@ -3,10 +3,10 @@
  * Full job lifecycle: create, edit, status transitions, payment,
  * availability check, checkout barcode assignment, duplication.
  */
-import { rpc }                from '../api/gas.js';
+import { rpc, rpcWithFallback }                from '../api/gas.js';
 import { STATE }              from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState, setupClientAutocomplete } from '../utils/dom.js';
-import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
 import { openModal, closeModal, confirmDialog } from '../components/modal.js';
 import { initLineItems, getLines, addRentalLine, addServiceLine } from '../components/lineItems.js';
 
@@ -14,7 +14,7 @@ import { initLineItems, getLines, addRentalLine, addServiceLine } from '../compo
 export async function loadJobs() {
   showLoading('Loading jobs…');
   try {
-    STATE.jobs = await rpc('getJobs', {});
+    STATE.jobs = await rpcWithFallback('getJobs', {});
     render(STATE.jobs);
     const el = document.getElementById('jobs-subtitle');
     if (el) el.textContent = STATE.jobs.length + ' jobs';
@@ -153,16 +153,21 @@ function renderKanban(el, jobs) {
 export async function openJobDetail(jobId) {
   showLoading('Loading job…');
   try {
-    const [job, crewSummary] = await Promise.all([
+    const [job, crewSummary, transports, subRentals] = await Promise.all([
       rpc('getJobById', jobId),
       rpc('getCrewSummaryForJob', jobId).catch(() => null),
+      rpc('getJobTransports', jobId).catch(() => []),
+      rpc('getSubRentalSummaryForJob', jobId).catch(() => ({ items: [], count: 0, totalCost: 0 })),
     ]);
     hideLoading();
-    showJobModal(job, crewSummary);
+    showJobModal(job, crewSummary, transports, subRentals);
   } catch(e) { hideLoading(); toast('Failed: ' + e.message, 'err'); }
 }
 
-function showJobModal(job, crewSummary) {
+function showJobModal(job, crewSummary, transports, subRentalData) {
+  // getSubRentalSummaryForJob returns { items, count, totalCost } — unwrap
+  const subRentals = Array.isArray(subRentalData) ? subRentalData : (subRentalData?.items || []);
+  const subRentalCost = subRentalData?.totalCost || 0;
   const items    = job.items || [];
   const editable = ['Draft','Confirmed'].includes(job.status);
 
@@ -274,10 +279,53 @@ function showJobModal(job, crewSummary) {
 
     ${job.internalNotes ? `<div style="margin-top:12px;font-size:12px;color:var(--text3);padding:10px;background:var(--surface2);border-radius:var(--r)">📝 ${esc(job.internalNotes)}</div>` : ''}
     ${job.crewNotes     ? `<div style="margin-top:8px;font-size:12px;color:var(--text3);padding:10px;background:var(--surface2);border-radius:var(--r)">👥 ${esc(job.crewNotes)}</div>` : ''}
+
+    <!-- Sub-rentals -->
+    ${(subRentals||[]).length ? `
+    <div class="section-title" style="margin-top:16px;margin-bottom:8px">Sub-Rentals (${subRentals.length})</div>
+    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
+      ${subRentals.map(r => `
+        <div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
+          padding:8px 12px;background:var(--surface2);border-radius:var(--r);font-size:12px">
+          <span style="font-size:14px">↗</span>
+          <div>
+            <div style="font-weight:600">${esc(r.itemName||'—')}</div>
+            <div style="color:var(--text3);font-size:11px">${esc(r.supplierName||'—')} · ×${r.quantity||1} · ${r.hireDays||1}d</div>
+          </div>
+          <div style="text-align:right">
+            <span class="badge badge-${r.status==='Confirmed'?'ok':r.status==='Ordered'?'info':'muted'}">${esc(r.status||'—')}</span>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--accent);margin-top:2px">${fmtCurDec(r.totalCost||0)}</div>
+          </div>
+        </div>`).join('')}
+    </div>` : ''}
+
+    <!-- Transport runs -->
+    ${(transports||[]).length ? `
+    <div class="section-title" style="margin-top:16px;margin-bottom:8px">Transport (${transports.length})</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+      ${transports.map(t => `
+        <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;
+          padding:8px 12px;background:var(--surface2);border-radius:var(--r);font-size:12px">
+          <span style="font-size:16px">🚚</span>
+          <div>
+            <div style="font-weight:600">${esc(t.vehicle||'—')}</div>
+            <div style="color:var(--text3);font-family:var(--mono);font-size:10px">${esc(t.driver||'—')} · ${t.mileage||0}mi</div>
+            ${t.notes ? `<div style="color:var(--text3);font-size:11px;margin-top:2px">${esc(t.notes)}</div>` : ''}
+          </div>
+          <div style="text-align:right;font-family:var(--mono)">
+            <div style="font-size:10px;color:var(--text3)">${t.departTime ? new Date(t.departTime).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '—'}</div>
+            <div style="color:var(--accent)">${fmtCurDec(t.cost||0)}</div>
+          </div>
+        </div>`).join('')}
+    </div>` : ''}
   `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__openPickList('${esc(job.jobId)}')">📋 Pick List</button>
+    ${['Confirmed','Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openAddItemToJob('${esc(job.jobId)}')">＋ Add Item</button>` : ''}
+    ${['Confirmed','Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openApplyBundleToJob('${esc(job.jobId)}')">◫ Apply Bundle</button>` : ''}
+    ${['Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__deallocateJob('${esc(job.jobId)}')">↩ Deallocate</button>` : ''}
     ${['Returned','Complete'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openReturnCond('${esc(job.jobId)}','${esc(job.jobName||job.jobId)}')">📦 Return Conditions</button>` : ''}
     ${editable ? `<button class="btn btn-ghost btn-sm" onclick="window.__editJob('${esc(job.jobId)}')">✏ Edit</button>` : ''}
+    <button class="btn btn-ghost btn-sm" onclick="window.__openJobProfitability('${esc(job.jobId)}')">£ P&amp;L</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__duplicateJob('${esc(job.jobId)}')">⎘ Duplicate</button>
     ${buildActionButtons(job)}
   `, 'modal-lg');
@@ -337,24 +385,18 @@ export async function checkAvailability(jobId) {
   try {
     const job = await rpc('getJobById', jobId);
     const rentalItems = (job.items||[]).filter(i => i.lineType !== 'Service' && i.productId);
-    if (!rentalItems.length) { toast('No rental items to check', 'warn'); return; }
+    if (!rentalItems.length) { toast('No rental items to check', 'warn'); hideLoading(); return; }
 
-    // Check each product
-    const results = await Promise.all(
-      rentalItems.map(async item => {
-        try {
-          const avail = await rpc('checkAvailability', item.productId,
-            job.startDate || job.eventDate, job.endDate || job.eventDate, item.qtyRequired, jobId);
-          return { item, avail };
-        } catch(e) {
-          return { item, avail: { available: false, error: e.message } };
-        }
-      })
-    );
-
+    // Use batch availability report (single GAS call)
+    const report = await rpc('getJobAvailabilityReport', jobId);
     hideLoading();
 
-    const rows = results.map(({ item, avail }) => {
+    // Merge report results back to items for display
+    const resultMap = {};
+    (report||[]).forEach(r => { resultMap[r.productId] = r; });
+
+    const rows = rentalItems.map(item => {
+      const avail = resultMap[item.productId] || {};
       const ok    = avail.available !== false && !avail.error;
       const short = !ok && avail.qtyAvailable >= 0 ? avail.qtyAvailable : null;
       return `<tr>
@@ -373,7 +415,10 @@ export async function checkAvailability(jobId) {
       </tr>`;
     }).join('');
 
-    const allGood = results.every(r => r.avail.available !== false && !r.avail.error);
+    const allGood = rentalItems.every(item => {
+      const avail = resultMap[item.productId] || {};
+      return avail.available !== false && !avail.error;
+    });
 
     openModal('modal-availability', `Availability — ${esc(job.jobName)}`, `
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px">
@@ -804,4 +849,249 @@ export function openRecordDepositModal(jobId, balanceDue) {
     finally { hideLoading(); }
   };
   document.getElementById('dep-amount')?.select();
+}
+
+// ── Add item to existing job ──────────────────────────────────────────────────
+export async function openAddItemToJob(jobId) {
+  await import('../panes/inventory.js').then(m => m.ensureProductsLoaded()).catch(()=>{});
+  const products = (STATE.products || []).filter(p => p.active !== false);
+  const opts = products.map(p =>
+    `<option value="${esc(p.productId)}" data-rate="${p.baseHireRate||0}" data-rep="${p.replacementCost||0}" data-method="${esc(p.stockMethod)}">
+      ${esc(p.name)} (${esc(p.sku)}) — ${fmtCurDec(p.baseHireRate)}/day
+    </option>`).join('');
+
+  openModal('modal-add-item', 'Add Item to Job', `
+    <div class="form-grid">
+      <div class="form-group span-2">
+        <label>Product *</label>
+        <select id="ai-product" onchange="
+          const o=this.options[this.selectedIndex];
+          document.getElementById('ai-price').value=o.dataset.rate||0;
+          document.getElementById('ai-rep').value=o.dataset.rep||0;">
+          <option value="">— Select product —</option>${opts}
+        </select>
+      </div>
+      <div class="form-group"><label>Quantity *</label>
+        <input type="number" id="ai-qty" value="1" min="1"></div>
+      <div class="form-group"><label>Unit Price (£)</label>
+        <input type="number" id="ai-price" value="0" step="0.01" min="0"></div>
+      <div class="form-group"><label>Replacement Cost (£)</label>
+        <input type="number" id="ai-rep" value="0" step="0.01" min="0"></div>
+      <div class="form-group"><label>Notes</label>
+        <input type="text" id="ai-notes" placeholder="Optional notes…"></div>
+    </div>`, `
+    <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
+    <button class="btn btn-primary btn-sm" onclick="window.__submitAddItem('${esc(jobId)}')">Add to Job</button>`
+  );
+
+  window.__submitAddItem = async (jId) => {
+    const productId = document.getElementById('ai-product')?.value;
+    const qty       = parseInt(document.getElementById('ai-qty')?.value, 10) || 1;
+    const price     = parseFloat(document.getElementById('ai-price')?.value) || 0;
+    const rep       = parseFloat(document.getElementById('ai-rep')?.value) || 0;
+    const notes     = document.getElementById('ai-notes')?.value || '';
+    if (!productId) { toast('Select a product', 'warn'); return; }
+    const product   = products.find(p => p.productId === productId);
+    if (!product) { toast('Product not found', 'warn'); return; }
+    showLoading('Adding item…'); closeModal();
+    try {
+      await rpc('addItemToJob', jId, {
+        productId, name: product.name, sku: product.sku,
+        category: product.category || '', lineType: 'Rental',
+        stockMethod: product.stockMethod,
+        qtyRequired: qty, unitPrice: price,
+        replacementCost: rep, weightKg: product.weightKg || 0,
+        notes,
+      });
+      toast('Item added to job', 'ok');
+      STATE.loadedPanes.delete('jobs');
+      await loadJobs();
+    } catch(e) { toast(e.message, 'err'); }
+    finally { hideLoading(); }
+  };
+}
+
+// ── Deallocate job stock ──────────────────────────────────────────────────────
+export async function deallocateJob(jobId) {
+  if (!confirm(`Deallocate all stock from job ${jobId}? Items will be returned to available stock.`)) return;
+  showLoading('Deallocating…'); closeModal();
+  try {
+    await rpc('deallocateJobStock', jobId);
+    toast('Stock deallocated — job returned to Confirmed', 'ok');
+    STATE.loadedPanes.delete('jobs');
+    await loadJobs();
+  } catch(e) { toast(e.message, 'err'); }
+  finally { hideLoading(); }
+}
+
+
+export function exportJobsCsv() {
+  const rows = (STATE.jobs || []).map(j => ({
+    'Job ID':     j.jobId,
+    'Job Name':   j.jobName,
+    'Status':     j.status,
+    'Client':     j.clientName,
+    'Company':    j.company || '',
+    'Event Date': j.eventDate ? String(j.eventDate).substring(0,10) : '',
+    'Venue':      j.venue || '',
+    'Total (£)':  j.total || 0,
+    'Deposit Paid (£)': j.depositPaid || 0,
+    'Balance Due (£)':  j.balanceDue || 0,
+    'Prep Status':   j.prepStatus || '',
+    'Return Status': j.returnStatus || '',
+  }));
+  exportCsv(`MAV_Jobs_${new Date().toISOString().substring(0,10)}.csv`, rows);
+}
+
+// ── Apply bundle to existing job ──────────────────────────────────────────────
+export async function openApplyBundleToJob(jobId) {
+  if (!(STATE.bundles||[]).length) {
+    showLoading('Loading bundles…');
+    try { STATE.bundles = await rpc('getBundles', {}); } catch(e) {}
+    hideLoading();
+  }
+  const bundles = (STATE.bundles||[]).filter(b => b.active !== false);
+  if (!bundles.length) { toast('No bundles configured', 'warn'); return; }
+
+  const opts = bundles.map(b =>
+    `<option value="${esc(b.bundleId)}">${esc(b.name)} — ${esc(b.description||'')}</option>`
+  ).join('');
+
+  openModal('modal-apply-bundle', '◫ Apply Bundle to Job', `
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">
+      Select a saved bundle to add its items to this job.
+    </p>
+    <div class="form-grid">
+      <div class="form-group span-2">
+        <label>Bundle *</label>
+        <select id="ab-bundle"><option value="">— Select bundle —</option>${opts}</select>
+      </div>
+      <div class="form-group">
+        <label>Quantity Multiplier</label>
+        <input type="number" id="ab-qty" value="1" min="1" max="100">
+      </div>
+      <div class="form-group">
+        <label>Price Override (£, optional)</label>
+        <input type="number" id="ab-price" placeholder="Leave blank for bundle default" step="0.01" min="0">
+      </div>
+    </div>`, `
+    <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
+    <button class="btn btn-primary btn-sm" onclick="window.__submitApplyBundle('${esc(jobId)}')">Apply Bundle</button>`
+  );
+
+  window.__submitApplyBundle = async (jId) => {
+    const bundleId = document.getElementById('ab-bundle')?.value;
+    const qty      = parseInt(document.getElementById('ab-qty')?.value || '1', 10);
+    const price    = document.getElementById('ab-price')?.value;
+    if (!bundleId) { toast('Select a bundle', 'warn'); return; }
+    showLoading('Applying bundle…'); closeModal();
+    try {
+      await rpc('applyBundleToJob', jId, bundleId, { quantityMultiplier: qty, priceOverride: price ? +price : null });
+      toast('Bundle applied to job', 'ok');
+      STATE.loadedPanes.delete('jobs');
+      await loadJobs();
+    } catch(e) { toast(e.message, 'err'); }
+    finally { hideLoading(); }
+  };
+}
+
+// ── Job Profitability / P&L modal ─────────────────────────────────────────────
+export async function openJobProfitability(jobId) {
+  showLoading('Calculating profitability…');
+  try {
+    const pnl = await rpc('getJobProfitabilityReport', jobId);
+    hideLoading();
+
+    const fmt  = v => fmtCurDec(+v||0);
+    const pct  = v => (+v||0).toFixed(1) + '%';
+    const good = v => +v >= 0 ? 'var(--ok)' : 'var(--danger)';
+    const marginColor = pnl.marginPct >= 40 ? 'var(--ok)' : pnl.marginPct >= 20 ? 'var(--warn)' : 'var(--danger)';
+
+    openModal('modal-job-pnl', `P&L — ${esc(pnl.jobName)}`, `
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+        ${[
+          ['Revenue',     fmt(pnl.revenue),    'var(--accent)'],
+          ['Total Costs', fmt(pnl.totalCosts),  'var(--warn)'],
+          ['Gross Profit',fmt(pnl.grossProfit), good(pnl.grossProfit)],
+          ['Margin',      pct(pnl.marginPct),   marginColor],
+        ].map(([l,v,c]) => `<div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:3px">${l}</div>
+          <div style="font-size:17px;font-weight:700;color:${c};font-family:var(--mono)">${v}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- Waterfall bar -->
+      <div style="margin-bottom:16px">
+        ${[
+          ['Revenue',        pnl.revenue,       'var(--accent)'],
+          ['Sub-rentals',    pnl.subRentalCost,  'var(--warn)'],
+          ['Transport',      pnl.transportCost,  'var(--warn)'],
+          ['Crew',           pnl.crewCost,       'var(--warn)'],
+          ['Maintenance',    pnl.maintCost,      'var(--warn)'],
+          ['Gross Profit',   pnl.grossProfit,    good(pnl.grossProfit)],
+        ].map(([label, val, color]) => {
+          const w = pnl.revenue > 0 ? Math.min(100, Math.round(Math.abs(+val||0)/pnl.revenue*100)) : 0;
+          return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px">
+            <div style="width:120px;color:var(--text2);text-align:right;flex-shrink:0">${label}</div>
+            <div style="flex:1;height:20px;background:var(--surface2);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${w}%;background:${color};border-radius:3px;transition:width .4s"></div>
+            </div>
+            <div style="width:80px;font-family:var(--mono);text-align:right;color:${color};flex-shrink:0">${fmt(val)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Cost detail table -->
+      <div class="section-title" style="margin-bottom:8px">Cost Breakdown</div>
+      <div class="tbl-wrap" style="margin-bottom:12px">
+        <table style="font-size:12px">
+          <thead><tr><th>Category</th><th>Items</th><th class="td-num">Cost</th></tr></thead>
+          <tbody>
+            <tr style="font-weight:600">
+              <td>Sub-Rentals</td><td style="color:var(--text3)">${pnl.subRentals?.length||0} items</td>
+              <td class="td-num" style="font-family:var(--mono)">${fmt(pnl.subRentalCost)}</td>
+            </tr>
+            ${(pnl.subRentals||[]).map(r => `<tr style="opacity:.8">
+              <td style="padding-left:16px;font-size:11px;color:var(--text3)">↳ ${esc(r.itemName||'—')}</td>
+              <td style="font-size:11px;color:var(--text3)">${esc(r.supplierName||'')}</td>
+              <td class="td-num" style="font-family:var(--mono);font-size:11px">${fmt(r.totalCost)}</td>
+            </tr>`).join('')}
+            <tr style="font-weight:600">
+              <td>Transport</td><td style="color:var(--text3)">${pnl.transports?.length||0} runs</td>
+              <td class="td-num" style="font-family:var(--mono)">${fmt(pnl.transportCost)}</td>
+            </tr>
+            ${(pnl.transports||[]).map(t => `<tr style="opacity:.8">
+              <td style="padding-left:16px;font-size:11px;color:var(--text3)">↳ ${esc(t.vehicle||'—')}</td>
+              <td style="font-size:11px;color:var(--text3)">${esc(t.driver||'')}</td>
+              <td class="td-num" style="font-family:var(--mono);font-size:11px">${fmt(t.fuelCost||t.cost||0)}</td>
+            </tr>`).join('')}
+            <tr style="font-weight:600">
+              <td>Crew</td><td style="color:var(--text3)">${pnl.crewRecords?.length||0} staff</td>
+              <td class="td-num" style="font-family:var(--mono)">${fmt(pnl.crewCost)}</td>
+            </tr>
+            ${(pnl.crewRecords||[]).map(c => `<tr style="opacity:.8">
+              <td style="padding-left:16px;font-size:11px;color:var(--text3)">↳ ${esc(c.staffName||'—')}</td>
+              <td style="font-size:11px;color:var(--text3)">${esc(c.role||'')} · ${c.days||1}d @ ${fmt(c.dayRate)}</td>
+              <td class="td-num" style="font-family:var(--mono);font-size:11px">${fmt((c.dayRate||0)*(c.days||1))}</td>
+            </tr>`).join('')}
+            <tr style="font-weight:600">
+              <td>Maintenance</td><td></td>
+              <td class="td-num" style="font-family:var(--mono)">${fmt(pnl.maintCost)}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr style="font-weight:700;font-size:13px">
+              <td>Total Costs</td><td></td>
+              <td class="td-num" style="font-family:var(--mono);color:var(--warn)">${fmt(pnl.totalCosts)}</td>
+            </tr>
+            <tr style="font-weight:700;font-size:14px">
+              <td>Gross Profit</td><td></td>
+              <td class="td-num" style="font-family:var(--mono);color:${good(pnl.grossProfit)}">${fmt(pnl.grossProfit)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `, `<button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`);
+  } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }

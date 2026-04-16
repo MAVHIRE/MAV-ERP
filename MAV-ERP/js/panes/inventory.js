@@ -3,23 +3,48 @@
  * Products + barcodes: images, deep filter, edit, maintenance link,
  * return condition logging, bulk barcode CSV, product CSV import.
  */
-import { rpc }            from '../api/gas.js';
+import { rpc, rpcWithFallback }            from '../api/gas.js';
 import { STATE }          from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 // ── Load / ensure ─────────────────────────────────────────────────────────────
 export async function loadProducts() {
   showLoading('Loading inventory…');
   try {
-    STATE.products = await rpc('getProducts');
+    const [products, snapshot, categories] = await Promise.all([
+      rpcWithFallback('getProducts'),
+      rpcWithFallback('getInventorySnapshot').catch(() => null),
+      rpc('getProductCategories').catch(() => []),
+    ]);
+    STATE.products = products;
+    if (categories?.length) STATE.productCategories = categories;
     populateFilters();
+    renderInventorySnapshot(snapshot);
     render(STATE.products);
     const el = document.getElementById('inv-subtitle');
-    if (el) el.textContent = STATE.products.length + ' products';
+    if (el) el.textContent = products.length + ' products';
   } catch(e) { toast('Inventory failed: ' + e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+function renderInventorySnapshot(snap) {
+  const el = document.getElementById('inv-snapshot');
+  if (!el || !snap) return;
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px">
+    ${[
+      ['Total Products', snap.totalProducts??'—', 'var(--text)'],
+      ['Total Units', snap.totalUnits??'—', 'var(--info)'],
+      ['Available', snap.totalAvailable??'—', 'var(--ok)'],
+      ['On Hire', snap.totalOut??'—', 'var(--accent)'],
+      ['In Service', snap.totalInService??'—', 'var(--warn)'],
+      ['Book Value', '£'+((snap.totalReplacementValue||0)/1000).toFixed(0)+'k', 'var(--text2)'],
+    ].map(([l,v,c]) => `<div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:3px">${l}</div>
+      <div style="font-size:17px;font-weight:700;color:${c};font-family:var(--mono)">${v}</div>
+    </div>`).join('')}
+  </div>`;
 }
 
 export async function ensureProductsLoaded() {
@@ -34,7 +59,10 @@ export async function ensureServicesLoaded() {
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 function populateFilters() {
-  const cats   = [...new Set(STATE.products.map(p => p.category).filter(Boolean))].sort();
+  // Prefer server-side categories (with descriptions/sort order); fall back to product-derived
+  const serverCats = (STATE.productCategories||[]).map(c => c.categoryName||c.name).filter(Boolean).sort();
+  const productCats = [...new Set(STATE.products.map(p => p.category).filter(Boolean))].sort();
+  const cats   = serverCats.length ? serverCats : productCats;
   const groups = [...new Set(STATE.products.map(p => p.productGroup).filter(Boolean))].sort();
   const brands = [...new Set(STATE.products.map(p => p.brand).filter(Boolean))].sort();
   const setOpts = (id, arr) => {
@@ -127,18 +155,22 @@ function render(products) {
 export async function openProductDetail(productId) {
   showLoading('Loading product…');
   try {
-    const [product, summary, maintenance, movements] = await Promise.all([
+    const [product, summary, maintenance, movements, forecast, perfReport] = await Promise.all([
       rpc('getProductById', productId),
       rpc('getProductAssetSummary', productId),
-      rpc('getMaintenanceRecords', { productId }),
+      rpc('getProductMaintenanceHistory', productId),
       rpc('getInventoryMovements', { productId }).catch(() => []),
+      rpc('getProductForecast', productId).catch(() => null),
+      rpc('getProductPerformanceReport', 20).catch(() => null),
     ]);
+    // Find this product's perf data from the report
+    const perf = (perfReport||[]).find(r => r.productId === productId || r.sku === product?.sku) || null;
     hideLoading();
-    showProductModal(product, summary, maintenance, movements);
+    showProductModal(product, summary, maintenance, movements, forecast, perf);
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }
 
-function showProductModal(p, s, maint, movements) {
+function showProductModal(p, s, maint, movements, forecast, perf) {
   const maintRows = (maint||[]).slice(0,10).map(m => `<tr>
     <td class="td-id">${esc(m.maintenanceId)}</td>
     <td>${esc(m.type||'—')}</td>
@@ -204,6 +236,41 @@ function showProductModal(p, s, maint, movements) {
           </tbody>
         </table>
       </div>` : ''}
+    ${forecast ? `
+    <div class="section-title" style="margin-top:16px;margin-bottom:8px">Demand Forecast</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+      ${[
+        ['Demand 90d', Math.round(forecast.forecastDemandQty||0)+' units', 'var(--accent)'],
+        ['Revenue', fmtCurDec(forecast.forecastRevenue||0), 'var(--ok)'],
+        ['Shortage', forecast.predictedShortageQty>0?'−'+Math.ceil(forecast.predictedShortageQty):'None', forecast.predictedShortageQty>0?'var(--danger)':'var(--ok)'],
+        ['Confidence', forecast.confidence||'—', forecast.confidence==='High'?'var(--ok)':forecast.confidence==='Medium'?'var(--warn)':'var(--text3)'],
+      ].map(([l,v,c])=>`<div style="background:var(--surface2);border-radius:6px;padding:10px">
+        <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">${l}</div>
+        <div style="font-size:15px;font-weight:700;color:${c};font-family:var(--mono)">${v}</div>
+      </div>`).join('')}
+    </div>
+    ${forecast.predictedShortageQty>0?`<div style="background:var(--danger-bg);border:1px solid var(--danger);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--danger)">
+      ⚠ Recommend purchasing <strong>${Math.ceil(forecast.recommendedPurchaseQty||0)} units</strong> — est. ${fmtCurDec(forecast.estimatedPurchaseCost||0)}
+    </div>`:''}` : ''}
+
+    ${perf ? `
+    <div class="section-title" style="margin-top:16px;margin-bottom:8px">Performance</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+      ${[
+        ['Total Revenue', fmtCurDec(perf.totalRevenue||0), 'var(--accent)'],
+        ['Hire Count', (perf.hireCount||0)+' hires', 'var(--info)'],
+        ['Revenue/Hire', fmtCurDec(perf.revenuePerHire||0), 'var(--ok)'],
+        ['ROI', (+(perf.roiPct||0)).toFixed(0)+'%', (perf.roiPct||0)>100?'var(--ok)':(perf.roiPct||0)>50?'var(--warn)':'var(--danger)'],
+      ].map(([l,v,c])=>`<div style="background:var(--surface2);border-radius:6px;padding:10px">
+        <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">${l}</div>
+        <div style="font-size:15px;font-weight:700;color:${c};font-family:var(--mono)">${v}</div>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:16px;font-size:11px;color:var(--text3)">
+      ${perf.utilisationPct!=null?`<span>Utilisation: <span style="color:var(--text2)">${(+perf.utilisationPct).toFixed(0)}%</span></span>`:''}
+      ${perf.lastHiredDate?`<span>Last hired: <span style="color:var(--text2)">${new Date(perf.lastHiredDate).toLocaleDateString('en-GB')}</span></span>`:''}
+      ${perf.totalMaintenanceCost?`<span>Maint cost: <span style="color:var(--warn)">${fmtCurDec(perf.totalMaintenanceCost)}</span></span>`:''}
+    </div>` : ''}
   `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__editProduct('${esc(p.productId)}')">✏ Edit</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__stockAdjust('${esc(p.productId)}','${esc(p.name)}')">± Stock</button>
@@ -731,26 +798,71 @@ export function openReturnConditionModal(jobId, jobName) {
     window.__submitReturnConds = async (jId) => {
       showLoading('Saving…'); closeModal();
       let damaged = 0;
+      const damagedItems = [];
       try {
         for (const b of barcodes) {
           const cond  = document.getElementById(`rc-${b.barcode}`)?.value || 'Good';
           const notes = document.getElementById(`rn-${b.barcode}`)?.value || '';
           if (['Damaged','Lost'].includes(cond)) {
             damaged++;
+            damagedItems.push({ ...b, condition: cond, notes });
             await rpc('createMaintenanceRecord', {
               productId: b.productId, barcode: b.barcode,
               type: cond === 'Lost' ? 'Investigation' : 'Repair',
               priority: 'High', status: 'Scheduled',
-              scheduledDate: new Date().toISOString().substring(0,10),
+              scheduledDate: new Date().toISOString().substring(0, 10),
               notes: `Return condition: ${cond}. ${notes}`.trim(),
             });
           }
         }
-        toast(damaged > 0
-          ? `Conditions saved · ${damaged} maintenance record${damaged>1?'s':''} auto-created`
-          : 'Return conditions saved', damaged > 0 ? 'warn' : 'ok');
         STATE.loadedPanes.delete('maintenance');
         STATE.loadedPanes.delete('jobs');
+        if (damaged > 0) {
+          const totalCharge = damagedItems.reduce((s, b) => s + (b.replacementCost || 0), 0);
+          toast(`${damaged} damaged — maintenance records created`, 'warn');
+          if (totalCharge > 0) {
+            setTimeout(() => {
+              openModal('modal-damage-charge', '💥 Damage Charge', `
+                <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
+                  Generate a damage charge invoice for these items?
+                </p>
+                <div style="background:var(--surface2);border-radius:var(--r);padding:12px;margin-bottom:14px">
+                  ${damagedItems.map(b => `
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)">
+                      <span>${esc(b.productName||b.productId)} <span style="color:var(--danger)">(${esc(b.condition)})</span></span>
+                      <span style="font-family:var(--mono);color:var(--warn)">${fmtCurDec(b.replacementCost||0)}</span>
+                    </div>`).join('')}
+                  <div style="display:flex;justify-content:space-between;padding:8px 0 0;font-weight:700;font-size:13px">
+                    <span>Total Replacement Value</span>
+                    <span style="font-family:var(--mono);color:var(--danger)">${fmtCurDec(totalCharge)}</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Charge Amount (£)</label>
+                  <input type="number" id="dmg-charge" value="${totalCharge.toFixed(2)}" step="0.01" min="0">
+                </div>`, `
+                <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Skip</button>
+                <button class="btn btn-danger btn-sm" onclick="window.__submitDamageCharge('${esc(jId)}')">Generate Invoice</button>`
+              );
+              window.__submitDamageCharge = async (jobId) => {
+                const charge = parseFloat(document.getElementById('dmg-charge')?.value) || 0;
+                if (!charge) { closeModal(); return; }
+                showLoading('Creating damage invoice…'); closeModal();
+                try {
+                  await rpc('generateInvoice', jobId, {
+                    invoiceType: 'Damage', extraCharge: charge,
+                    notes: `Damage: ${damagedItems.map(b => b.productName || b.productId).join(', ')}`,
+                  });
+                  toast('Damage invoice created', 'ok');
+                  STATE.loadedPanes.delete('invoices');
+                } catch(e) { toast('Invoice: ' + e.message, 'warn'); }
+                finally { hideLoading(); }
+              };
+            }, 300);
+          }
+        } else {
+          toast('Return conditions saved — all items good', 'ok');
+        }
       } catch(e) { toast(e.message, 'err'); }
       finally { hideLoading(); }
     };
@@ -1078,4 +1190,23 @@ export async function openBarcodeLabelModal(productId, productName) {
       closeModal();
     };
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
+}
+
+
+export function exportInventoryCsv() {
+  const rows = (STATE.products || []).map(p => ({
+    'Product ID':         p.productId,
+    'SKU':                p.sku,
+    'Name':               p.name,
+    'Category':           p.category || '',
+    'Stock Method':       p.stockMethod,
+    'Stock Level':        p.stockLevel ?? '',
+    'Min Stock':          p.minStockLevel ?? '',
+    'Base Rate (£/day)':  p.baseHireRate || 0,
+    'Replacement Cost (£)': p.replacementCost || 0,
+    'Purchase Price (£)': p.purchasePrice || 0,
+    'Weight (kg)':        p.weightKg || 0,
+    'Active':             p.active !== false ? 'Yes' : 'No',
+  }));
+  exportCsv(`MAV_Inventory_${new Date().toISOString().substring(0,10)}.csv`, rows);
 }

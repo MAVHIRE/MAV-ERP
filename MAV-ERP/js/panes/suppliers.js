@@ -19,11 +19,24 @@ export async function loadSuppliers() {
   finally { hideLoading(); }
 }
 
+let _searchTimer = null;
 export function filterSuppliers() {
   const q = (document.getElementById('sup-search')?.value || '').toLowerCase();
-  render((STATE.suppliers || []).filter(s =>
+  // Client-side filter on cached data (instant)
+  const filtered = (STATE.suppliers || []).filter(s =>
     [s.supplierId, s.supplierName, s.contactName, s.email, s.phone, s.category].join(' ').toLowerCase().includes(q)
-  ));
+  );
+  render(filtered);
+  // If query is 3+ chars and result set is small, also hit server for accuracy
+  if (q.length >= 3 && filtered.length < 5) {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(async () => {
+      try {
+        const results = await rpc('searchSuppliers', q);
+        if (results && results.length) render(results);
+      } catch(e) { /* silent — client-side result already shown */ }
+    }, 400);
+  }
 }
 
 function render(suppliers) {

@@ -3,7 +3,7 @@
  * Live KPIs, Chart.js revenue timeline, utilisation rings,
  * upcoming jobs timeline, real-time alerts, activity feed.
  */
-import { rpc }    from '../api/gas.js';
+import { rpc, rpcWithFallback }    from '../api/gas.js';
 import { STATE }  from '../utils/state.js';
 import { showLoading, hideLoading, toast, setValue, emptyState } from '../utils/dom.js';
 import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
@@ -15,11 +15,18 @@ let _chartStatus  = null;
 export async function initDashboard() {
   showLoading('Loading dashboard…');
   try {
-    const data = await rpc('getDashboardSnapshot');
+    const [data, serviceDue, upcomingReport, lowStock, overdueReport, enquirySummary] = await Promise.all([
+      rpcWithFallback('getDashboardSnapshot'),
+      rpc('getUpcomingServiceDue', 14).catch(() => []),
+      rpc('getUpcomingJobsReport', 14).catch(() => null),
+      rpc('getLowStockProducts').catch(() => null),
+      rpc('getOverdueReturnsReport').catch(() => null),
+      rpcWithFallback('getEnquiries', { status: 'New' }).catch(() => []),
+    ]);
     STATE.dashboard = data;
-    await render(data);
+    await render(data, serviceDue, upcomingReport, lowStock, overdueReport, enquirySummary);
     setValue('dash-ts', 'Updated ' + new Date().toLocaleTimeString('en-GB'));
-    // Load management brain in background (slow call — don't block dashboard)
+    // Load management brain in background
     rpc('getManagementBrainReport').then(brain => renderBrainReport(brain)).catch(() => {});
   } catch(e) {
     toast('Dashboard failed: ' + e.message, 'err');
@@ -29,28 +36,26 @@ export async function initDashboard() {
   }
 }
 
-async function render(d) {
+async function render(d, serviceDue, upcomingReport, lowStock, _overdueReport, newEnquiries) {
   d = d || {};
   const ops = d.operations || {};
   const fin = d.finance    || {};
   const stk = d.stock      || {};
   const mnt = d.maintenance|| {};
 
-  // KPIs with trend indicators
   renderKPIs(ops, fin, stk, mnt);
-
-  // Load Chart.js then render all charts
   await loadChartJs();
   renderRevenueChart(fin);
   renderStatusChart(ops);
   renderUtilChart(stk);
 
-  // Panels
   renderAlerts(d.alerts||[]);
   renderOverdue(ops.overdueReturns||[]);
-  renderUpcoming(ops.upcomingJobs||[]);
-  renderLowStock(stk.lowStockItems||[]);
+  renderUpcoming(upcomingReport || ops.upcomingJobs || []);
+  renderLowStock(lowStock || stk.lowStockItems || []);
   renderFinanceSummary(fin);
+  renderServiceDue(serviceDue||[]);
+  renderNewEnquiries(newEnquiries||[]);
 }
 
 // ── KPIs ──────────────────────────────────────────────────────────────────────
@@ -443,4 +448,78 @@ function renderBrainReport(brain) {
           </div>`).join('')}
       </div>` : ''}
     </div>`;
+}
+
+// ── Service due panel ─────────────────────────────────────────────────────────
+function renderServiceDue(items) {
+  const el = document.getElementById('dash-service-due');
+  if (!el) return;
+  if (!items || !items.length) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--ok);padding:8px 0">✓ No service due in next 14 days</div>`;
+    return;
+  }
+  el.innerHTML = items.slice(0, 5).map(item => {
+    const urgency = (item.daysUntilDue||99) <= 3 ? 'var(--danger)' :
+                    (item.daysUntilDue||99) <= 7 ? 'var(--warn)' : 'var(--info)';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;
+      padding:7px 10px;background:var(--surface2);border-radius:var(--r);
+      margin-bottom:5px;border-left:3px solid ${urgency}">
+      <div>
+        <div style="font-size:12px;font-weight:500">${esc(item.productName||item.productId||'—')}</div>
+        <div style="font-size:10px;color:var(--text3)">${esc(item.barcode||'')} · ${esc(item.serviceType||'Service due')}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${urgency}">
+          ${item.daysUntilDue != null ? item.daysUntilDue+'d' : '—'}
+        </div>
+        <div style="font-size:9px;color:var(--text3)">until due</div>
+      </div>
+    </div>`;
+  }).join('') +
+  (items.length > 5 ? `<div style="font-size:11px;color:var(--text3);padding:4px 0">
+    +${items.length-5} more — <span style="cursor:pointer;color:var(--accent)"
+    onclick="window.__switchPane('maintenance')">view all →</span></div>` : '');
+}
+
+// ── New enquiries panel ───────────────────────────────────────────────────────
+function renderNewEnquiries(enquiries) {
+  const el = document.getElementById('dash-new-enquiries');
+  if (!el) return;
+  const list = (enquiries||[]).slice(0,5);
+  if (!list.length) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--ok);padding:8px 0">✓ No unactioned enquiries</div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(e => {
+    const distMatch = e.notes?.match(/\[Distance\] ([\d.]+) miles/);
+    const dist = distMatch ? distMatch[1]+'mi' : null;
+    const daysAgo = e.receivedDate
+      ? Math.floor((Date.now()-new Date(e.receivedDate))/86400000) : null;
+    const priColor = e.priority==='High'?'var(--danger)':e.priority==='Low'?'var(--text3)':'var(--warn)';
+
+    return `<div style="display:flex;justify-content:space-between;align-items:center;
+      padding:8px 10px;background:var(--surface2);border-radius:var(--r);margin-bottom:5px;
+      border-left:3px solid ${priColor}">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          ${esc(e.name||'—')}
+          ${dist?`<span style="font-size:10px;color:var(--info);margin-left:6px">📍${dist}</span>`:''}
+        </div>
+        <div style="font-size:10px;color:var(--text3)">
+          ${e.eventType?esc(e.eventType)+' · ':''}${daysAgo!=null?(daysAgo===0?'Today':daysAgo+'d ago'):''}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0;margin-left:8px">
+        <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px"
+          onclick="window.__switchPane('enquiries');window.__openEnquiryDetail('${esc(e.enquiryId)}')">View</button>
+        <button class="btn btn-primary btn-sm" style="font-size:10px;padding:3px 8px"
+          onclick="window.__enqConvertToQuote('${esc(e.enquiryId)}')">→ Quote</button>
+      </div>
+    </div>`;
+  }).join('') +
+  (enquiries.length > 5 ? `<div style="font-size:11px;color:var(--text3);padding:4px 0;cursor:pointer"
+    onclick="window.__switchPane('enquiries')">
+    +${enquiries.length-5} more → <span style="color:var(--accent)">View all enquiries</span>
+  </div>` : '');
 }

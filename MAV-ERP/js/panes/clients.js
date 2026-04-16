@@ -5,7 +5,7 @@
 import { rpc }       from '../api/gas.js';
 import { STATE }     from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 export async function loadClients() {
@@ -188,6 +188,7 @@ function showClientHistoryModal(client, jobs, quotes) {
       </table>
     </div>` : ''}
   `, `
+    <button class="btn btn-ghost btn-sm" onclick="window.__openClientPortal('${esc(clientId)}')">◎ Portal Link</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__openNewJobModal()">+ New Job</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__openNewQuoteModal()">+ New Quote</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
@@ -238,6 +239,81 @@ async function submitNewClient() {
     toast('Client saved: ' + r.clientId, 'ok');
     STATE.loadedPanes.delete('clients');
     await loadClients();
+  } catch(e) { toast(e.message, 'err'); }
+  finally { hideLoading(); }
+}
+
+
+export function exportClientsCsv() {
+  const rows = (STATE.clients || []).map(c => ({
+    'Client ID':  c.clientId,
+    'Name':       c.clientName,
+    'Company':    c.company || '',
+    'Email':      c.email || '',
+    'Phone':      c.phone || '',
+    'Type':       c.clientType || '',
+    'Source':     c.source || '',
+  }));
+  exportCsv(`MAV_Clients_${new Date().toISOString().substring(0,10)}.csv`, rows);
+}
+
+// ── Client portal link generator ──────────────────────────────────────────────
+export async function openClientPortal(clientId) {
+  showLoading('Generating portal link…');
+  try {
+    const [tokenRes, gasUrlRes] = await Promise.all([
+      rpc('generateClientPortalToken', clientId),
+      Promise.resolve(localStorage.getItem('mav_gas_url') || ''),
+    ]);
+    hideLoading();
+
+    const gasUrl  = gasUrlRes;
+    const token   = tokenRes.token;
+    const portalUrl = `${gasUrl}?page=portal&clientId=${encodeURIComponent(clientId)}&token=${encodeURIComponent(token)}`;
+
+    openModal('modal-client-portal', '◎ Client Portal Link', `
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
+        Share this link with your client. It gives them a read-only view of their
+        quotes, jobs and outstanding invoices — no login required.
+      </p>
+      <div class="form-group">
+        <label>Portal URL</label>
+        <input type="text" id="portal-url-field" value="${esc(portalUrl)}" readonly
+          style="font-family:var(--mono);font-size:11px;cursor:text;background:var(--surface2)">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${esc(portalUrl)}');window.__toast('Link copied','ok')">
+          📋 Copy Link
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="window.open('${esc(portalUrl)}','_blank')">
+          ↗ Preview
+        </button>
+        <button class="btn btn-ghost btn-sm"
+          onclick="window.open('mailto:?subject=${encodeURIComponent('Your MAV Hire Client Portal')}&body=${encodeURIComponent('Hi,\\n\\nYou can view your quotes, jobs and invoices here:\\n\\n'+portalUrl+'\\n\\nKind regards,\\nMAV Hire')}','_blank')">
+          ✉ Email to Client
+        </button>
+      </div>
+      <p style="font-size:11px;color:var(--text3);margin-top:12px">
+        ⚠ This link is unique to this client. Anyone with it can view their data.
+        Click Revoke to invalidate it.
+      </p>`, `
+      <button class="btn btn-danger btn-sm" onclick="window.__revokeClientPortal('${esc(clientId)}')">✕ Revoke</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`
+    );
+
+    // Select all on click
+    document.getElementById('portal-url-field')?.select();
+
+  } catch(e) { hideLoading(); toast(e.message, 'err'); }
+}
+
+export async function revokeClientPortal(clientId) {
+  if (!confirm('Revoke the portal link for this client? The current URL will stop working.')) return;
+  showLoading('Revoking…');
+  try {
+    await rpc('revokeClientPortalToken', clientId);
+    toast('Portal link revoked', 'ok');
+    closeModal();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
 }
