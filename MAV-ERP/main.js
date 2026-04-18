@@ -139,6 +139,18 @@ function updateThemeToggle() {
 async function init() {
   initTheme();
 
+  // Inject manifest only on non-preview deployments.
+  // Vercel preview URLs contain a random hash segment (e.g. mav-abc123xyz-org.vercel.app).
+  // Fetching manifest.json on those returns 401 (Deployment Protection), polluting the console.
+  const isVercelPreview = /\.vercel\.app$/.test(location.hostname) &&
+                          /^[a-z]+-[a-z0-9]+-[a-z0-9]+-projects\.vercel\.app$/.test(location.hostname);
+  if (!isVercelPreview) {
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = '/manifest.json';
+    document.head.appendChild(link);
+  }
+
   // Register service worker for offline shell caching
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
