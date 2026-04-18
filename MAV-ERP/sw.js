@@ -1,29 +1,20 @@
 /**
- * MAV Hire ERP — Service Worker v2.0
- * Fix 18: JS/HTML are network-first so Vercel deploys propagate immediately.
- * CSS is still cache-first (rarely changes, safe to cache).
- * CDN assets (Chart.js, Three.js, ZXing) are network-first with cache fallback.
- * GAS RPC calls bypass SW entirely — data freshness handled by gas.js.
- * Version string auto-derived from build timestamp — no manual bumping needed.
+ * MAV Hire ERP — Service Worker v3.0
+ * - Network-first for JS/HTML (deploys propagate immediately)
+ * - Cache-first for CSS (stable, fast)
+ * - Network-first with cache fallback for CDN assets
+ * - GAS API bypasses SW entirely
+ * - Never caches non-ok or opaque responses (fixes "body already used" error)
+ * - Ignores manifest.json (let browser fetch directly — bypasses Vercel preview auth)
  */
 
-const CACHE_VERSION = 'mav-erp-v2-' + self.registration.scope;
-const CACHE_NAME    = CACHE_VERSION;
-const GAS_ORIGIN    = 'script.google.com';
+const CACHE_NAME = 'mav-erp-v3';
+const GAS_ORIGIN = 'script.google.com';
 
-// CSS assets: cache-first (safe, stable)
-const CSS_ASSETS = [
-  '/css/tokens.css',
-  '/css/layout.css',
-  '/css/components.css',
-];
-
-// Everything else pre-cached but served network-first
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/main.js',
-  '/manifest.json',
   '/js/api/gas.js',
   '/js/utils/state.js',
   '/js/utils/dom.js',
@@ -55,7 +46,20 @@ const SHELL_ASSETS = [
   '/js/panes/warehouse.js',
 ];
 
-// ── Install: pre-cache everything ────────────────────────────────────────────
+const CSS_ASSETS = [
+  '/css/tokens.css',
+  '/css/layout.css',
+  '/css/components.css',
+];
+
+// Safe cache-put: only cache ok, non-opaque responses
+function safeCachePut(cache, request, response) {
+  if (response && response.ok && response.status !== 0 && response.type !== 'opaque') {
+    cache.put(request, response).catch(() => {});
+  }
+}
+
+// ── Install ───────────────────────────────────────────────────────────────────
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
@@ -69,7 +73,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// ── Activate: delete ALL old caches ──────────────────────────────────────────
+// ── Activate ──────────────────────────────────────────────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -78,24 +82,30 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ── Fetch: strategy by request type ──────────────────────────────────────────
+// ── Fetch ─────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
+  // Only handle GET
+  if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
 
   // GAS API — bypass SW entirely
-  if (url.hostname.includes(GAS_ORIGIN)) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
+  if (url.hostname.includes(GAS_ORIGIN)) return;
 
-  // CDN assets (Chart.js, Three.js, ZXing) — network-first, long cache fallback
+  // manifest.json — bypass SW (Vercel preview auth returns 401, don't cache it)
+  if (url.pathname === '/manifest.json') return;
+
+  // favicon — bypass SW (404, don't waste cache space)
+  if (url.pathname === '/favicon.ico') return;
+
+  // CDN assets — network-first, cache on success
   if (url.hostname.includes('cdnjs.cloudflare.com')) {
     event.respondWith(
       fetch(event.request)
         .then(resp => {
           if (resp.ok) {
             const clone = resp.clone();
-            caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+            caches.open(CACHE_NAME).then(c => safeCachePut(c, event.request, clone));
           }
           return resp;
         })
@@ -104,15 +114,15 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // CSS — cache-first (fast, rarely changes)
-  const isCss = url.pathname.endsWith('.css');
-  if (isCss) {
+  // CSS — cache-first (stable)
+  if (url.pathname.endsWith('.css')) {
     event.respondWith(
       caches.match(event.request).then(cached => {
         if (cached) return cached;
         return fetch(event.request).then(resp => {
           if (resp.ok) {
-            caches.open(CACHE_NAME).then(c => c.put(event.request, resp.clone()));
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then(c => safeCachePut(c, event.request, clone));
           }
           return resp;
         });
@@ -121,17 +131,19 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // JS + HTML — network-first so deploys propagate immediately (Fix 18)
+  // JS + HTML — network-first, cache on success for offline fallback
   event.respondWith(
     fetch(event.request)
       .then(resp => {
-        if (resp.ok && event.request.method === 'GET') {
-          caches.open(CACHE_NAME).then(c => c.put(event.request, resp.clone()));
+        // Only cache successful same-origin responses
+        if (resp.ok && resp.status < 400) {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then(c => safeCachePut(c, event.request, clone));
         }
         return resp;
       })
       .catch(() => {
-        // Offline fallback — serve from cache
+        // Offline: serve from cache or fall back to index.html for navigation
         return caches.match(event.request).then(cached => {
           if (cached) return cached;
           if (event.request.mode === 'navigate') return caches.match('/index.html');
@@ -140,12 +152,14 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// ── Message: force cache clear on R key ──────────────────────────────────────
+// ── Message ───────────────────────────────────────────────────────────────────
 self.addEventListener('message', event => {
   if (event.data === 'CLEAR_CACHE') {
     caches.delete(CACHE_NAME).then(() => {
       caches.open(CACHE_NAME).then(cache =>
-        Promise.allSettled([...SHELL_ASSETS, ...CSS_ASSETS].map(url => cache.add(url).catch(() => {})))
+        Promise.allSettled([...SHELL_ASSETS, ...CSS_ASSETS].map(url =>
+          cache.add(url).catch(() => {})
+        ))
       );
     });
   }
