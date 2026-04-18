@@ -5,7 +5,7 @@
  */
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast } from '../utils/dom.js';
-import { esc, statusBadge, fmtDate , escAttr} from '../utils/format.js';
+import { esc, statusBadge, fmtDate, escAttr} from '../utils/format.js';
 import { rpc, rpcWithFallback } from '../api/gas.js';
 
 let _year  = new Date().getFullYear();

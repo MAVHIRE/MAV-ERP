@@ -6,7 +6,7 @@
 import { rpc }       from '../api/gas.js';
 import { STATE }     from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv , escAttr} from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge, exportCsv, escAttr} from '../utils/format.js';
 import { openModal, closeModal, confirmDialog } from '../components/modal.js';
 import { ensureProductsLoaded } from './inventory.js';
 

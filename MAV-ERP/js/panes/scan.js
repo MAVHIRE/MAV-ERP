@@ -7,7 +7,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast } from '../utils/dom.js';
-import { esc, statusBadge, fmtDate, fmtCurDec , escAttr} from '../utils/format.js';
+import { esc, statusBadge, fmtDate, fmtCurDec, escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 // ── Load ──────────────────────────────────────────────────────────────────────

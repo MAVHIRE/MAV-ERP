@@ -6,7 +6,7 @@
 import { rpc, rpcWithFallback }    from '../api/gas.js';
 import { STATE }  from '../utils/state.js';
 import { showLoading, hideLoading, toast, setValue, emptyState } from '../utils/dom.js';
-import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge , escAttr} from '../utils/format.js';
+import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge, escAttr} from '../utils/format.js';
 
 let _chartRevenue = null;
 let _chartUtil    = null;

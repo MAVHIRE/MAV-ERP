@@ -6,7 +6,7 @@
 import { rpc }    from '../api/gas.js';
 import { STATE }  from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCur, fmtCurDec, fmtPct, esc , escAttr} from '../utils/format.js';
+import { fmtCur, fmtCurDec, fmtPct, esc, escAttr} from '../utils/format.js';
 
 let _charts = {};
 

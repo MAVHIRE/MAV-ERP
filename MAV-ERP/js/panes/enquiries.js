@@ -7,7 +7,7 @@
 import { rpc, rpcWithFallback }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { esc, fmtDate, statusBadge, exportCsv , escAttr} from '../utils/format.js';
+import { esc, fmtDate, statusBadge, exportCsv, escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 // Status pipeline order
