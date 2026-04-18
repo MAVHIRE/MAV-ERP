@@ -6,9 +6,8 @@
  * Plus: properties panel, barcode lookup, occupancy details
  */
 import { rpc }   from '../api/gas.js';
-import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { esc, fmtCurDec, escAttr} from '../utils/format.js';
+import { esc, escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 // ── Module state ──────────────────────────────────────────────────────────────
@@ -16,13 +15,14 @@ let _floor    = { w:20, d:15, h:6, name:'Main Warehouse' };
 let _grid     = 0.5;
 let _items    = [];
 let _occ      = {};
-let _contents = {}; // locationId → array of barcodes
 let _dirty    = false;
 let _selected = null;
 let _animFrame= null;
 let _view     = '3d';   // '3d' | '2d' | 'list'
 let _three    = null;
-let _2d       = null;   // { canvas, ctx, scale, pan }
+let _2d       = null;   // { canvas, ctx, draw, scale, pan }
+let _resize3d = null;   // ResizeObserver for 3D view
+let _resize2d = null;   // ResizeObserver for 2D view
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 export async function loadWarehouseDesigner() {
@@ -47,11 +47,18 @@ export async function loadWarehouseDesigner() {
 }
 
 function mapLocation(l) {
+  // Prefer explicit layoutType saved from designer; fall back to inference
+  function inferType(l) {
+    if (l.locationType === 'Zone') return 'zone';
+    if (+l.layoutD < 0.25)        return 'wall';
+    if (l.layoutType)             return l.layoutType;
+    return 'rack';
+  }
   return {
     id:         l.locationId,
     locationId: l.locationId,
     fullPath:   l.fullPath || l.locationId,
-    type:       l.locationType === 'Zone' ? 'zone' : (l.layoutD < 0.25 ? 'wall' : 'rack'),
+    type:       l.layoutType || inferType(l),
     label:      l.name || l.fullPath || l.locationId,
     desc:       l.description || '',
     capacity:   +l.capacity || 0,
@@ -59,7 +66,7 @@ function mapLocation(l) {
     x: +l.layoutX || 0,   y: +l.layoutY || 0,
     w: +l.layoutW || 1,   d: +l.layoutD || 1,  h: +l.layoutH || 2.4,
     color: l.layoutColor || null,
-    rot: 0,
+    rot:   +l.layoutRotation || 0,
   };
 }
 
@@ -121,7 +128,7 @@ function showProperties(item) {
       </div>
       <div style="display:flex;justify-content:space-between">
         <span style="color:var(--text3)">Position</span>
-        <span style="font-family:var(--mono)">${item.x.toFixed(1)}m, ${item.y.toFixed(1)}m</span>
+        <span class="prop-pos" style="font-family:var(--mono)">${item.x.toFixed(1)}m, ${item.y.toFixed(1)}m</span>
       </div>
       <div style="display:flex;justify-content:space-between">
         <span style="color:var(--text3)">Size</span>
@@ -153,7 +160,7 @@ function showProperties(item) {
 async function viewLocationContents(locationId, label) {
   showLoading('Loading contents…');
   try {
-    const items = await rpc('getBarcodesByLocation', locationId);
+    const items = await rpc('getBarcodesByLocation', { locationId });
     hideLoading();
     const rows = (items || []);
     openModal('modal-wh-contents', `📦 ${esc(label)}`, `
@@ -167,7 +174,7 @@ async function viewLocationContents(locationId, label) {
               <td class="td-id">${esc(b.barcode)}</td>
               <td class="td-name">${esc(b.productName||b.productId)}</td>
               <td class="td-id">${esc(b.serialNumber||'—')}</td>
-              <td>${b.condition||'—'}</td>
+              <td>${esc(b.condition||'—')}</td>
             </tr>`).join('')}
           </tbody>
         </table>
@@ -182,7 +189,7 @@ async function lookupBarcodeLocation(barcode) {
   if (!barcode) return;
   showLoading('Looking up barcode…');
   try {
-    const result = await rpc('findProductByBarcode', barcode);
+    const result = await rpc('findProductByBarcode', { barcode });
     hideLoading();
     if (!result) { toast('Barcode not found: ' + barcode, 'warn'); return; }
 
@@ -192,7 +199,7 @@ async function lookupBarcodeLocation(barcode) {
       const item = _items.find(i => i.locationId === result.locationId);
       if (item) {
         showProperties(item);
-        if (_view === '2d' && _2d) draw2D();
+        if (_view === '2d' && _2d?.draw) _2d.draw();
         if (_view === '3d' && _three) highlightItem3D(result.locationId);
         _selected = item.id;
       }
@@ -204,14 +211,17 @@ async function lookupBarcodeLocation(barcode) {
 
 function highlightItem3D(locationId) {
   if (!_three) return;
-  // Flash the matched meshes
   _three.scene.traverse(obj => {
-    if (obj.userData.locationId === locationId && obj.material) {
-      const orig = obj.material.emissive ? obj.material.emissive.getHex() : 0;
-      obj.material.emissive = new _three.THREE.Color(0xc8ff00);
+    if (obj.userData.locationId === locationId && obj.material?.emissive) {
+      const orig         = obj.material.emissive.getHex();
+      const origIntensity= obj.material.emissiveIntensity ?? 0;
+      obj.material.emissive.setHex(0xc8ff00);
       obj.material.emissiveIntensity = 0.8;
       setTimeout(() => {
-        if (obj.material) { obj.material.emissiveIntensity = 0; }
+        if (obj.material?.emissive) {
+          obj.material.emissive.setHex(orig);
+          obj.material.emissiveIntensity = origIntensity;
+        }
       }, 2000);
     }
   });
@@ -233,9 +243,10 @@ function init3D() {
   document.head.appendChild(script);
 }
 
-function build3DScene(wrap) {
+function build3DScene(wrap, _retries) {
   if (!window.THREE) { switchView('2d'); return; }
   const THREE = window.THREE;
+  _retries = (_retries || 0);
 
   // Measure after layout has settled — offsetWidth can be 0 if measured too early
   const measure = () => {
@@ -244,9 +255,14 @@ function build3DScene(wrap) {
     return { W: W || 900, H: H || 600 };
   };
 
-  // If the container has no size yet, defer one frame
+  // If the container has no size yet, defer — but cap retries to avoid infinite loop
   if (!wrap.offsetWidth || !wrap.offsetHeight) {
-    requestAnimationFrame(() => build3DScene(wrap));
+    if (_retries >= 20) {
+      console.warn('[Warehouse] 3D container has no size after 20 frames — switching to 2D');
+      switchView('2d');
+      return;
+    }
+    requestAnimationFrame(() => build3DScene(wrap, _retries + 1));
     return;
   }
 
@@ -449,7 +465,7 @@ function build3DScene(wrap) {
   renderer.domElement.addEventListener('touchend', () => { isDragging=false; });
 
   // Resize
-  new ResizeObserver(() => {
+  _resize3d = new ResizeObserver(() => {
     const nw=wrap.offsetWidth, nh=wrap.offsetHeight;
     if (!nw||!nh) return;
     camera.aspect=nw/nh; camera.updateProjectionMatrix(); renderer.setSize(nw,nh);
@@ -653,7 +669,7 @@ function init2D() {
   let isPanDrag    = false;
   let lastPanX     = 0, lastPanY = 0;
 
-  _2d = { canvas, ctx, get scale(){return scale;}, set scale(v){scale=v;}, get panX(){return panX;} };
+  _2d = { canvas, ctx, draw: null, get scale(){return scale;}, set scale(v){scale=v;}, get panX(){return panX;}, get panY(){return panY;} };
 
   function worldToScreen(wx, wy) { return [panX + wx*scale, panY + wy*scale]; }
   function screenToWorld(sx, sy) { return [(sx-panX)/scale, (sy-panY)/scale]; }
@@ -772,6 +788,9 @@ function init2D() {
     ctx.fillText(`${barM}m`, panX+_floor.w*scale-barM*scale/2-4, panY+_floor.d*scale+18);
   }
 
+  // Attach draw function to _2d so external callers can use _2d.draw()
+  _2d.draw = draw2D;
+
   // Resize canvas to match container
   function resize() {
     canvas.width  = wrap.offsetWidth  || 800;
@@ -785,7 +804,8 @@ function init2D() {
     draw2D();
   }
 
-  new ResizeObserver(resize).observe(wrap);
+  _resize2d = new ResizeObserver(resize);
+  _resize2d.observe(wrap);
   resize();
 
   // ── Mouse events ─────────────────────────────────────────────────────────────
@@ -910,7 +930,28 @@ function findItemAt(wx, wy) {
 function switchView(view) {
   _view=view;
   const wrap=document.getElementById('warehouse-canvas-wrap');
+
+  // Cancel animation loop
   if(_animFrame){cancelAnimationFrame(_animFrame);_animFrame=null;}
+
+  // Disconnect resize observers
+  if(_resize3d){_resize3d.disconnect();_resize3d=null;}
+  if(_resize2d){_resize2d.disconnect();_resize2d=null;}
+
+  // Dispose 3D resources to prevent GPU/memory leaks
+  if(_three) {
+    try {
+      _three.scene.traverse(obj => {
+        if(obj.geometry)  obj.geometry.dispose();
+        if(obj.material) {
+          if(Array.isArray(obj.material)) obj.material.forEach(m=>m.dispose());
+          else obj.material.dispose();
+        }
+      });
+      _three.renderer.dispose();
+    } catch(e) {}
+  }
+
   _three=null; _2d=null;
 
   // Update toolbar buttons
@@ -941,6 +982,7 @@ export async function saveWarehouseLayout() {
     const payload=_items.filter(i=>i.locationId||i.id).map(i=>({
       locationId:   i.locationId||null,
       locationType: i.type==='zone'?'Zone':'Bay',
+      layoutType:   i.type,
       fullPath:     i.fullPath||i.label,
       name:         i.label,
       description:  i.desc,
@@ -952,8 +994,20 @@ export async function saveWarehouseLayout() {
       layoutRotation:i.rot||0,
     }));
     const r=await rpc('saveWarehouseLayout',payload);
-    _dirty=false;
+    // Reload locations from server so temp IDs are replaced with real persisted IDs
+    const [locs, occ] = await Promise.all([
+      rpc('getWarehouseLocations', {}),
+      rpc('getLocationOccupancy').catch(() => []),
+    ]);
+    _occ = {};
+    (occ||[]).forEach(o => _occ[o.locationId] = +o.itemCount||0);
+    _items = (locs||[]).filter(l => +l.layoutW > 0).map(mapLocation);
+    _dirty = false;
     toast(`Saved ${r.saved||payload.length} locations`,'ok');
+    // Rebuild view to reflect fresh data
+    if (_view === '3d') init3D();
+    else if (_view === '2d') init2D();
+    updateStats();
   } catch(e){toast(e.message,'err');}
   finally{hideLoading();}
 }
@@ -1082,7 +1136,7 @@ export function exposeWarehouseGlobals() {
     try {
       // Delete from GAS sheet if it has a real locationId
       if (item?.locationId) {
-        await rpc('deleteWarehouseLocation', item.locationId);
+        await rpc('deleteWarehouseLocation', { locationId: item.locationId });
       }
       _items = _items.filter(i => i.id !== _selected);
       _selected = null; _dirty = false; // already persisted
@@ -1094,18 +1148,24 @@ export function exposeWarehouseGlobals() {
   };
 
   window.__whAddItem = (type) => {
+    const rawX = parseFloat(document.getElementById('wa-x')?.value);
+    const rawY = parseFloat(document.getElementById('wa-y')?.value);
+    const rawW = parseFloat(document.getElementById('wa-w')?.value);
+    const rawD = parseFloat(document.getElementById('wa-d')?.value);
+    const rawH = parseFloat(document.getElementById('wa-h')?.value);
+    const w = Math.max(0.1, Math.min(_floor.w, isNaN(rawW) ? 1   : rawW));
+    const d = Math.max(0.05,Math.min(_floor.d, isNaN(rawD) ? 0.5 : rawD));
+    const h = Math.max(0.1, Math.min(30,       isNaN(rawH) ? 2.4 : rawH));
+    const x = Math.max(0,   Math.min(_floor.w - w, isNaN(rawX) ? 1 : rawX));
+    const y = Math.max(0,   Math.min(_floor.d - d, isNaN(rawY) ? 1 : rawY));
     const item = {
       id:       'new-'+Date.now(),
       locationId: null, type,
       label:    document.getElementById('wa-label')?.value||type,
       desc:     document.getElementById('wa-desc')?.value||'',
-      x: parseFloat(document.getElementById('wa-x')?.value)||1,
-      y: parseFloat(document.getElementById('wa-y')?.value)||1,
-      w: parseFloat(document.getElementById('wa-w')?.value)||1,
-      d: parseFloat(document.getElementById('wa-d')?.value)||0.5,
-      h: parseFloat(document.getElementById('wa-h')?.value)||2.4,
-      shelves:  parseInt(document.getElementById('wa-shelves')?.value||4, 10),
-      capacity: parseInt(document.getElementById('wa-cap')?.value||0, 10),
+      x, y, w, d, h,
+      shelves:  Math.max(1, Math.min(20, parseInt(document.getElementById('wa-shelves')?.value||4, 10))),
+      capacity: Math.max(0, parseInt(document.getElementById('wa-cap')?.value||0, 10)),
       color:    document.getElementById('wa-color')?.value||null,
       rot: 0,
     };
@@ -1118,15 +1178,22 @@ export function exposeWarehouseGlobals() {
   window.__whApplyEdit = (itemId) => {
     const item=_items.find(i=>i.id===itemId);
     if(!item) return;
+    const rawX = parseFloat(document.getElementById('we-x')?.value);
+    const rawY = parseFloat(document.getElementById('we-y')?.value);
+    const rawW = parseFloat(document.getElementById('we-w')?.value);
+    const rawD = parseFloat(document.getElementById('we-d')?.value);
+    const rawH = parseFloat(document.getElementById('we-h')?.value);
+    // Clamp dimensions: positive, non-zero, within floor bounds
+    const w = Math.max(0.1, Math.min(_floor.w, isNaN(rawW) ? item.w : rawW));
+    const d = Math.max(0.05, Math.min(_floor.d, isNaN(rawD) ? item.d : rawD));
+    const h = Math.max(0.1, Math.min(30,       isNaN(rawH) ? item.h : rawH));
+    const x = Math.max(0,   Math.min(_floor.w - w, isNaN(rawX) ? item.x : rawX));
+    const y = Math.max(0,   Math.min(_floor.d - d, isNaN(rawY) ? item.y : rawY));
     item.label   = document.getElementById('we-label')?.value||item.label;
     item.desc    = document.getElementById('we-desc')?.value||'';
-    item.x       = parseFloat(document.getElementById('we-x')?.value)||item.x;
-    item.y       = parseFloat(document.getElementById('we-y')?.value)||item.y;
-    item.w       = parseFloat(document.getElementById('we-w')?.value)||item.w;
-    item.d       = parseFloat(document.getElementById('we-d')?.value)||item.d;
-    item.h       = parseFloat(document.getElementById('we-h')?.value)||item.h;
-    item.shelves = parseInt(document.getElementById('we-shelves')?.value||item.shelves||4, 10);
-    item.capacity= parseInt(document.getElementById('we-cap')?.value||0, 10);
+    item.x=x; item.y=y; item.w=w; item.d=d; item.h=h;
+    item.shelves = Math.max(1, Math.min(20, parseInt(document.getElementById('we-shelves')?.value||item.shelves||4, 10)));
+    item.capacity= Math.max(0, parseInt(document.getElementById('we-cap')?.value||0, 10));
     item.color   = document.getElementById('we-color')?.value||item.color;
     _dirty=true; closeModal(); showProperties(item);
     window.__whRebuild();
