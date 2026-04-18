@@ -7,7 +7,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { esc, fmtCurDec } from '../utils/format.js';
+import { esc, fmtCurDec , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 export async function loadSettings() {
@@ -302,8 +302,8 @@ function renderServicesList(services) {
         <div style="font-size:10px;color:var(--text3)">default rate</div>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
-        <button class="btn btn-ghost btn-sm" onclick="window.__editService('${esc(s.serviceId)}')">✏</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__toggleServiceActive('${esc(s.serviceId)}','${s.active===false?'true':'false'}')"
+        <button class="btn btn-ghost btn-sm" onclick="window.__editService('${escAttr(s.serviceId)}')">✏</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__toggleServiceActive('${escAttr(s.serviceId)}','${s.active===false?'true':'false'}')"
           title="${s.active===false?'Activate':'Deactivate'}">
           ${s.active===false?'▶':'⏸'}
         </button>
@@ -383,7 +383,7 @@ function openServiceForm(existing) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitService('${esc(s.serviceId||'')}')">
+    <button class="btn btn-primary btn-sm" onclick="window.__submitService('${escAttr(s.serviceId||'')}')">
       ${isEdit ? 'Save Changes' : 'Create Service'}
     </button>`
   );
@@ -464,8 +464,8 @@ function renderCategoriesList(cats) {
             </div>
             <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">${esc(c.categoryId)}</div>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="window.__editCategory('${esc(c.categoryId)}')">✏</button>
-          <button class="btn btn-ghost btn-sm" onclick="window.__deleteCategory('${esc(c.categoryId)}','${esc(c.category)}')"
+          <button class="btn btn-ghost btn-sm" onclick="window.__editCategory('${escAttr(c.categoryId)}')">✏</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.__deleteCategory('${escAttr(c.categoryId)}','${escAttr(c.category)}')"
             style="color:var(--danger)">✕</button>
         </div>`).join('')}
     </div>`).join('');
@@ -504,7 +504,7 @@ function openCategoryForm(existing) {
       </label></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitCategory('${esc(c.categoryId||'')}')">
+    <button class="btn btn-primary btn-sm" onclick="window.__submitCategory('${escAttr(c.categoryId||'')}')">
       ${isEdit?'Save Changes':'Create Category'}
     </button>`
   );

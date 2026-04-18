@@ -6,7 +6,7 @@
 import { rpc }       from '../api/gas.js';
 import { STATE }     from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv , escAttr} from '../utils/format.js';
 import { openModal, closeModal, confirmDialog } from '../components/modal.js';
 import { ensureProductsLoaded } from './inventory.js';
 
@@ -71,7 +71,7 @@ function render(records, upcoming) {
   const totCost= records.reduce((s,r)=>s+(+r.totalCost||0),0);
 
   const summary = `
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:16px">
       ${[
         ['Open', open.length, 'var(--text2)'],
         ['High Priority', high.length, high.length>0?'var(--danger)':'var(--ok)'],
@@ -91,7 +91,7 @@ function render(records, upcoming) {
     const priColor   = priorityColors[m.priority]||'var(--text3)';
     const statColor  = statusColors[m.status]||'var(--text3)';
 
-    return `<div onclick="window.__openMaintDetail('${esc(m.maintenanceId)}')"
+    return `<div onclick="window.__openMaintDetail('${escAttr(m.maintenanceId)}')"
       style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;
       border-radius:var(--r2);background:var(--surface);border:1px solid var(--border);
       border-left:3px solid ${priColor};margin-bottom:6px;cursor:pointer;transition:all var(--trans)"
@@ -118,9 +118,9 @@ function render(records, upcoming) {
         <span style="font-size:10px;padding:2px 8px;border-radius:20px;
           background:${priColor}22;color:${priColor};font-family:var(--mono)">${esc(m.priority)}</span>
         <div onclick="event.stopPropagation()" style="display:flex;gap:4px;margin-top:2px">
-          ${m.status==='Scheduled'?`<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${esc(m.maintenanceId)}')">Start</button>`:''}
-          ${['In Progress','Awaiting Parts'].includes(m.status)?`<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${esc(m.maintenanceId)}')">✓ Done</button>`:''}
-          ${!['Complete','Cancelled'].includes(m.status)?`<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${esc(m.maintenanceId)}')">✕</button>`:''}
+          ${m.status==='Scheduled'?`<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${escAttr(m.maintenanceId)}')">Start</button>`:''}
+          ${['In Progress','Awaiting Parts'].includes(m.status)?`<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${escAttr(m.maintenanceId)}')">✓ Done</button>`:''}
+          ${!['Complete','Cancelled'].includes(m.status)?`<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${escAttr(m.maintenanceId)}')">✕</button>`:''}
         </div>
       </div>
     </div>`;
@@ -160,7 +160,7 @@ function showMaintModal(m, kpis, parts) {
   const canCancel   = !['Complete','Cancelled'].includes(m.status);
 
   const kpisPanel = kpis ? `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-bottom:14px">
       ${[
         ['Days Open',        kpis.daysOpen ?? '—',              'var(--text2)'],
         ['Parts Cost',       fmtCurDec(kpis.totalPartsCost||0), 'var(--warn)'],
@@ -203,12 +203,12 @@ function showMaintModal(m, kpis, parts) {
         <tbody>${partRows}</tbody></table>
       </div>` : ''}
   `, `
-    ${canStart    ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${esc(m.maintenanceId)}')">▶ Start</button>` : ''}
-    ${canAddPart  ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintAddPart('${esc(m.maintenanceId)}')">+ Part</button>` : ''}
-    ${canAddPart  ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintEditCosts('${esc(m.maintenanceId)}',${+m.partsCost||0},${+m.labourCost||0},${+m.otherCost||0})">£ Costs</button>` : ''}
-    <button class="btn btn-ghost btn-sm" onclick="window.__openMaintEdit('${esc(m.maintenanceId)}')">✏ Edit</button>
-    ${canComplete ? `<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${esc(m.maintenanceId)}')">✓ Complete</button>` : ''}
-    ${canCancel   ? `<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${esc(m.maintenanceId)}')">✕ Cancel</button>` : ''}
+    ${canStart    ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${escAttr(m.maintenanceId)}')">▶ Start</button>` : ''}
+    ${canAddPart  ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintAddPart('${escAttr(m.maintenanceId)}')">+ Part</button>` : ''}
+    ${canAddPart  ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintEditCosts('${escAttr(m.maintenanceId)}',${+m.partsCost||0},${+m.labourCost||0},${+m.otherCost||0})">£ Costs</button>` : ''}
+    <button class="btn btn-ghost btn-sm" onclick="window.__openMaintEdit('${escAttr(m.maintenanceId)}')">✏ Edit</button>
+    ${canComplete ? `<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${escAttr(m.maintenanceId)}')">✓ Complete</button>` : ''}
+    ${canCancel   ? `<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${escAttr(m.maintenanceId)}')">✕ Cancel</button>` : ''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
 }
@@ -223,7 +223,7 @@ export async function maintStart(id) {
         <input type="text" id="ms-notes" placeholder="Any initial notes…"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitMaintStart('${esc(id)}')">Start</button>`);
+    <button class="btn btn-primary btn-sm" onclick="window.__submitMaintStart('${escAttr(id)}')">Start</button>`);
 
   window.__submitMaintStart = async (mId) => {
     showLoading('Starting…'); closeModal();
@@ -251,7 +251,7 @@ export async function maintComplete(id) {
         <input type="text" id="mc-notes"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitMaintComplete('${esc(id)}')">Mark Complete</button>`);
+    <button class="btn btn-primary btn-sm" onclick="window.__submitMaintComplete('${escAttr(id)}')">Mark Complete</button>`);
 
   window.__submitMaintComplete = async (mId) => {
     const resolution = document.getElementById('mc-resolution')?.value.trim();
@@ -298,7 +298,7 @@ export function maintAddPart(maintenanceId) {
         <input type="number" id="ap-cost" value="0" step="0.01" min="0"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAddPart('${esc(maintenanceId)}')">Add Part</button>`);
+    <button class="btn btn-primary btn-sm" onclick="window.__submitAddPart('${escAttr(maintenanceId)}')">Add Part</button>`);
 
   window.__submitAddPart = async (mId) => {
     const name = document.getElementById('ap-name')?.value.trim();
@@ -333,7 +333,7 @@ export function maintEditCosts(maintenanceId, partsCost, labourCost, otherCost) 
         <input type="number" id="ec-other" value="${otherCost}" step="0.01" min="0"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitEditCosts('${esc(maintenanceId)}')">Save Costs</button>`);
+    <button class="btn btn-primary btn-sm" onclick="window.__submitEditCosts('${escAttr(maintenanceId)}')">Save Costs</button>`);
 
   window.__submitEditCosts = async (mId) => {
     showLoading('Saving…'); closeModal();
@@ -480,7 +480,7 @@ export async function openMaintEdit(maintenanceId) {
           <textarea id="me-notes" rows="2">${esc(record.notes||'')}</textarea></div>
       </div>`, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__submitMaintEdit('${esc(maintenanceId)}')">Save Changes</button>`
+      <button class="btn btn-primary btn-sm" onclick="window.__submitMaintEdit('${escAttr(maintenanceId)}')">Save Changes</button>`
     );
     window.__submitMaintEdit = async (mId) => {
       showLoading('Saving…'); closeModal();
@@ -531,7 +531,7 @@ export async function printMaintenanceReport() {
         body{font-family:system-ui,sans-serif;max-width:1000px;margin:40px auto;padding:0 20px;color:#1a1a2e}
         h1{font-size:26px;font-weight:900;margin-bottom:4px}
         .sub{color:#666;font-size:13px;margin-bottom:24px}
-        .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px}
+        .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:24px}
         .kpi{background:#f5f5fa;border-radius:8px;padding:12px;text-align:center}
         .kpi-v{font-size:20px;font-weight:700;color:#4a4af0}
         .kpi-l{font-size:10px;color:#666;margin-top:3px;text-transform:uppercase}

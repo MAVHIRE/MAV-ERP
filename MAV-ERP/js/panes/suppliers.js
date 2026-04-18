@@ -5,7 +5,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, esc, statusBadge , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 export async function loadSuppliers() {
@@ -47,7 +47,7 @@ function render(suppliers) {
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px">
     ${suppliers.map(s => {
       const initials = s.supplierName.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      return `<div onclick="window.__openSupplierDetail('${esc(s.supplierId)}')"
+      return `<div onclick="window.__openSupplierDetail('${escAttr(s.supplierId)}')"
         style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
         padding:14px;cursor:pointer;transition:all var(--trans)"
         onmouseover="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'"
@@ -73,7 +73,7 @@ function render(suppliers) {
           </div>
         </div>
         <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
-          <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${esc(s.supplierId)}')">✏ Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${escAttr(s.supplierId)}')">✏ Edit</button>
           <button class="btn btn-ghost btn-sm" onclick="window.__openNewPOModal()">+ PO</button>
         </div>
       </div>`;
@@ -108,7 +108,7 @@ function showSupplierModal(s, products, stats) {
 
   const statsSection = st.totalPurchaseValue ? `
     <div class="section-title" style="margin-bottom:8px">Supplier Performance</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px">
       ${[
         ['Total Spent', fmtCurDec(st.totalPurchaseValue), 'var(--text2)'],
         ['Revenue Generated', fmtCurDec(st.totalRevenue), 'var(--accent)'],
@@ -147,7 +147,7 @@ function showSupplierModal(s, products, stats) {
         <tbody>${productRows}</tbody></table>
       </div>` : `<p style="font-size:13px;color:var(--text3)">No products linked to this supplier.</p>`}
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${esc(s.supplierId)}')">✏ Edit</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${escAttr(s.supplierId)}')">✏ Edit</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__openNewPOModal()">+ PO</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
@@ -197,7 +197,7 @@ function openSupplierForm(existing) {
         <textarea id="fs-notes" rows="2">${v('notes')}</textarea></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitSupplierForm('${esc(s.supplierId||'')}')">
+    <button class="btn btn-primary btn-sm" onclick="window.__submitSupplierForm('${escAttr(s.supplierId||'')}')">
       ${isEdit ? 'Save Changes' : 'Save Supplier'}</button>`
   );
 

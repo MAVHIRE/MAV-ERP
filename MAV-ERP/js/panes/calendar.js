@@ -5,7 +5,7 @@
  */
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast } from '../utils/dom.js';
-import { esc, statusBadge, fmtDate } from '../utils/format.js';
+import { esc, statusBadge, fmtDate , escAttr} from '../utils/format.js';
 import { rpc, rpcWithFallback } from '../api/gas.js';
 
 let _year  = new Date().getFullYear();
@@ -122,7 +122,7 @@ function renderCalendar() {
 
     const jobPills = jobs.slice(0,3).map(j => {
       const color = STATUS_COLOR[j.status] || '#5a5a70';
-      return `<div onclick="event.stopPropagation();window.__openJobDetail('${esc(j.jobId)}')"
+      return `<div onclick="event.stopPropagation();window.__openJobDetail('${escAttr(j.jobId)}')"
         style="font-size:9px;padding:2px 5px;border-radius:2px;margin-bottom:2px;
                background:${color}22;border-left:2px solid ${color};
                color:var(--text2);cursor:pointer;white-space:nowrap;overflow:hidden;
@@ -134,7 +134,7 @@ function renderCalendar() {
 
     const enqPills = enqs.slice(0,2).map(e => {
       const prioColor = e.priority==='High'?'#ffaa00':e.priority==='Low'?'#888':'#cc8800';
-      return `<div onclick="event.stopPropagation();window.__openEnquiryDetail('${esc(e.enquiryId)}')"
+      return `<div onclick="event.stopPropagation();window.__openEnquiryDetail('${escAttr(e.enquiryId)}')"
         style="font-size:9px;padding:2px 5px;border-radius:2px;margin-bottom:2px;
                background:#ffaa0018;border-left:2px solid ${prioColor};
                color:var(--text3);cursor:pointer;white-space:nowrap;overflow:hidden;
@@ -214,7 +214,7 @@ export function calDayClick(dateStr) {
           return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                                background:var(--surface2);border-radius:var(--r);cursor:pointer;
                                border-left:3px solid ${color}"
-                       onclick="window.__openJobDetail('${esc(j.jobId)}')">
+                       onclick="window.__openJobDetail('${escAttr(j.jobId)}')">
             <div style="flex:1">
               <div style="font-weight:500;font-size:13px">${esc(j.jobName||j.jobId)}</div>
               <div style="font-size:11px;color:var(--text3)">${esc(j.clientName||'')} · ${esc(j.venue||'')}</div>
@@ -298,7 +298,7 @@ function renderWeek() {
 
     const pills = jobs.map(j => {
       const color = STATUS_COLOR[j.status] || '#5a5a70';
-      return `<div onclick="window.__openJobDetail('${esc(j.jobId)}')"
+      return `<div onclick="window.__openJobDetail('${escAttr(j.jobId)}')"
         style="font-size:10px;padding:4px 6px;border-radius:3px;margin-bottom:3px;
           background:${color}22;border-left:3px solid ${color};
           color:var(--text);cursor:pointer;line-height:1.3"

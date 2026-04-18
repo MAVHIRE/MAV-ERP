@@ -6,7 +6,7 @@
 import { rpc, rpcWithFallback }            from '../api/gas.js';
 import { STATE }          from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 // ── Load / ensure ─────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ export async function loadProducts() {
 function renderInventorySnapshot(snap) {
   const el = document.getElementById('inv-snapshot');
   if (!el || !snap) return;
-  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px">
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px">
     ${[
       ['Total Products', snap.totalProducts??'—', 'var(--text)'],
       ['Total Units', snap.totalUnits??'—', 'var(--info)'],
@@ -53,7 +53,7 @@ export async function ensureProductsLoaded() {
 
 export async function ensureServicesLoaded() {
   if (!STATE.services.length) {
-    try { STATE.services = await rpc('getServices', {}); } catch(e) {}
+    try { STATE.services = await rpc('getServices', {}); } catch(e) { console.warn('[Inventory] Services load:', e.message); }
   }
 }
 
@@ -122,7 +122,7 @@ function render(products) {
       : `<div style="width:56px;height:56px;border-radius:6px;background:var(--surface2);
            display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:22px;flex-shrink:0">▦</div>`;
 
-    return `<div class="product-card" onclick="window.__openProductDetail('${esc(p.productId)}')"
+    return `<div class="product-card" onclick="window.__openProductDetail('${escAttr(p.productId)}')"
       style="border-left:3px solid ${alertLow?'var(--danger)':p.qtyAvailable===0?'var(--warn)':'var(--border2)'}">
       <div style="display:flex;gap:12px;align-items:flex-start;flex:1;min-width:0">
         ${img}
@@ -228,7 +228,7 @@ function showProductModal(p, s, maint, movements, forecast, perf) {
             <td><span style="font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;
               background:var(--surface3);white-space:nowrap">${esc(m.movementType||'—')}</span></td>
             <td class="td-id">${esc(m.barcode||'—')}</td>
-            <td class="td-id">${m.jobId?`<span style="cursor:pointer;color:var(--info)" onclick="window.__openJobDetail('${esc(m.jobId)}')">${esc(m.jobId)}</span>`:'—'}</td>
+            <td class="td-id">${m.jobId?`<span style="cursor:pointer;color:var(--info)" onclick="window.__openJobDetail('${escAttr(m.jobId)}')">${esc(m.jobId)}</span>`:'—'}</td>
             <td class="td-num">${m.quantity>0?'+':''+''}${m.quantity}</td>
             <td style="font-size:10px;color:var(--text3)">${m.fromStatus?esc(m.fromStatus)+' → ':''} ${esc(m.toStatus||'')}</td>
             <td style="font-size:10px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.notes||'')}</td>
@@ -238,7 +238,7 @@ function showProductModal(p, s, maint, movements, forecast, perf) {
       </div>` : ''}
     ${forecast ? `
     <div class="section-title" style="margin-top:16px;margin-bottom:8px">Demand Forecast</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:10px">
       ${[
         ['Demand 90d', Math.round(forecast.forecastDemandQty||0)+' units', 'var(--accent)'],
         ['Revenue', fmtCurDec(forecast.forecastRevenue||0), 'var(--ok)'],
@@ -255,7 +255,7 @@ function showProductModal(p, s, maint, movements, forecast, perf) {
 
     ${perf ? `
     <div class="section-title" style="margin-top:16px;margin-bottom:8px">Performance</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:8px">
       ${[
         ['Total Revenue', fmtCurDec(perf.totalRevenue||0), 'var(--accent)'],
         ['Hire Count', (perf.hireCount||0)+' hires', 'var(--info)'],
@@ -272,11 +272,11 @@ function showProductModal(p, s, maint, movements, forecast, perf) {
       ${perf.totalMaintenanceCost?`<span>Maint cost: <span style="color:var(--warn)">${fmtCurDec(perf.totalMaintenanceCost)}</span></span>`:''}
     </div>` : ''}
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__editProduct('${esc(p.productId)}')">✏ Edit</button>
-    <button class="btn btn-ghost btn-sm" onclick="window.__stockAdjust('${esc(p.productId)}','${esc(p.name)}')">± Stock</button>
-    <button class="btn btn-ghost btn-sm" onclick="window.__openRateCards('${esc(p.productId)}','${esc(p.name)}')">£ Rates</button>
-    <button class="btn btn-ghost btn-sm" onclick="window.__printLabels('${esc(p.productId)}','${esc(p.name)}')">🏷 Labels</button>
-    <button class="btn btn-ghost btn-sm" onclick="window.__logMaintenanceForProduct('${esc(p.productId)}','${esc(p.name)}')">+ Maintenance</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__editProduct('${escAttr(p.productId)}')">✏ Edit</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__stockAdjust('${escAttr(p.productId)}','${escAttr(p.name)}')">± Stock</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__openRateCards('${escAttr(p.productId)}','${escAttr(p.name)}')">£ Rates</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__printLabels('${escAttr(p.productId)}','${escAttr(p.name)}')">🏷 Labels</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__logMaintenanceForProduct('${escAttr(p.productId)}','${escAttr(p.name)}')">+ Maintenance</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
 }
@@ -304,7 +304,7 @@ export async function openRateCards(productId, productName) {
             <td class="td-num">${r.quantityBreakTo>=999999?'∞':r.quantityBreakTo}</td>
             <td class="td-num" style="font-family:var(--mono);font-weight:600">${fmtCurDec(r.price)}</td>
             <td><button class="btn btn-danger btn-sm"
-              onclick="window.__deleteRate('${esc(r.rateId)}','${esc(productId)}','${esc(productName)}')">✕</button></td>
+              onclick="window.__deleteRate('${escAttr(r.rateId)}','${escAttr(productId)}','${escAttr(productName)}')">✕</button></td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -351,7 +351,7 @@ export async function openRateCards(productId, productName) {
     </div>
     `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__saveRate('${esc(productId)}','${esc(productName)}')">+ Add Rate</button>`
+    <button class="btn btn-primary btn-sm" onclick="window.__saveRate('${escAttr(productId)}','${escAttr(productName)}')">+ Add Rate</button>`
   );
 
   window.__saveRate = async (pid, pname) => {
@@ -620,7 +620,7 @@ function openProductForm(existing) {
     </div>
     `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitProductForm('${esc(p.productId||'')}')">
+    <button class="btn btn-primary btn-sm" onclick="window.__submitProductForm('${escAttr(p.productId||'')}')">
       ${isEdit ? 'Save Changes' : 'Create Product'}</button>`
   );
 
@@ -743,7 +743,7 @@ export function openLogMaintenanceForProduct(productId, productName) {
           <textarea id="lm-notes" rows="2"></textarea></div>
       </div>`, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__submitLogMaint('${esc(productId)}')">Create Record</button>`
+      <button class="btn btn-primary btn-sm" onclick="window.__submitLogMaint('${escAttr(productId)}')">Create Record</button>`
     );
     window.__submitLogMaint = async (pId) => {
       showLoading('Creating…'); closeModal();
@@ -792,7 +792,7 @@ export function openReturnConditionModal(jobId, jobName) {
           </div>`).join('')}
       </div>`, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__submitReturnConds('${esc(jobId)}')">Save Conditions</button>
+      <button class="btn btn-primary btn-sm" onclick="window.__submitReturnConds('${escAttr(jobId)}')">Save Conditions</button>
     `, 'modal-lg');
 
     window.__submitReturnConds = async (jId) => {
@@ -842,7 +842,7 @@ export function openReturnConditionModal(jobId, jobName) {
                   <input type="number" id="dmg-charge" value="${totalCharge.toFixed(2)}" step="0.01" min="0">
                 </div>`, `
                 <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Skip</button>
-                <button class="btn btn-danger btn-sm" onclick="window.__submitDamageCharge('${esc(jId)}')">Generate Invoice</button>`
+                <button class="btn btn-danger btn-sm" onclick="window.__submitDamageCharge('${escAttr(jId)}')">Generate Invoice</button>`
               );
               window.__submitDamageCharge = async (jobId) => {
                 const charge = parseFloat(document.getElementById('dmg-charge')?.value) || 0;
@@ -1063,7 +1063,7 @@ export function openStockAdjustModal(productId, productName) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitStockAdj('${esc(productId)}')">Apply Adjustment</button>`
+    <button class="btn btn-primary btn-sm" onclick="window.__submitStockAdj('${escAttr(productId)}')">Apply Adjustment</button>`
   );
 
   window.__saTypeChange = () => {

@@ -7,7 +7,7 @@
 import { rpc, rpcWithFallback }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { esc, fmtDate, statusBadge, exportCsv } from '../utils/format.js';
+import { esc, fmtDate, statusBadge, exportCsv , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 // Status pipeline order
@@ -55,7 +55,7 @@ export async function loadEnquiries() {
 function renderSummaryKPIs(s) {
   const el = document.getElementById('enq-kpis');
   if (!el || !s) return;
-  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px">
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:16px">
     ${[
       ['New',          s.newCount,      'var(--accent)'],
       ['Contacted',    s.contacted,     'var(--info)'],
@@ -140,7 +140,7 @@ function enquiryCard(e) {
   const distMatch = e.notes?.match(/\[Distance\] ([\d.]+) miles/);
   const distMiles = distMatch ? distMatch[1] : null;
 
-  return `<div onclick="window.__openEnquiryDetail('${esc(e.enquiryId)}')"
+  return `<div onclick="window.__openEnquiryDetail('${escAttr(e.enquiryId)}')"
     style="background:var(--surface);border:1px solid var(--border);
     border-left:3px solid ${priorityC};border-radius:var(--r2);padding:10px;
     margin-bottom:6px;cursor:pointer;transition:all var(--trans)"
@@ -182,7 +182,7 @@ function renderList(list) {
         ${list.map(e => {
           const col = STATUS_COLOR[e.status] || 'var(--text3)';
           const pc  = PRIORITY_COLOR[e.priority] || 'var(--text3)';
-          return `<tr style="cursor:pointer" onclick="window.__openEnquiryDetail('${esc(e.enquiryId)}')">
+          return `<tr style="cursor:pointer" onclick="window.__openEnquiryDetail('${escAttr(e.enquiryId)}')">
             <td style="font-size:11px;color:var(--text3);white-space:nowrap">${e.receivedDate?fmtDate(e.receivedDate.substring(0,10)):'—'}</td>
             <td>
               <div style="font-weight:600">${esc(e.name||'—')}</div>
@@ -201,7 +201,7 @@ function renderList(list) {
             <td><span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${col}22;color:${col}">${esc(e.status)}</span></td>
             <td><span style="font-size:10px;color:${pc}">${esc(e.priority||'—')}</span></td>
             <td>
-              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();window.__openEnquiryDetail('${esc(e.enquiryId)}')">View</button>
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();window.__openEnquiryDetail('${escAttr(e.enquiryId)}')">View</button>
             </td>
           </tr>`;
         }).join('')}
@@ -267,17 +267,17 @@ export async function openEnquiryDetail(enquiryId) {
         ${['Contacted','Qualified','Quoted','Won','Lost','Spam']
           .filter(s => s !== e.status)
           .map(s => `<button class="btn btn-ghost btn-sm" style="font-size:11px;color:${STATUS_COLOR[s]||'var(--text2)'}"
-            onclick="window.__setEnquiryStatus('${esc(e.enquiryId)}','${s}')">${s}</button>`).join('')}
+            onclick="window.__setEnquiryStatus('${escAttr(e.enquiryId)}','${s}')">${s}</button>`).join('')}
       </div>
     </div>` : ''}
   `, `
     ${isActive ? `
-    <button class="btn btn-ghost btn-sm" onclick="window.__openEnquiryEdit('${esc(e.enquiryId)}')">✏ Edit</button>
-    ${e.venuePostcode ? `<button class="btn btn-ghost btn-sm" onclick="window.__enrichEnquiry('${esc(e.enquiryId)}')" title="Calculate distance + run triage rules">📍 Enrich</button>` : ''}
-    ${!e.clientId ? `<button class="btn btn-ghost btn-sm" onclick="window.__enqConvertToClient('${esc(e.enquiryId)}')">👤 → Client</button>` : ''}
-    ${!e.quoteId  ? `<button class="btn btn-primary btn-sm" onclick="window.__enqConvertToQuote('${esc(e.enquiryId)}')">📄 → Quote</button>` : `<button class="btn btn-ghost btn-sm" onclick="window.__switchPane('quotes');window.__openQuoteDetail('${esc(e.quoteId)}')">View Quote →</button>`}
+    <button class="btn btn-ghost btn-sm" onclick="window.__openEnquiryEdit('${escAttr(e.enquiryId)}')">✏ Edit</button>
+    ${e.venuePostcode ? `<button class="btn btn-ghost btn-sm" onclick="window.__enrichEnquiry('${escAttr(e.enquiryId)}')" title="Calculate distance + run triage rules">📍 Enrich</button>` : ''}
+    ${!e.clientId ? `<button class="btn btn-ghost btn-sm" onclick="window.__enqConvertToClient('${escAttr(e.enquiryId)}')">👤 → Client</button>` : ''}
+    ${!e.quoteId  ? `<button class="btn btn-primary btn-sm" onclick="window.__enqConvertToQuote('${escAttr(e.enquiryId)}')">📄 → Quote</button>` : `<button class="btn btn-ghost btn-sm" onclick="window.__switchPane('quotes');window.__openQuoteDetail('${escAttr(e.quoteId)}')">View Quote →</button>`}
     ` : ''}
-    ${e.quoteId ? '' : `<button class="btn btn-danger btn-sm" onclick="window.__deleteEnquiry('${esc(e.enquiryId)}')">🗑 Delete</button>`}
+    ${e.quoteId ? '' : `<button class="btn btn-danger btn-sm" onclick="window.__deleteEnquiry('${escAttr(e.enquiryId)}')">🗑 Delete</button>`}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
 }
@@ -323,7 +323,7 @@ export async function openEnquiryEdit(enquiryId) {
         <textarea id="ee-notes" rows="3">${esc(e.notes||'')}</textarea></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitEnquiryEdit('${esc(e.enquiryId)}')">Save Changes</button>`
+    <button class="btn btn-primary btn-sm" onclick="window.__submitEnquiryEdit('${escAttr(e.enquiryId)}')">Save Changes</button>`
   );
 
   window.__submitEnquiryEdit = async (id) => {

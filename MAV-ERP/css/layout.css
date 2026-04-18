@@ -159,8 +159,11 @@
 /* KPI grid: more columns on wider screens */
 .kpi-grid {
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(140px, 14vw, 200px), 1fr));
-  gap:12px; margin-bottom:24px;
+  grid-template-columns: repeat(4, 1fr);
+  gap:10px; margin-bottom:16px;
+}
+@media (min-width: 1400px) {
+  .kpi-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* Dashboard-specific grids that use more columns on large screens */
@@ -277,4 +280,122 @@
   .btn-sm { min-height:32px; }
   input, select, textarea { font-size:16px; }
   .nav-item { min-height:44px; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE OVERHAUL v2.0
+   Breakpoints: phone ≤480, mobile ≤768, tablet 769–1024, desktop 1025+
+   ═══════════════════════════════════════════════════════ */
+
+/* ── iPad / small tablet (769–1024px) ───────────────────
+   Sidebar stays visible but narrower. Search shrinks.      */
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root { --sidebar-w: 170px; }
+  .nav-item        { font-size:12px; padding:7px 8px; }
+  .nav-group-label { font-size:8.5px; }
+  #wordmark-text   { font-size:15px; }
+  #wordmark-sub    { display:none; }
+  #global-search-input { width:130px; }
+  .pane-inner      { padding:14px 18px 40px; }
+  .two-col   { grid-template-columns:1fr 1fr; }
+  .three-col { grid-template-columns:1fr 1fr; }
+  .dash-grid-3 { grid-template-columns:1fr 1fr; }
+  .kpi-grid    { grid-template-columns:repeat(3,1fr) !important; }
+  .cards-grid  { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+  .modal-lg    { max-width:680px; }
+  /* Hide GAS URL button on tablet — accessible via Settings */
+  .topbar-gas-btn { display:none; }
+}
+
+/* ── Mobile (≤768px) — refined ──────────────────────────
+   Existing 768 breakpoint sets sidebar to 52px icon rail.
+   These additions improve remaining pain points.            */
+@media (max-width: 768px) {
+  /* Topbar: hide search box, keep hamburger-feel with icon */
+  #global-search-wrap  { display:none; }
+  .topbar-gas-btn      { display:none; }
+  #topbar              { padding:0 10px; gap:8px; }
+  #topbar-breadcrumb   { font-size:14px; }
+
+  /* Modals: full-screen on phone */
+  .modal-outer { padding:0; align-items:flex-end; }
+  .modal       {
+    max-width:100%;
+    max-height:92vh;
+    border-radius:var(--r3) var(--r3) 0 0;
+    width:100%;
+  }
+  .modal-lg    { max-width:100%; }
+
+  /* Modal footer: stack buttons vertically */
+  .modal-footer { flex-direction:column-reverse; gap:6px; }
+  .modal-footer .btn { width:100%; justify-content:center; }
+
+  /* Page headers: stack title + actions vertically */
+  .page-header { flex-direction:column; gap:10px; margin-bottom:16px; }
+  .page-actions { width:100%; flex-wrap:wrap; }
+
+  /* Toolbar: search goes full width */
+  .toolbar { flex-wrap:wrap; }
+  .search-box { max-width:100%; flex:1 1 100%; }
+  .filter-select { flex:1 1 calc(50% - 4px); min-width:0; }
+
+  /* Kanban: full-width single column on mobile */
+  .kanban-board { flex-direction:column; overflow-x:unset; }
+  .kanban-col   { min-width:0; max-width:100%; width:100%; }
+
+  /* Section titles: less spacing */
+  .section { margin-bottom:18px; }
+  .section-title { margin-bottom:8px; }
+
+  /* Pane inner: less padding */
+  .pane-inner { padding:12px 12px 80px; }
+
+  /* Dashboard KPI: force 2-col override for inline-styled grid */
+  #dash-kpis { grid-template-columns:repeat(2,1fr) !important; }
+}
+
+/* ── Small phones (≤480px) ───────────────────────────── */
+@media (max-width: 480px) {
+  .kpi-grid    { grid-template-columns:repeat(2,1fr) !important; }
+  .filter-select { flex:1 1 100%; }
+  .btn-sm      { font-size:11px; padding:4px 8px; }
+}
+
+/* ── Touch / pointer: coarse (finger) ───────────────── */
+@media (pointer: coarse) {
+  /* Bigger tap targets */
+  .nav-item    { min-height:44px; }
+  .btn         { min-height:40px; }
+  .btn-sm      { min-height:34px; }
+
+  /* iOS: prevent text size adjust on rotation */
+  body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+  /* Smooth momentum scroll on iOS for scrollable areas */
+  .pane, .modal-body, .tbl-wrap, .kanban-board, #nav {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Remove hover effects that look broken on touch */
+  .nav-item:hover    { background:transparent; color:var(--text2); }
+  .nav-item.active   { background:var(--accent-bg2); color:var(--accent); }
+  .btn:hover         { background:var(--btn-bg); }
+  .btn-ghost:hover   { background:transparent; }
+}
+
+/* ── Warehouse: auto-redirect to list on small screens ─ */
+@media (max-width: 768px) {
+  #wh-designer-view { display:none !important; }
+  #wh-list-view     { display:block !important; }
+  #wh-cam-buttons, #wh-fit-button { display:none; }
+  .wh-view-btn[data-view="3d"],
+  .wh-view-btn[data-view="2d"] { display:none; }
+}
+
+/* ── Safe area insets (iPhone notch / home bar) ─────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #sidebar { padding-bottom: env(safe-area-inset-bottom); }
+  .pane    { padding-bottom: env(safe-area-inset-bottom); }
+  .modal-outer { padding-bottom: env(safe-area-inset-bottom); }
 }

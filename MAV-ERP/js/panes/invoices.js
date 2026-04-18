@@ -5,7 +5,7 @@
 import { rpc, rpcWithFallback } from '../api/gas.js';
 import { STATE }    from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, exportCsv } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, exportCsv , escAttr} from '../utils/format.js';
 import { openModal, closeModal }  from '../components/modal.js';
 import { openRecordDepositModal } from './jobs.js';
 
@@ -95,7 +95,7 @@ function renderInvoices(jobs) {
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px">
             <div style="font-weight:600;font-size:13px;cursor:pointer"
-              onclick="window.__openInvoiceDetail('${esc(j.jobId)}')">${esc(j.jobName||j.jobId)}</div>
+              onclick="window.__openInvoiceDetail('${escAttr(j.jobId)}')">${esc(j.jobName||j.jobId)}</div>
             <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">${esc(j.jobId)}</span>
           </div>
           <div style="font-size:11px;color:var(--text3)">${esc(j.clientName)}${j.company?` · ${esc(j.company)}`:''}</div>
@@ -121,11 +121,11 @@ function renderInvoices(jobs) {
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
           <button class="btn btn-ghost btn-sm"
-            onclick="window.__openInvoiceDetail('${esc(j.jobId)}')">📋 Detail</button>
+            onclick="window.__openInvoiceDetail('${escAttr(j.jobId)}')">📋 Detail</button>
           <button class="btn btn-primary btn-sm"
-            onclick="window.__recordDeposit('${esc(j.jobId)}',${+j.balanceDue||0})">💰 Pay</button>
+            onclick="window.__recordDeposit('${escAttr(j.jobId)}',${+j.balanceDue||0})">💰 Pay</button>
           <button class="btn btn-ghost btn-sm"
-            onclick="window.__sendPaymentReminder('${esc(j.jobId)}')">✉ Remind</button>
+            onclick="window.__sendPaymentReminder('${escAttr(j.jobId)}')">✉ Remind</button>
         </div>
       </div>`;
   }).join('');
@@ -157,7 +157,7 @@ export async function openInvoiceDetail(jobId) {
     hideLoading();
     openModal('modal-invoice-detail', `Invoice — ${esc(job.jobName||job.jobId)}`, `
       <!-- Header KPIs -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px">
         ${[
           ['Total', fmtCurDec(total), 'var(--text)'],
           ['Paid', fmtCurDec(paid), 'var(--ok)'],
@@ -231,9 +231,9 @@ export async function openInvoiceDetail(jobId) {
       </div>
     `, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__generateJobInvoice('${esc(jobId)}')">🧾 Invoice PDF</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__sendPaymentReminder('${esc(jobId)}')">✉ Remind</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__closeModal();window.__recordDeposit('${esc(jobId)}',${balance})">💰 Record Payment</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__generateJobInvoice('${escAttr(jobId)}')">🧾 Invoice PDF</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__sendPaymentReminder('${escAttr(jobId)}')">✉ Remind</button>
+      <button class="btn btn-primary btn-sm" onclick="window.__closeModal();window.__recordDeposit('${escAttr(jobId)}',${balance})">💰 Record Payment</button>
     `);
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }

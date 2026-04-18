@@ -8,7 +8,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { esc, fmtCurDec } from '../utils/format.js';
+import { esc, fmtCurDec , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 // ── Module state ──────────────────────────────────────────────────────────────
@@ -139,12 +139,12 @@ function showProperties(item) {
 
     ${cap > 0 ? `
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px;font-size:11px"
-      onclick="window.__whViewContents('${esc(item.locationId)}','${esc(item.label)}')">
+      onclick="window.__whViewContents('${escAttr(item.locationId)}','${escAttr(item.label)}')">
       📦 View Contents
     </button>` : ''}
 
     <button class="btn btn-ghost btn-sm" style="width:100%;font-size:11px"
-      onclick="window.__whEditItem('${esc(item.id)}')">
+      onclick="window.__whEditItem('${escAttr(item.id)}')">
       ✏ Edit Properties
     </button>`;
 }

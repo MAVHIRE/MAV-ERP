@@ -25,7 +25,7 @@ export function fmtDateTime(v) {
   return isNaN(d) ? String(v) : d.toLocaleString('en-GB');
 }
 
-// HTML-escape user content
+// HTML-escape user content (for text nodes and HTML attributes with &quot; delimiters)
 export function esc(s) {
   if (s === null || s === undefined) return '';
   return String(s)
@@ -34,6 +34,21 @@ export function esc(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// JS-safe escape for values interpolated into onclick="window.__fn('${escAttr(val)}')"
+// Escapes backslash, single-quote, and HTML-encodes for the surrounding HTML attribute.
+// Use this (not esc) whenever a value appears inside JS string literals in onclick handlers.
+export function escAttr(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/\\/g, '\\\\')   // backslash first
+    .replace(/'/g,  "\\'")    // single quotes (breaks JS string)
+    .replace(/"/g,  '&quot;') // double quotes (breaks HTML attribute)
+    .replace(/</g,  '&lt;')   // prevent HTML injection
+    .replace(/>/g,  '&gt;')
+    .replace(/\n/g, '\\n')    // newlines in strings
+    .replace(/\r/g, '\\r');
 }
 
 // Status → badge class mapping

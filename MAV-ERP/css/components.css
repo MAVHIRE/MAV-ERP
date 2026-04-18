@@ -844,3 +844,259 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
   text-transform: uppercase;
   letter-spacing: .08em;
 }
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE COMPONENT FIXES v2.0
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Mobile modal improvements ──────────────────────── */
+@media (max-width: 768px) {
+  .modal-body { padding:14px; }
+  .modal-header { padding:14px 16px; }
+  .modal-footer { padding:12px 14px; }
+  .modal-title { font-size:15px; }
+
+  /* Detail rows: stack label above value */
+  .detail-row { flex-direction:column; gap:2px; }
+  .detail-label { font-size:10px; }
+
+  /* Tabs in detail modals */
+  .prod-tabs { overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; }
+  .prod-tab-btn { flex-shrink:0; }
+
+  /* Table: allow horizontal scroll with momentum */
+  .tbl-wrap { -webkit-overflow-scrolling:touch; }
+
+  /* Buttons in page-actions: smaller */
+  .page-actions .btn { font-size:11px; padding:5px 10px; }
+  .page-actions .btn-sm { font-size:10px; padding:4px 8px; }
+
+  /* Section two-col and three-col: single column */
+  .two-col   { grid-template-columns:1fr !important; }
+  .three-col { grid-template-columns:1fr !important; }
+
+  /* Pipeline kanban cards: reduce padding */
+  .kanban-col { padding:8px; }
+
+  /* KPI sub-text: smaller */
+  .kpi-value { font-size:18px !important; }
+}
+
+/* ── Tablet (769–1024px) component adjustments ───────── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .modal { max-width:min(560px, calc(100vw - 40px)); }
+  .modal-lg { max-width:min(720px, calc(100vw - 40px)); }
+  .kpi-value { font-size:20px; }
+  .kanban-col { min-width:200px; max-width:200px; }
+  .prod-tabs { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+}
+
+/* ── Pipeline views: always scrollable horizontally ─── */
+.pipeline-scroll {
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:12px;
+}
+/* Snap to column width on touch */
+@media (pointer: coarse) {
+  .kanban-board { scroll-snap-type:x proximity; }
+  .kanban-col   { scroll-snap-align:start; }
+}
+
+/* ── Form elements: always readable on mobile ────────── */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size:16px !important; /* prevent iOS zoom */
+  }
+  .form-grid { grid-template-columns:1fr !important; }
+  .form-group.span-2 { grid-column:span 1 !important; }
+}
+
+/* ── Toast: bottom-center on mobile ─────────────────── */
+@media (max-width: 768px) {
+  #toast-container {
+    bottom:env(safe-area-inset-bottom, 16px);
+    left:50%;
+    transform:translateX(-50%);
+    right:auto;
+    width:calc(100vw - 32px);
+    max-width:360px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   INLINE GRID OVERRIDES — force responsive on elements
+   that have inline style grid-template-columns
+   ═══════════════════════════════════════════════════════ */
+
+/* Dashboard KPI strip (inline: repeat(4,1fr)) */
+@media (max-width: 768px) {
+  #dash-kpis        { grid-template-columns: repeat(2,1fr) !important; }
+  #analytics-kpis   { grid-template-columns: repeat(2,1fr) !important; }
+  #forecast-kpis    { grid-template-columns: repeat(2,1fr) !important; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  #dash-kpis        { grid-template-columns: repeat(4,1fr) !important; }
+  #analytics-kpis   { grid-template-columns: repeat(4,1fr) !important; }
+  #forecast-kpis    { grid-template-columns: repeat(3,1fr) !important; }
+}
+
+/* ── JS-rendered stat grids — responsive helper classes ─ */
+/* Usage: add class="r-stat-grid" to inline grids in JS */
+.r-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.r-stat-grid-sm {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 6px;
+}
+
+/* ── Warehouse: hide properties sidebar on tablet/mobile ─ */
+@media (max-width: 1024px) {
+  #wh-props-sidebar {
+    display: none;
+  }
+  #wh-designer-view { flex-direction: column; }
+}
+
+/* ── Calendar: 7-col grid responsive ────────────────────
+   On phone, show compact 7-col but smaller cells          */
+@media (max-width: 768px) {
+  #cal-month-grid {
+    font-size: 10px;
+  }
+  #cal-month-grid > div {
+    min-height: 48px !important;
+    padding: 4px 3px !important;
+  }
+}
+
+/* ── Detail rows in modals — 2-col on desktop, 1-col phone */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 768px) {
+  .detail-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Maintenance / inventory KPI rows ────────────────────
+   JS renders these as inline repeat(5,1fr) grids          */
+@media (max-width: 768px) {
+  .maint-kpi-row,
+  .inv-snapshot-row { grid-template-columns: repeat(2,1fr) !important; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  .maint-kpi-row    { grid-template-columns: repeat(3,1fr) !important; }
+  .inv-snapshot-row { grid-template-columns: repeat(3,1fr) !important; }
+}
+
+/* ── Page actions: wrap cleanly on all sizes ─────────────*/
+.page-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (max-width: 480px) {
+  .page-actions { justify-content: flex-start; width: 100%; }
+  .page-actions .btn { flex: 1 1 auto; text-align: center; justify-content: center; }
+}
+
+/* ── Table: horizontal scroll indicator ─────────────────*/
+.tbl-wrap {
+  position: relative;
+}
+@media (max-width: 768px) {
+  /* Subtle fade indicating scrollable content */
+  .tbl-wrap::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 24px;
+    background: linear-gradient(to right, transparent, var(--surface));
+    pointer-events: none;
+    opacity: 0.8;
+  }
+}
+
+/* ── Enquiry pipeline: horizontal on tablet, vertical on phone */
+@media (max-width: 768px) {
+  #enq-pipeline > div {
+    flex-direction: column !important;
+  }
+  #enq-pipeline > div > div {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* Forecast pane KPI: 6 cols on desktop, overrides kpi-grid default of 4 */
+#forecast-kpis {
+  grid-template-columns: repeat(6, 1fr) !important;
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  #forecast-kpis { grid-template-columns: repeat(3, 1fr) !important; }
+}
+@media (max-width: 768px) {
+  #forecast-kpis { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ── Scan Station: optimised for mobile use ──────────── */
+@media (max-width: 768px) {
+  /* Remove max-width constraints so scan fills phone screen */
+  #scan-input-wrap,
+  #scan-job-select,
+  #scan-line-select,
+  #scan-camera-wrap { max-width: 100% !important; }
+
+  /* Mode toggle: full width */
+  #scan-mode-out, #scan-mode-in {
+    min-height: 52px;
+    font-size: 16px !important;
+  }
+
+  /* Barcode input: larger on phone */
+  #scan-barcode-input {
+    font-size: 20px !important;
+  }
+
+  /* Camera: fill phone width */
+  #scan-camera-video {
+    max-height: 260px !important;
+  }
+
+  /* Progress bar: full width */
+  #scan-progress-wrap { max-width: 100% !important; }
+
+  /* Scan feedback: full width */
+  #scan-feedback > div { max-width: 100% !important; }
+
+  /* Tab nav: scrollable if needed */
+  #scan-pane-body > div:first-child {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+}
+
+/* ── Settings pane: tabs wrap on mobile ─────────────── */
+@media (max-width: 768px) {
+  .settings-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    padding-bottom: 1px;
+  }
+  .settings-tab-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 11px;
+    padding: 7px 10px;
+  }
+}
+@media (max-width: 480px) {
+  .settings-tab-btn { font-size: 10px; padding: 6px 8px; }
+}

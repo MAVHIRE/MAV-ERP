@@ -370,7 +370,7 @@ function suggestAccessories(accessories, parentProductId, parentName) {
     <div style="display:flex;flex-wrap:wrap;gap:6px">
       ${accessories.map(a => `
         <button class="btn btn-ghost btn-sm" style="font-size:11px"
-                onclick="window.__liAddAccessory('${esc(a.accessoryProductId)}','${esc(a.accessoryName)}',${a.defaultQuantity})">
+                onclick="window.__liAddAccessory('${escAttr(a.accessoryProductId)}','${escAttr(a.accessoryName)}',${a.defaultQuantity})">
           + ${esc(a.accessoryName)} ×${a.defaultQuantity}${a.optional ? ' (optional)' : ''}
         </button>`).join('')}
       <button class="btn btn-ghost btn-sm" style="font-size:11px;opacity:.5"

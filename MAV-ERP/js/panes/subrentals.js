@@ -5,7 +5,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 export async function loadSubRentals() {
@@ -53,7 +53,7 @@ function render(items) {
       <tbody>${items.map(r => `<tr>
         <td class="td-id">${esc(r.subRentalId)}</td>
         <td>
-          <div class="td-name" style="cursor:pointer" onclick="window.__openJobDetail('${esc(r.jobId)}')">${esc(r.jobName||r.jobId)}</div>
+          <div class="td-name" style="cursor:pointer" onclick="window.__openJobDetail('${escAttr(r.jobId)}')">${esc(r.jobName||r.jobId)}</div>
           <div class="td-id">${esc(r.jobId)}</div>
         </td>
         <td>${esc(r.supplierName||'—')}</td>
@@ -72,8 +72,8 @@ function render(items) {
           </select>
         </td>
         <td style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" onclick="window.__editSubRental('${esc(r.subRentalId)}')">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="window.__deleteSubRental('${esc(r.subRentalId)}')">✕</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.__editSubRental('${escAttr(r.subRentalId)}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="window.__deleteSubRental('${escAttr(r.subRentalId)}')">✕</button>
         </td>
       </tr>`).join('')}
       </tbody>
@@ -142,7 +142,7 @@ function openSubRentalForm(existing, prefillJobId) {
         <textarea id="sr-notes" rows="2">${v('notes')}</textarea></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitSubRental('${esc(r.subRentalId||'')}')">
+    <button class="btn btn-primary btn-sm" onclick="window.__submitSubRental('${escAttr(r.subRentalId||'')}')">
       ${isEdit ? 'Save Changes' : 'Add Sub-Rental'}</button>`
   );
 

@@ -6,7 +6,7 @@
 import { rpc }    from '../api/gas.js';
 import { STATE }  from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCur, fmtCurDec, fmtPct, esc } from '../utils/format.js';
+import { fmtCur, fmtCurDec, fmtPct, esc , escAttr} from '../utils/format.js';
 
 let _charts = {};
 
@@ -243,7 +243,7 @@ function renderDeadStock(dead) {
     const daysSince = s.lastHiredDate
       ? Math.floor((Date.now()-new Date(s.lastHiredDate))/86400000)
       : 999;
-    return `<div onclick="window.__openProductDetail('${esc(s.productId)}')"
+    return `<div onclick="window.__openProductDetail('${escAttr(s.productId)}')"
       style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;
       border-radius:6px;background:var(--surface2);margin-bottom:5px;cursor:pointer;transition:background .15s"
       onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
@@ -272,7 +272,7 @@ export function renderSkuTable(stats) {
       </div>
       <span style="font-size:10px;color:var(--text3);min-width:28px">${util.toFixed(0)}%</span>
     </div>`;
-    return `<tr onclick="window.__openProductDetail('${esc(s.productId)}')" style="cursor:pointer">
+    return `<tr onclick="window.__openProductDetail('${escAttr(s.productId)}')" style="cursor:pointer">
       <td><div style="font-weight:500">${esc(s.name)}</div><div class="td-id">${esc(s.sku)}</div></td>
       <td><div style="font-size:11px;color:var(--text2)">${esc(s.category)}</div></td>
       <td class="td-num">${s.qtyOwned||0}</td>
@@ -488,7 +488,7 @@ export async function generateExecutiveReport() {
         body{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#1a1a2e}
         h1{font-size:28px;font-weight:900;margin-bottom:4px}
         .sub{color:#666;font-size:13px;margin-bottom:24px}
-        .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+        .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:24px}
         .kpi{background:#f5f5fa;border-radius:8px;padding:14px;text-align:center}
         .kpi-v{font-size:22px;font-weight:700;color:#4a4af0}
         .kpi-l{font-size:11px;color:#666;margin-top:4px;text-transform:uppercase}

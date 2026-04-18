@@ -5,7 +5,7 @@
 import { rpc, rpcWithFallback }                from '../api/gas.js';
 import { STATE }              from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState, setupClientAutocomplete } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , escAttr} from '../utils/format.js';
 import { openModal, closeModal, confirmDialog } from '../components/modal.js';
 import { initLineItems, getLines, addRentalLine, addServiceLine } from '../components/lineItems.js';
 import { generateQuotePdf } from '../components/quotePdf.js';
@@ -49,7 +49,7 @@ function render(quotes) {
     : 0;
 
   const pipeline = `
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px">
       ${statuses.map(s=>{
         const qs=byStatus[s]||[];
         const val=qs.reduce((sum,q)=>sum+(+q.total||0),0);
@@ -73,7 +73,7 @@ function render(quotes) {
     return `<div style="display:grid;grid-template-columns:1fr 1fr auto auto auto;gap:12px;align-items:center;
       padding:12px 14px;border-radius:8px;background:var(--surface2);margin-bottom:6px;
       border-left:3px solid ${statusColor};cursor:pointer;transition:background .15s"
-      onclick="window.__openQuoteDetail('${esc(q.quoteId)}')"
+      onclick="window.__openQuoteDetail('${escAttr(q.quoteId)}')"
       onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
       <div>
         <div style="font-weight:600;font-size:13px">${esc(q.eventName||q.quoteId)}</div>
@@ -94,11 +94,11 @@ function render(quotes) {
         ${q.replacementValue?`<div style="font-size:10px;color:var(--text3)">RV: ${fmtCurDec(q.replacementValue)}</div>`:''}
       </div>
       <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${esc(q.quoteId)}')" title="Edit">✏</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${esc(q.quoteId)}')" title="PDF">⬇</button>
-        ${isActive?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${esc(q.quoteId)}')" title="Email">✉</button>`:''}
-        ${isActive?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${esc(q.quoteId)}')" title="Approval link">🔗</button>`:''}
-        ${q.status==='Accepted'&&!q.linkedJobId?`<button class="btn btn-primary btn-sm" onclick="window.__convertQuoteToJob('${esc(q.quoteId)}')">→ Job</button>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${escAttr(q.quoteId)}')" title="Edit">✏</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${escAttr(q.quoteId)}')" title="PDF">⬇</button>
+        ${isActive?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${escAttr(q.quoteId)}')" title="Email">✉</button>`:''}
+        ${isActive?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${escAttr(q.quoteId)}')" title="Approval link">🔗</button>`:''}
+        ${q.status==='Accepted'&&!q.linkedJobId?`<button class="btn btn-primary btn-sm" onclick="window.__convertQuoteToJob('${escAttr(q.quoteId)}')">→ Job</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -131,7 +131,7 @@ function showQuoteModal(q) {
   const statusFlow = { Draft:['Sent'], Sent:['Accepted','Declined'], Accepted:[], Declined:[], Expired:[] };
   const nextStatuses = statusFlow[q.status] || [];
   const statusBtns   = nextStatuses.map(s =>
-    `<button class="btn btn-ghost btn-sm" onclick="window.__updateQuoteStatus('${esc(q.quoteId)}','${esc(s)}')">→ Mark ${esc(s)}</button>`
+    `<button class="btn btn-ghost btn-sm" onclick="window.__updateQuoteStatus('${escAttr(q.quoteId)}','${escAttr(s)}')">→ Mark ${esc(s)}</button>`
   ).join('');
 
   openModal('modal-quote', `Quote: ${esc(q.eventName||q.quoteId)}`, `
@@ -165,14 +165,14 @@ function showQuoteModal(q) {
     </div>
     ${q.notes?`<div style="margin-top:12px;font-size:12px;color:var(--text2);padding:10px;background:var(--surface2);border-radius:var(--r)">${esc(q.notes)}</div>`:''}
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${esc(q.quoteId)}')">⬇ PDF</button>
-    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${esc(q.quoteId)}')">✉ Email</button>`:''} ${['Draft','Sent','Accepted'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${esc(q.quoteId)}')">🔗 Approval Link</button>`:''}
-    <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${esc(q.quoteId)}')">✏ Edit</button>
-    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__openApplyBundleToQuote('${esc(q.quoteId)}')">◫ Bundle</button>`:''}
+    <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${escAttr(q.quoteId)}')">⬇ PDF</button>
+    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${escAttr(q.quoteId)}')">✉ Email</button>`:''} ${['Draft','Sent','Accepted'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${escAttr(q.quoteId)}')">🔗 Approval Link</button>`:''}
+    <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${escAttr(q.quoteId)}')">✏ Edit</button>
+    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__openApplyBundleToQuote('${escAttr(q.quoteId)}')">◫ Bundle</button>`:''}
     ${statusBtns}
-    ${!q.linkedJobId?`<button class="btn btn-ghost btn-sm" onclick="window.__convertQuoteToJob('${esc(q.quoteId)}')">→ Convert to Job</button>`:''}
-    <button class="btn btn-ghost btn-sm" onclick="window.__duplicateQuote('${esc(q.quoteId)}')">⎘ Duplicate</button>
-    ${!q.linkedJobId&&['Draft','Expired','Declined'].includes(q.status)?`<button class="btn btn-danger btn-sm" onclick="window.__deleteQuote('${esc(q.quoteId)}')">🗑 Delete</button>`:''}
+    ${!q.linkedJobId?`<button class="btn btn-ghost btn-sm" onclick="window.__convertQuoteToJob('${escAttr(q.quoteId)}')">→ Convert to Job</button>`:''}
+    <button class="btn btn-ghost btn-sm" onclick="window.__duplicateQuote('${escAttr(q.quoteId)}')">⎘ Duplicate</button>
+    ${!q.linkedJobId&&['Draft','Expired','Declined'].includes(q.status)?`<button class="btn btn-danger btn-sm" onclick="window.__deleteQuote('${escAttr(q.quoteId)}')">🗑 Delete</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `, 'modal-lg');
 }
@@ -376,8 +376,8 @@ function openEmailModal(q) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-ghost btn-sm" onclick="window.__previewQuotePdf('${esc(q.quoteId)}')">Preview PDF</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitEmailQuote('${esc(q.quoteId)}')">Send Email</button>`
+    <button class="btn btn-ghost btn-sm" onclick="window.__previewQuotePdf('${escAttr(q.quoteId)}')">Preview PDF</button>
+    <button class="btn btn-primary btn-sm" onclick="window.__submitEmailQuote('${escAttr(q.quoteId)}')">Send Email</button>`
   );
 
   window.__previewQuotePdf = (qId) => downloadQuotePdf(qId);
@@ -444,7 +444,7 @@ export async function deleteQuote(quoteId) {
 export async function openApplyBundleToQuote(quoteId) {
   if (!(STATE.bundles||[]).length) {
     showLoading('Loading bundles…');
-    try { STATE.bundles = await rpc('getBundles', {}); } catch(e) {}
+    try { STATE.bundles = await rpc('getBundles', {}); } catch(e) { console.warn('[Quotes] Bundles load:', e.message); }
     hideLoading();
   }
   const bundles = (STATE.bundles||[]).filter(b => b.active !== false);
@@ -471,7 +471,7 @@ export async function openApplyBundleToQuote(quoteId) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitApplyBundleToQuote('${esc(quoteId)}')">Apply Bundle</button>`
+    <button class="btn btn-primary btn-sm" onclick="window.__submitApplyBundleToQuote('${escAttr(quoteId)}')">Apply Bundle</button>`
   );
   window.__submitApplyBundleToQuote = async (qId) => {
     const bundleId = document.getElementById('abq-bundle')?.value;

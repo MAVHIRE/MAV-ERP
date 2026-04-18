@@ -6,7 +6,7 @@
 import { rpc, rpcWithFallback }    from '../api/gas.js';
 import { STATE }  from '../utils/state.js';
 import { showLoading, hideLoading, toast, setValue, emptyState } from '../utils/dom.js';
-import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge , escAttr} from '../utils/format.js';
 
 let _chartRevenue = null;
 let _chartUtil    = null;
@@ -27,7 +27,7 @@ export async function initDashboard() {
     await render(data, serviceDue, upcomingReport, lowStock, overdueReport, enquirySummary);
     setValue('dash-ts', 'Updated ' + new Date().toLocaleTimeString('en-GB'));
     // Load management brain in background
-    rpc('getManagementBrainReport').then(brain => renderBrainReport(brain)).catch(() => {});
+    rpc('getManagementBrainReport').then(brain => renderBrainReport(brain)).catch(e => console.warn('[Dashboard] Brain report:', e.message));
   } catch(e) {
     toast('Dashboard failed: ' + e.message, 'err');
     setValue('dash-ts', '⚠ ' + e.message);
@@ -112,22 +112,13 @@ function renderRevenueChart(fin) {
   const conf = +(fin.confirmedRevenue   || 0);
 
   el.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr ${out||conf?'1fr':''};gap:8px;margin-bottom:10px">
       ${revStat('30 days',  r30,  'var(--info)')}
       ${revStat('90 days',  r90,  'var(--accent2)')}
       ${revStat('12 months',r365, 'var(--accent)')}
+      ${out > 0 ? revStat('Outstanding', out, 'var(--warn)') : ''}
     </div>
-    <div style="position:relative;height:120px"><canvas id="c-revenue"></canvas></div>
-    <div style="display:flex;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      <div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Outstanding</div>
-        <div style="font-size:14px;font-weight:600;color:${out>0?'var(--warn)':'var(--text2)'};font-family:var(--mono)">${fmtCur(out)}</div>
-      </div>
-      ${conf>0?`<div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Pipeline</div>
-        <div style="font-size:14px;font-weight:600;color:var(--ok);font-family:var(--mono)">${fmtCur(conf)}</div>
-      </div>`:''}
-    </div>`;
+    <div style="position:relative;height:110px"><canvas id="c-revenue"></canvas></div>`;
 
   setTimeout(() => {
     const canvas = document.getElementById('c-revenue');
@@ -168,15 +159,17 @@ function revStat(label, val, color) {
 function renderRevenueBarFallback(fin, el) {
   if (!el) return;
   const r30=+(fin.revenueLast30Days||0), r90=+(fin.revenueLast90Days||0), r365=+(fin.revenueLast365Days||0);
+  const out=+(fin.outstandingBalance||0);
   const max=Math.max(r30,r90,r365,1);
   const bar=(v,l,c)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">
     <div style="font-family:var(--mono);font-size:11px;color:${c}">${fmtCur(v)}</div>
     <div style="width:100%;height:60px;background:var(--surface2);border-radius:3px;display:flex;align-items:flex-end">
-      <div style="width:100%;height:${Math.round(v/max*100)}%;background:${c};border-radius:3px 3px 0 0"></div>
+      <div style="width:100%;height:${Math.round(v/max*100)}%;background:${c};border-radius:3px 3px 0 0;min-height:${v>0?2:0}px"></div>
     </div>
     <div style="font-size:10px;color:var(--text3)">${l}</div>
   </div>`;
-  el.innerHTML=`<div style="display:flex;gap:10px">${bar(r30,'30d','var(--info)')}${bar(r90,'90d','var(--accent2)')}${bar(r365,'12m','var(--accent)')}</div>`;
+  el.innerHTML=`<div style="display:flex;gap:10px">${bar(r30,'30d','var(--info)')}${bar(r90,'90d','var(--accent2)')}${bar(r365,'12m','var(--accent)')}${out>0?bar(out,'due','var(--warn)'):''}
+  </div>`;
 }
 
 // ── Job status donut ──────────────────────────────────────────────────────────
@@ -315,7 +308,7 @@ function renderOverdue(jobs) {
   if (!el) return;
   if (!jobs.length) { el.innerHTML=emptyState('✓','No overdue returns'); return; }
   el.innerHTML = jobs.map(j=>`
-    <div onclick="window.__openJobDetail('${esc(j.jobId)}')"
+    <div onclick="window.__openJobDetail('${escAttr(j.jobId)}')"
       style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;
       border-radius:6px;background:var(--surface2);margin-bottom:6px;cursor:pointer;
       border-left:3px solid var(--danger);transition:background .15s"
@@ -348,7 +341,7 @@ function renderUpcoming(jobs) {
     const daysAway = isNaN(evDate)?'?':Math.ceil((evDate-today)/86400000);
     const urgency  = typeof daysAway==='number'&&daysAway<=3?'var(--danger)':daysAway<=7?'var(--warn)':'var(--text3)';
     const color    = statusColors[j.status]||'#5a5a70';
-    return `<div onclick="window.__openJobDetail('${esc(j.jobId)}')"
+    return `<div onclick="window.__openJobDetail('${escAttr(j.jobId)}')"
       style="display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:6px;
       background:var(--surface2);margin-bottom:6px;cursor:pointer;transition:background .15s"
       onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
@@ -374,7 +367,7 @@ function renderLowStock(items) {
   el.innerHTML = items.map(p=>{
     const pct = p.minStockLevel>0?Math.round(p.qtyAvailable/p.minStockLevel*100):100;
     const barColor = pct<30?'var(--danger)':pct<70?'var(--warn)':'var(--ok)';
-    return `<div onclick="window.__openProductDetail('${esc(p.productId)}')"
+    return `<div onclick="window.__openProductDetail('${escAttr(p.productId)}')"
       style="padding:8px 12px;border-radius:6px;background:var(--surface2);margin-bottom:6px;cursor:pointer;transition:background .15s"
       onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
@@ -408,44 +401,42 @@ function renderBrainReport(brain) {
     return;
   }
 
+  // Helper — safely extract text from any item shape the GAS might return
+  const itemText  = i => typeof i === 'string' ? i : (i.message || i.title || i.action || i.opportunity || i.risk || JSON.stringify(i));
+  const itemLabel = i => typeof i === 'string' ? '' : (i.type || i.category || '');
+  const itemSub   = i => typeof i === 'string' ? '' : (i.detail || (i.items && i.items.length ? i.items.slice(0,3).join(', ') : ''));
+
+  const renderCard = (item, borderColor) => `
+    <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;
+      margin-bottom:5px;border-left:2px solid ${borderColor}">
+      ${itemLabel(item) ? `<div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">${esc(itemLabel(item))}</div>` : ''}
+      <div style="font-size:12px;font-weight:500;line-height:1.4">${esc(itemText(item))}</div>
+      ${itemSub(item) ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${esc(itemSub(item))}</div>` : ''}
+    </div>`;
+
   el.style.display = '';
   el.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <div style="display:grid;grid-template-columns:${[actions.length, opportunities.length, risks.length].filter(Boolean).length === 3 ? '1fr 1fr 1fr' : '1fr 1fr'};gap:12px">
       ${actions.length ? `
       <div>
         <div style="font-size:11px;color:var(--accent);font-family:var(--mono);
           text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
           ⚡ Recommended Actions</div>
-        ${actions.slice(0,4).map(a => `
-          <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;
-            margin-bottom:5px;border-left:2px solid var(--accent)">
-            <div style="font-size:12px;font-weight:500">${esc(a.title||a.action||a)}</div>
-            ${a.detail?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(a.detail)}</div>`:''}
-          </div>`).join('')}
+        ${actions.slice(0,4).map(a => renderCard(a, 'var(--accent)')).join('')}
       </div>` : ''}
       ${opportunities.length ? `
       <div>
         <div style="font-size:11px;color:var(--ok);font-family:var(--mono);
           text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
           ↑ Opportunities</div>
-        ${opportunities.slice(0,4).map(o => `
-          <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;
-            margin-bottom:5px;border-left:2px solid var(--ok)">
-            <div style="font-size:12px;font-weight:500">${esc(o.title||o.opportunity||o)}</div>
-            ${o.detail?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(o.detail)}</div>`:''}
-          </div>`).join('')}
+        ${opportunities.slice(0,4).map(o => renderCard(o, 'var(--ok)')).join('')}
       </div>` : ''}
       ${risks.length ? `
       <div>
         <div style="font-size:11px;color:var(--danger);font-family:var(--mono);
           text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
           ⚠ Risks</div>
-        ${risks.slice(0,4).map(r => `
-          <div style="padding:8px 10px;background:var(--surface2);border-radius:6px;
-            margin-bottom:5px;border-left:2px solid var(--danger)">
-            <div style="font-size:12px;font-weight:500">${esc(r.title||r.risk||r)}</div>
-            ${r.detail?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(r.detail)}</div>`:''}
-          </div>`).join('')}
+        ${risks.slice(0,4).map(r => renderCard(r, 'var(--danger)')).join('')}
       </div>` : ''}
     </div>`;
 }
@@ -512,9 +503,9 @@ function renderNewEnquiries(enquiries) {
       </div>
       <div style="display:flex;gap:5px;flex-shrink:0;margin-left:8px">
         <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px"
-          onclick="window.__switchPane('enquiries');window.__openEnquiryDetail('${esc(e.enquiryId)}')">View</button>
+          onclick="window.__switchPane('enquiries');window.__openEnquiryDetail('${escAttr(e.enquiryId)}')">View</button>
         <button class="btn btn-primary btn-sm" style="font-size:10px;padding:3px 8px"
-          onclick="window.__enqConvertToQuote('${esc(e.enquiryId)}')">→ Quote</button>
+          onclick="window.__enqConvertToQuote('${escAttr(e.enquiryId)}')">→ Quote</button>
       </div>
     </div>`;
   }).join('') +

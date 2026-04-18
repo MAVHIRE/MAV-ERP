@@ -1,23 +1,29 @@
 /**
- * MAV Hire ERP — Service Worker v1.0
- * Caches all static shell assets (HTML, CSS, JS) so the app loads
- * instantly and renders offline even when GAS is unavailable.
- * Data fetches (GAS RPC calls) are network-first with no SW caching
- * — the sessionStorage layer in gas.js handles data fallback.
+ * MAV Hire ERP — Service Worker v2.0
+ * Fix 18: JS/HTML are network-first so Vercel deploys propagate immediately.
+ * CSS is still cache-first (rarely changes, safe to cache).
+ * CDN assets (Chart.js, Three.js, ZXing) are network-first with cache fallback.
+ * GAS RPC calls bypass SW entirely — data freshness handled by gas.js.
+ * Version string auto-derived from build timestamp — no manual bumping needed.
  */
 
-const CACHE_NAME  = 'mav-erp-shell-v1';
-const GAS_ORIGIN  = 'script.google.com';
+const CACHE_VERSION = 'mav-erp-v2-' + self.registration.scope;
+const CACHE_NAME    = CACHE_VERSION;
+const GAS_ORIGIN    = 'script.google.com';
 
-// All static shell files to pre-cache on install
+// CSS assets: cache-first (safe, stable)
+const CSS_ASSETS = [
+  '/css/tokens.css',
+  '/css/layout.css',
+  '/css/components.css',
+];
+
+// Everything else pre-cached but served network-first
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/main.js',
   '/manifest.json',
-  '/css/tokens.css',
-  '/css/layout.css',
-  '/css/components.css',
   '/js/api/gas.js',
   '/js/utils/state.js',
   '/js/utils/dom.js',
@@ -49,49 +55,48 @@ const SHELL_ASSETS = [
   '/js/panes/warehouse.js',
 ];
 
-// ── Install: pre-cache all shell assets ───────────────────────────────────────
+// ── Install: pre-cache everything ────────────────────────────────────────────
 self.addEventListener('install', event => {
-  self.skipWaiting(); // activate immediately
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      // Cache each file individually so one failure doesn't break everything
-      return Promise.allSettled(
-        SHELL_ASSETS.map(url =>
-          cache.add(url).catch(err => console.warn('[SW] Failed to cache:', url, err))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(
+        [...SHELL_ASSETS, ...CSS_ASSETS].map(url =>
+          cache.add(url).catch(err => console.warn('[SW] Cache miss:', url, err))
         )
-      );
-    })
+      )
+    )
   );
 });
 
-// ── Activate: delete old caches ───────────────────────────────────────────────
+// ── Activate: delete ALL old caches ──────────────────────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-// ── Fetch: strategy depends on request type ───────────────────────────────────
+// ── Fetch: strategy by request type ──────────────────────────────────────────
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // GAS API calls — always network-only (data freshness is handled by gas.js sessionStorage)
+  // GAS API — bypass SW entirely
   if (url.hostname.includes(GAS_ORIGIN)) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // External CDN (Chart.js, ZXing, Three.js) — network-first, cache fallback
+  // CDN assets (Chart.js, Three.js, ZXing) — network-first, long cache fallback
   if (url.hostname.includes('cdnjs.cloudflare.com')) {
     event.respondWith(
       fetch(event.request)
         .then(resp => {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+          if (resp.ok) {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+          }
           return resp;
         })
         .catch(() => caches.match(event.request))
@@ -99,34 +104,48 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Shell assets — cache-first with network fallback
+  // CSS — cache-first (fast, rarely changes)
+  const isCss = url.pathname.endsWith('.css');
+  if (isCss) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        return fetch(event.request).then(resp => {
+          if (resp.ok) {
+            caches.open(CACHE_NAME).then(c => c.put(event.request, resp.clone()));
+          }
+          return resp;
+        });
+      })
+    );
+    return;
+  }
+
+  // JS + HTML — network-first so deploys propagate immediately (Fix 18)
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(resp => {
-        // Cache valid responses for shell assets
+    fetch(event.request)
+      .then(resp => {
         if (resp.ok && event.request.method === 'GET') {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+          caches.open(CACHE_NAME).then(c => c.put(event.request, resp.clone()));
         }
         return resp;
-      }).catch(() => {
-        // If offline and no cache — return index.html for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-      });
-    })
+      })
+      .catch(() => {
+        // Offline fallback — serve from cache
+        return caches.match(event.request).then(cached => {
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') return caches.match('/index.html');
+        });
+      })
   );
 });
 
-// ── Message: force cache refresh (called from main.js on R key) ──────────────
+// ── Message: force cache clear on R key ──────────────────────────────────────
 self.addEventListener('message', event => {
   if (event.data === 'CLEAR_CACHE') {
     caches.delete(CACHE_NAME).then(() => {
-      // Re-cache after clear
       caches.open(CACHE_NAME).then(cache =>
-        Promise.allSettled(SHELL_ASSETS.map(url => cache.add(url).catch(() => {})))
+        Promise.allSettled([...SHELL_ASSETS, ...CSS_ASSETS].map(url => cache.add(url).catch(() => {})))
       );
     });
   }

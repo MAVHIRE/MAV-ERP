@@ -7,7 +7,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast } from '../utils/dom.js';
-import { esc, statusBadge, fmtDate, fmtCurDec } from '../utils/format.js';
+import { esc, statusBadge, fmtDate, fmtCurDec , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 // ── Load ──────────────────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ export async function onScanJobSelect() {
     if (statusEl) statusEl.innerHTML  = statusBadge(job.status) +
       (job.status === 'Returned' ? `
         <button class="btn btn-ghost btn-sm" style="margin-left:10px;font-size:11px"
-          onclick="window.__returnAllToStorage('${esc(job.jobId)}')">⬡ Return All to Storage</button>` : '');
+          onclick="window.__returnAllToStorage('${escAttr(job.jobId)}')">⬡ Return All to Storage</button>` : '');
     if (infoEl)   infoEl.style.display= 'block';
 
     if (lineEl && lineWrap) {
@@ -346,7 +346,7 @@ export async function submitScan() {
         </div>
         ${mode === 'RETURN' ? `
         <button class="btn btn-ghost btn-sm" style="font-size:11px;flex-shrink:0"
-          onclick="window.__offerReturnToStorage('${esc(barcode)}')">
+          onclick="window.__offerReturnToStorage('${escAttr(barcode)}')">
           ⬡ Assign Storage
         </button>` : ''}
       </div>`;
@@ -583,8 +583,8 @@ export async function lookupBarcode() {
           </table>
         </div>` : '<div style="color:var(--text3);font-size:12px">No location history.</div>'}
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" onclick="window.__offerReturnToStorage('${esc(barcode)}')">⬡ Assign Location</button>
-        ${bc.locationPath?`<button class="btn btn-ghost btn-sm" onclick="window.__clearBarcodeLocation('${esc(barcode)}')">✕ Clear Location</button>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="window.__offerReturnToStorage('${escAttr(barcode)}')">⬡ Assign Location</button>
+        ${bc.locationPath?`<button class="btn btn-ghost btn-sm" onclick="window.__clearBarcodeLocation('${escAttr(barcode)}')">✕ Clear Location</button>`:''}
       </div>`;
   } catch(e) { el.innerHTML = `<div style="color:var(--danger);padding:8px">${esc(e.message)}</div>`; }
 }
@@ -611,7 +611,7 @@ export async function offerReturnToStorage(barcode) {
         <input type="text" id="rts-notes" placeholder="e.g. Top shelf, back row"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Skip</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitReturnToStorage('${esc(barcode)}')">Assign Location</button>`
+    <button class="btn btn-primary btn-sm" onclick="window.__submitReturnToStorage('${escAttr(barcode)}')">Assign Location</button>`
   );
 
   window.__submitReturnToStorage = async (bc) => {

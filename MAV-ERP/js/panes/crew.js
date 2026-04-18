@@ -5,7 +5,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 const ROLES = ['Engineer','Rigger','Driver','Crew Chief','Lighting Tech','Audio Tech',
@@ -51,7 +51,7 @@ function render(items) {
     return `
       <div class="section" style="margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div class="section-title" style="cursor:pointer" onclick="window.__openJobDetail('${esc(group.jobId)}')">${esc(group.jobName||group.jobId)}</div>
+          <div class="section-title" style="cursor:pointer" onclick="window.__openJobDetail('${escAttr(group.jobId)}')">${esc(group.jobName||group.jobId)}</div>
           <div style="font-family:var(--mono);font-size:12px;color:var(--text2)">${fmtCurDec(jobTotal)} crew fees</div>
         </div>
         <div class="tbl-wrap"><table>
@@ -65,8 +65,8 @@ function render(items) {
             <td style="font-size:11px">${fmtDate(c.startDate)}${c.endDate&&c.endDate!==c.startDate?' → '+fmtDate(c.endDate):''}</td>
             <td>${statusBadge(c.status)}</td>
             <td style="display:flex;gap:4px">
-              <button class="btn btn-ghost btn-sm" onclick="window.__editCrew('${esc(c.crewId)}')">Edit</button>
-              <button class="btn btn-danger btn-sm" onclick="window.__deleteCrew('${esc(c.crewId)}')">✕</button>
+              <button class="btn btn-ghost btn-sm" onclick="window.__editCrew('${escAttr(c.crewId)}')">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="window.__deleteCrew('${escAttr(c.crewId)}')">✕</button>
             </td>
           </tr>`).join('')}
           </tbody>
@@ -129,7 +129,7 @@ function openCrewForm(existing, prefillJobId) {
         <input type="text" id="cr-notes" value="${v('notes')}"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitCrew('${esc(c.crewId||'')}')">
+    <button class="btn btn-primary btn-sm" onclick="window.__submitCrew('${escAttr(c.crewId||'')}')">
       ${isEdit ? 'Save Changes' : 'Assign'}</button>`
   );
 

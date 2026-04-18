@@ -6,7 +6,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 let _allTransports = [];
@@ -113,7 +113,7 @@ function transportCard(t) {
       <!-- Job -->
       <div style="flex:1;min-width:0">
         ${job?`<div style="font-weight:500;font-size:13px;cursor:pointer;color:var(--info)"
-          onclick="window.__openJobDetail('${esc(t.jobId)}')">${esc(job.jobName||t.jobId)}</div>
+          onclick="window.__openJobDetail('${escAttr(t.jobId)}')">${esc(job.jobName||t.jobId)}</div>
           <div style="font-size:11px;color:var(--text3)">${esc(job.clientName||'')}${job.venue?' · '+esc(job.venue):''}</div>
           <div style="font-size:11px;color:var(--text3)">${job.deliveryAddress?'📍 '+esc(job.deliveryAddress.address||''):''}</div>
         `:
@@ -124,8 +124,8 @@ function transportCard(t) {
       <div style="text-align:right;flex-shrink:0">
         ${t.cost>0?`<div style="font-family:var(--mono);font-size:13px;color:var(--text2)">${fmtCurDec(t.cost)}</div>`:''}
         <div style="display:flex;gap:4px;margin-top:6px" onclick="event.stopPropagation()">
-          <button class="btn btn-ghost btn-sm" onclick="openTransportForm('${esc(t.transportId)}')">✏</button>
-          <button class="btn btn-danger btn-sm" onclick="window.__deleteTransport('${esc(t.transportId)}')">✕</button>
+          <button class="btn btn-ghost btn-sm" onclick="openTransportForm('${escAttr(t.transportId)}')">✏</button>
+          <button class="btn btn-danger btn-sm" onclick="window.__deleteTransport('${escAttr(t.transportId)}')">✕</button>
         </div>
       </div>
     </div>`;
@@ -238,7 +238,7 @@ async function openTransportForm(transportId, preJobId) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitTransport('${esc(t.transportId||'')}')">
+    <button class="btn btn-primary btn-sm" onclick="window.__submitTransport('${escAttr(t.transportId||'')}')">
       ${transportId ? 'Save Changes' : 'Add Run'}</button>`
   );
 

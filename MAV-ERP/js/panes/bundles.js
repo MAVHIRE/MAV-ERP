@@ -6,7 +6,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, esc, statusBadge } from '../utils/format.js';
+import { fmtCurDec, esc, statusBadge , escAttr} from '../utils/format.js';
 import { openModal, closeModal, confirmDialog } from '../components/modal.js';
 
 export async function loadBundles() {
@@ -37,7 +37,7 @@ function render(bundles) {
     const items   = b.items || [];
     const preview = items.slice(0, 4).map(i => esc(i.name)).join(', ');
     const more    = items.length > 4 ? ` +${items.length - 4} more` : '';
-    return `<div class="bundle-card" onclick="window.__openBundleDetail('${esc(b.bundleId)}')">
+    return `<div class="bundle-card" onclick="window.__openBundleDetail('${escAttr(b.bundleId)}')">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
           <div class="bundle-name">${esc(b.bundleName)}</div>
@@ -48,8 +48,8 @@ function render(bundles) {
           ${b.basePrice > 0 ? `<div style="font-family:var(--mono);font-size:13px;color:var(--accent)">${fmtCurDec(b.basePrice)}</div>` : ''}
           <div style="font-family:var(--mono);font-size:11px;color:var(--text3)">${items.length} items</div>
           <div style="display:flex;gap:4px">
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();window.__editBundle('${esc(b.bundleId)}')">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();window.__deleteBundle('${esc(b.bundleId)}')">Delete</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();window.__editBundle('${escAttr(b.bundleId)}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();window.__deleteBundle('${escAttr(b.bundleId)}')">Delete</button>
           </div>
         </div>
       </div>
@@ -98,7 +98,7 @@ function showBundleModal(b) {
       <tbody>${itemRows || '<tr><td colspan="6" style="color:var(--text3);padding:16px">No items</td></tr>'}</tbody></table>
     </div>
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__editBundle('${esc(b.bundleId)}');window.__closeModal()">Edit</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__editBundle('${escAttr(b.bundleId)}');window.__closeModal()">Edit</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
 }
@@ -311,9 +311,9 @@ export async function loadAccessories() {
               <span style="font-size:12px">${esc(l.accessoryName)}</span>
               <span class="td-id">×${l.defaultQuantity}</span>
               ${l.optional ? '<span class="badge badge-info" style="font-size:9px">optional</span>' : ''}
-              <button class="line-item-remove" style="font-size:12px" onclick="window.__deleteAccessoryLink('${esc(l.linkId)}','${esc(p.productId)}')">×</button>
+              <button class="line-item-remove" style="font-size:12px" onclick="window.__deleteAccessoryLink('${escAttr(l.linkId)}','${escAttr(p.productId)}')">×</button>
             </div>`).join('')}
-          <button class="btn btn-ghost btn-sm" onclick="window.__addAccessoryModal('${esc(p.productId)}','${esc(p.name)}')">+ Add</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.__addAccessoryModal('${escAttr(p.productId)}','${escAttr(p.name)}')">+ Add</button>
         </div>
       </div>`).join('');
   } catch(e) { toast('Accessories failed: ' + e.message, 'err'); }
@@ -332,7 +332,7 @@ export function openAddAccessoryModal(parentProductId, parentName) {
       <div class="form-group"><label>Optional?</label><input type="checkbox" id="fa-optional" style="width:auto;margin-top:8px"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAddAccessory('${esc(parentProductId)}')">Add Accessory</button>`);
+    <button class="btn btn-primary btn-sm" onclick="window.__submitAddAccessory('${escAttr(parentProductId)}')">Add Accessory</button>`);
 
   window.__submitAddAccessory = async (parentId) => {
     const accessoryProductId = document.getElementById('fa-product')?.value;

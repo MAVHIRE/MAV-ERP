@@ -5,7 +5,7 @@
 import { rpc }   from '../api/gas.js';
 import { STATE } from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
+import { fmtCurDec, fmtDate, esc, statusBadge , exportCsv , escAttr} from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 
 export async function loadPurchaseOrders() {
@@ -42,7 +42,7 @@ function render(orders) {
       <th>Order Date</th><th>Expected</th>
       <th class="right">Total</th><th>Actions</th>
     </tr></thead>
-    <tbody>${orders.map(p => `<tr style="cursor:pointer" onclick="window.__openPODetail('${esc(p.poId)}')">
+    <tbody>${orders.map(p => `<tr style="cursor:pointer" onclick="window.__openPODetail('${escAttr(p.poId)}')">
       <td class="td-id">${esc(p.poId)}</td>
       <td class="td-name">${esc(p.supplierName||'—')}</td>
       <td>${statusBadge(p.status)}</td>
@@ -50,10 +50,10 @@ function render(orders) {
       <td>${fmtDate(p.expectedDate)}</td>
       <td class="td-num" style="font-weight:600">${fmtCurDec(p.totalValue)}</td>
       <td onclick="event.stopPropagation()" style="display:flex;gap:4px">
-        ${p.status === 'Draft' ? `<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${esc(p.poId)}','Ordered')">Send Order</button>` : ''}
-        ${p.status === 'Ordered' ? `<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${esc(p.poId)}','Received')">Mark Received</button>` : ''}
-        ${!['Received','Cancelled'].includes(p.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__editPO('${esc(p.poId)}')">Edit</button>` : ''}
-        ${p.status === 'Draft' ? `<button class="btn btn-danger btn-sm" onclick="window.__deletePO('${esc(p.poId)}')">✕</button>` : ''}
+        ${p.status === 'Draft' ? `<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${escAttr(p.poId)}','Ordered')">Send Order</button>` : ''}
+        ${p.status === 'Ordered' ? `<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${escAttr(p.poId)}','Received')">Mark Received</button>` : ''}
+        ${!['Received','Cancelled'].includes(p.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__editPO('${escAttr(p.poId)}')">Edit</button>` : ''}
+        ${p.status === 'Draft' ? `<button class="btn btn-danger btn-sm" onclick="window.__deletePO('${escAttr(p.poId)}')">✕</button>` : ''}
       </td>
     </tr>`).join('')}
     </tbody></table></div>`;
@@ -129,10 +129,10 @@ function showPOModal(po) {
         <span style="font-size:12px;color:var(--text3)">Delivery date</span>
       </div>` : ''}
     `, `
-    ${!['Received','Cancelled'].includes(po.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__editPO('${esc(po.poId)}')">✏ Edit</button>`:''}
-    ${po.status==='Draft'?`<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${esc(po.poId)}','Ordered')">📤 Send Order</button>`:''}
-    ${canReceive?`<button class="btn btn-primary btn-sm" onclick="window.__receivePOItems('${esc(po.poId)}')">📦 Receive Items</button>`:''}
-    ${po.status!=='Cancelled'&&po.status!=='Received'?`<button class="btn btn-danger btn-sm" onclick="window.__updatePOStatus('${esc(po.poId)}','Cancelled')">Cancel PO</button>`:''}
+    ${!['Received','Cancelled'].includes(po.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__editPO('${escAttr(po.poId)}')">✏ Edit</button>`:''}
+    ${po.status==='Draft'?`<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${escAttr(po.poId)}','Ordered')">📤 Send Order</button>`:''}
+    ${canReceive?`<button class="btn btn-primary btn-sm" onclick="window.__receivePOItems('${escAttr(po.poId)}')">📦 Receive Items</button>`:''}
+    ${po.status!=='Cancelled'&&po.status!=='Received'?`<button class="btn btn-danger btn-sm" onclick="window.__updatePOStatus('${escAttr(po.poId)}','Cancelled')">Cancel PO</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`
   );
 
@@ -193,7 +193,7 @@ function openPOForm(existing) {
     </div>
     <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="window.__addPOItem()">+ Add Item</button>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitPO('${esc(po.poId||'')}')">
+    <button class="btn btn-primary btn-sm" onclick="window.__submitPO('${escAttr(po.poId||'')}')">
       ${isEdit ? 'Save Changes' : 'Create PO'}</button>`
   );
 

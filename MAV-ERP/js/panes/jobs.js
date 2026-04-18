@@ -6,7 +6,7 @@
 import { rpc, rpcWithFallback }                from '../api/gas.js';
 import { STATE }              from '../utils/state.js';
 import { showLoading, hideLoading, toast, emptyState, setupClientAutocomplete } from '../utils/dom.js';
-import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge , exportCsv } from '../utils/format.js';
+import { fmtCur, fmtCurDec, fmtDate, esc, statusBadge , exportCsv , escAttr} from '../utils/format.js';
 import { openModal, closeModal, confirmDialog } from '../components/modal.js';
 import { initLineItems, getLines, addRentalLine, addServiceLine } from '../components/lineItems.js';
 
@@ -80,7 +80,7 @@ function renderList(el, jobs) {
     };
     const barColor = statusColors[j.status]||'#5a5a70';
 
-    return `<div class="job-card" data-status="${esc(j.status)}" onclick="window.__openJobDetail('${esc(j.jobId)}')"
+    return `<div class="job-card" data-status="${esc(j.status)}" onclick="window.__openJobDetail('${escAttr(j.jobId)}')"
       style="border-left:3px solid ${barColor}">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px">
@@ -131,7 +131,7 @@ function renderKanban(el, jobs) {
         </div>
         ${colTotal>0?`<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:8px">${fmtCur(colTotal)}</div>`:''}
         <div style="display:flex;flex-direction:column;gap:6px">
-          ${colJobs.map(j=>`<div onclick="window.__openJobDetail('${esc(j.jobId)}')"
+          ${colJobs.map(j=>`<div onclick="window.__openJobDetail('${escAttr(j.jobId)}')"
             style="background:var(--surface);border-radius:5px;padding:8px;cursor:pointer;
             border:1px solid var(--border);transition:border-color .15s"
             onmouseover="this.style.borderColor='${col.color}'" onmouseout="this.style.borderColor='var(--border)'">
@@ -319,14 +319,14 @@ function showJobModal(job, crewSummary, transports, subRentalData) {
         </div>`).join('')}
     </div>` : ''}
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__openPickList('${esc(job.jobId)}')">📋 Pick List</button>
-    ${['Confirmed','Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openAddItemToJob('${esc(job.jobId)}')">＋ Add Item</button>` : ''}
-    ${['Confirmed','Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openApplyBundleToJob('${esc(job.jobId)}')">◫ Apply Bundle</button>` : ''}
-    ${['Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__deallocateJob('${esc(job.jobId)}')">↩ Deallocate</button>` : ''}
-    ${['Returned','Complete'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openReturnCond('${esc(job.jobId)}','${esc(job.jobName||job.jobId)}')">📦 Return Conditions</button>` : ''}
-    ${editable ? `<button class="btn btn-ghost btn-sm" onclick="window.__editJob('${esc(job.jobId)}')">✏ Edit</button>` : ''}
-    <button class="btn btn-ghost btn-sm" onclick="window.__openJobProfitability('${esc(job.jobId)}')">£ P&amp;L</button>
-    <button class="btn btn-ghost btn-sm" onclick="window.__duplicateJob('${esc(job.jobId)}')">⎘ Duplicate</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__openPickList('${escAttr(job.jobId)}')">📋 Pick List</button>
+    ${['Confirmed','Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openAddItemToJob('${escAttr(job.jobId)}')">＋ Add Item</button>` : ''}
+    ${['Confirmed','Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openApplyBundleToJob('${escAttr(job.jobId)}')">◫ Apply Bundle</button>` : ''}
+    ${['Allocated','Prepping'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__deallocateJob('${escAttr(job.jobId)}')">↩ Deallocate</button>` : ''}
+    ${['Returned','Complete'].includes(job.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__openReturnCond('${escAttr(job.jobId)}','${escAttr(job.jobName||job.jobId)}')">📦 Return Conditions</button>` : ''}
+    ${editable ? `<button class="btn btn-ghost btn-sm" onclick="window.__editJob('${escAttr(job.jobId)}')">✏ Edit</button>` : ''}
+    <button class="btn btn-ghost btn-sm" onclick="window.__openJobProfitability('${escAttr(job.jobId)}')">£ P&amp;L</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.__duplicateJob('${escAttr(job.jobId)}')">⎘ Duplicate</button>
     ${buildActionButtons(job)}
   `, 'modal-lg');
 }
@@ -434,7 +434,7 @@ export async function checkAvailability(jobId) {
         ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(77,255,145,.08);border:1px solid rgba(77,255,145,.2);border-radius:var(--r);color:var(--ok);font-size:13px">✓ All items available</div>`
         : `<div style="margin-top:12px;padding:10px 14px;background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.2);border-radius:var(--r);color:var(--warn);font-size:13px">⚠ Some items may have conflicts</div>`}
     `, `
-      ${allGood ? `<button class="btn btn-primary btn-sm" onclick="window.__jobAction('allocate','${esc(jobId)}');window.__closeModal()">Allocate Stock</button>` : ''}
+      ${allGood ? `<button class="btn btn-primary btn-sm" onclick="window.__jobAction('allocate','${escAttr(jobId)}');window.__closeModal()">Allocate Stock</button>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
     `);
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
@@ -492,8 +492,8 @@ export async function openCheckoutModal(jobId) {
       }).join('')}
     `, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__jobAction('checkout','${esc(jobId)}')">Check Out Without Assigning</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__submitCheckout('${esc(jobId)}')">✓ Assign &amp; Check Out</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.__jobAction('checkout','${escAttr(jobId)}')">Check Out Without Assigning</button>
+      <button class="btn btn-primary btn-sm" onclick="window.__submitCheckout('${escAttr(jobId)}')">✓ Assign &amp; Check Out</button>
     `, 'modal-lg');
 
     window.__submitCheckout = async (jId) => {
@@ -581,7 +581,7 @@ function openJobEditModal(job) {
     </div>
   `, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitEditJob('${esc(job.jobId)}')">Save Changes</button>
+    <button class="btn btn-primary btn-sm" onclick="window.__submitEditJob('${escAttr(job.jobId)}')">Save Changes</button>
   `, 'modal-xl');
 
   // Pre-populate line items
@@ -833,7 +833,7 @@ export function openRecordDepositModal(jobId, balanceDue) {
         <input type="text" id="dep-notes" placeholder="e.g. BACS transfer, Invoice #123"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitDeposit('${esc(jobId)}')">Record Payment</button>`
+    <button class="btn btn-primary btn-sm" onclick="window.__submitDeposit('${escAttr(jobId)}')">Record Payment</button>`
   );
   window.__submitDeposit = async (jId) => {
     const amount = parseFloat(document.getElementById('dep-amount')?.value);
@@ -881,7 +881,7 @@ export async function openAddItemToJob(jobId) {
         <input type="text" id="ai-notes" placeholder="Optional notes…"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAddItem('${esc(jobId)}')">Add to Job</button>`
+    <button class="btn btn-primary btn-sm" onclick="window.__submitAddItem('${escAttr(jobId)}')">Add to Job</button>`
   );
 
   window.__submitAddItem = async (jId) => {
@@ -947,7 +947,7 @@ export function exportJobsCsv() {
 export async function openApplyBundleToJob(jobId) {
   if (!(STATE.bundles||[]).length) {
     showLoading('Loading bundles…');
-    try { STATE.bundles = await rpc('getBundles', {}); } catch(e) {}
+    try { STATE.bundles = await rpc('getBundles', {}); } catch(e) { console.warn('[Jobs] Bundles load:', e.message); }
     hideLoading();
   }
   const bundles = (STATE.bundles||[]).filter(b => b.active !== false);
@@ -976,7 +976,7 @@ export async function openApplyBundleToJob(jobId) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitApplyBundle('${esc(jobId)}')">Apply Bundle</button>`
+    <button class="btn btn-primary btn-sm" onclick="window.__submitApplyBundle('${escAttr(jobId)}')">Apply Bundle</button>`
   );
 
   window.__submitApplyBundle = async (jId) => {
@@ -1009,7 +1009,7 @@ export async function openJobProfitability(jobId) {
 
     openModal('modal-job-pnl', `P&L — ${esc(pnl.jobName)}`, `
       <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px">
         ${[
           ['Revenue',     fmt(pnl.revenue),    'var(--accent)'],
           ['Total Costs', fmt(pnl.totalCosts),  'var(--warn)'],

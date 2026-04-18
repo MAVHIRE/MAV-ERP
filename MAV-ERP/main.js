@@ -7,7 +7,7 @@ import { STATE }                    from './js/utils/state.js';
 import { showLoading, hideLoading, toast } from './js/utils/dom.js';
 import { rpc, rpcWithFallback, GAS_URL, setGasUrl, getAuthToken, setAuthToken, clearRpcCache }  from './js/api/gas.js';
 import { closeModal, openModal }    from './js/components/modal.js';
-import { esc }                      from './js/utils/format.js';
+import { esc, escAttr }               from './js/utils/format.js';
 
 import { initDashboard }            from './js/panes/dashboard.js';
 
@@ -105,7 +105,7 @@ import { loadPurchaseOrders, filterPurchaseOrders, openNewPOModal,
 import { loadSettings, saveSettings, updateLogoPreview,
          activateSettingsTab, updatePdfPreview,
          loadServicesTab, openNewServiceModal, editService, toggleServiceActive,
-         openNewCategoryModal }
+         openNewCategoryModal, editCategory, deleteCategory }
   from './js/panes/settings.js';
 
 import { loadScanPane, onScanJobSelect, setScanMode, onScanKeydown, submitScan,
@@ -171,19 +171,20 @@ async function bootstrap() {
   try {
     const data = await rpcWithFallback('bootstrapApp');
 
-    if (data.products?.length)      STATE.products      = data.products;
-    if (data.clients?.length)       STATE.clients       = data.clients;
-    if (data.suppliers?.length)     STATE.suppliers     = data.suppliers;
-    if (data.jobs?.length)          STATE.jobs          = data.jobs;
-    if (data.quotes?.length)        STATE.quotes        = data.quotes;
-    if (data.bundles?.length)       STATE.bundles       = data.bundles;
-    if (data.services?.length)      STATE.services      = data.services;
-    if (data.settings)              STATE.settings      = data.settings;
-    if (data.dashboard)             STATE.dashboard     = data.dashboard;
-    if (data.invoices?.length)      STATE.invoices      = data.invoices;
-    if (data.subRentals?.length)    STATE.subRentals    = data.subRentals;
-    if (data.crew?.length)          STATE.crew          = data.crew;
-    if (data.purchaseOrders?.length)STATE.purchaseOrders= data.purchaseOrders;
+    // Fix 17: use Array.isArray so an empty [] from server clears stale state
+    if (Array.isArray(data.products))      STATE.products      = data.products;
+    if (Array.isArray(data.clients))       STATE.clients       = data.clients;
+    if (Array.isArray(data.suppliers))     STATE.suppliers     = data.suppliers;
+    if (Array.isArray(data.jobs))          STATE.jobs          = data.jobs;
+    if (Array.isArray(data.quotes))        STATE.quotes        = data.quotes;
+    if (Array.isArray(data.bundles))       STATE.bundles       = data.bundles;
+    if (Array.isArray(data.services))      STATE.services      = data.services;
+    if (data.settings)                     STATE.settings      = data.settings;
+    if (data.dashboard)                    STATE.dashboard     = data.dashboard;
+    if (Array.isArray(data.invoices))      STATE.invoices      = data.invoices;
+    if (Array.isArray(data.subRentals))    STATE.subRentals    = data.subRentals;
+    if (Array.isArray(data.crew))          STATE.crew          = data.crew;
+    if (Array.isArray(data.purchaseOrders))STATE.purchaseOrders= data.purchaseOrders;
 
     hideLoading();
     await initDashboard();
@@ -257,6 +258,8 @@ async function refreshAll() {
   STATE.services = []; STATE.dashboard= null; STATE.invoices = [];
   STATE.subRentals = []; STATE.crew   = []; STATE.purchaseOrders = [];
   STATE.maintenance= []; STATE.skuStats= []; STATE.forecasts= [];
+  // Fix 16: reset previously missed state keys
+  STATE.enquiries = []; STATE.productCategories = [];
   await bootstrap();
   updateNavBadges();
   const active = STATE.activePane;
@@ -640,6 +643,8 @@ function exposeGlobals() {
   window.__updatePdfPreview    = updatePdfPreview;
   window.__openNewServiceModal = openNewServiceModal;
   window.__openNewCategoryModal = openNewCategoryModal;
+  window.__editCategory        = editCategory;
+  window.__deleteCategory      = deleteCategory;
   window.__editService         = editService;
   window.__toggleServiceActive = toggleServiceActive;
   window.__generateAuthToken   = () => {
@@ -722,8 +727,11 @@ function exposeGlobals() {
           }).catch(() => []),
         ]);
         const sections = [];
-        const item = (icon, label, sub, pane, id, fn) =>
-          `<div onclick="el.style.display='none';window.__switchPane('${pane}');${fn?`setTimeout(()=>window.${fn}('${id}'),300)`:''}"
+        const item = (icon, label, sub, pane, id, fn) => {
+          const safeId   = escAttr(id);
+          const safePane = escAttr(pane);
+          const safeFn   = fn ? escAttr(fn) : '';
+          return `<div onclick="this.closest('#global-search-results').style.display='none';window.__switchPane('${safePane}');${safeFn?`setTimeout(()=>window.${safeFn}('${safeId}'),300)`:''}"
             style="display:flex;gap:10px;align-items:center;padding:8px 12px;cursor:pointer;
             border-radius:4px;transition:background .12s"
             onmouseover="this.style.background='var(--surface2)'"
@@ -731,10 +739,11 @@ function exposeGlobals() {
           >
             <span style="font-size:16px;width:20px;text-align:center">${icon}</span>
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
-              ${sub?`<div style="font-size:11px;color:var(--text3)">${sub}</div>`:''}
+              <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(label)}</div>
+              ${sub?`<div style="font-size:11px;color:var(--text3)">${esc(sub)}</div>`:''}
             </div>
           </div>`;
+        };
 
         if (enquiries?.length) {
           sections.push(`<div style="padding:6px 12px 2px;font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em">Enquiries</div>`);
@@ -785,6 +794,50 @@ function exposeGlobals() {
   window.__hideGlobalResults = () => {
     const el = document.getElementById('global-search-results');
     if (el) el.style.display = 'none';
+  };
+
+  // ── Mobile search toggle ─────────────────────────────────────────────────
+  // Show the ⌕ icon button in topbar only on small screens
+  const _mobileSearchBtn = document.getElementById('mobile-search-btn');
+  const _mq = window.matchMedia('(max-width: 768px)');
+  const _syncMobileSearchBtn = () => {
+    if (_mobileSearchBtn) _mobileSearchBtn.style.display = _mq.matches ? 'flex' : 'none';
+  };
+  _mq.addEventListener('change', _syncMobileSearchBtn);
+  _syncMobileSearchBtn();
+
+  window.__toggleMobileSearch = () => {
+    const overlay = document.getElementById('mobile-search-overlay');
+    if (!overlay) return;
+    const isOpen = overlay.style.display === 'flex';
+    overlay.style.display = isOpen ? 'none' : 'flex';
+    if (!isOpen) {
+      const inp = document.getElementById('mobile-search-input');
+      if (inp) { inp.value = ''; inp.focus(); }
+      // Wire global search to populate mobile results too
+      const mobileResults = document.getElementById('mobile-search-results');
+      // Temporarily redirect search results to mobile container
+      const desktopResults = document.getElementById('global-search-results');
+      if (mobileResults && desktopResults) {
+        // Mirror search results to mobile container
+        const observer = new MutationObserver(() => {
+          mobileResults.innerHTML = desktopResults.innerHTML;
+          // Fix onclick references so they close the mobile overlay too
+          mobileResults.querySelectorAll('[onclick]').forEach(el => {
+            const orig = el.getAttribute('onclick');
+            el.setAttribute('onclick', `document.getElementById('mobile-search-overlay').style.display='none';${orig}`);
+          });
+        });
+        observer.observe(desktopResults, { childList: true, subtree: true });
+        overlay._observer = observer;
+      }
+    } else {
+      overlay._observer?.disconnect();
+    }
+  };
+
+  window.__mobileSearchKey = (e) => {
+    if (e.key === 'Escape') window.__toggleMobileSearch();
   };
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────
