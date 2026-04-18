@@ -41,8 +41,9 @@ export async function loadWarehouseDesigner() {
     _items = (locs||[]).filter(l => +l.layoutW > 0).map(mapLocation);
     hideLoading();
     updateStats();
-    if (_view === '3d') setTimeout(() => init3D(), 80);
-    else if (_view === '2d') setTimeout(() => init2D(), 80);
+    if (_view === '3d')      setTimeout(init3D, 80);
+    else if (_view === '2d') setTimeout(init2D, 80);
+    // list mode handled by updateStats() called above
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }
 
@@ -51,7 +52,6 @@ function mapLocation(l) {
   function inferType(l) {
     if (l.locationType === 'Zone') return 'zone';
     if (+l.layoutD < 0.25)        return 'wall';
-    if (l.layoutType)             return l.layoutType;
     return 'rack';
   }
   return {
@@ -225,6 +225,30 @@ function highlightItem3D(locationId) {
       }, 2000);
     }
   });
+}
+
+// ── Shared teardown — call before every view rebuild ─────────────────────────
+function teardownView() {
+  if (_animFrame) { cancelAnimationFrame(_animFrame); _animFrame = null; }
+  if (_resize3d)  { _resize3d.disconnect(); _resize3d = null; }
+  if (_resize2d)  { _resize2d.disconnect(); _resize2d = null; }
+  if (_three) {
+    try {
+      _three.scene.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        const mats = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : []);
+        mats.forEach(m => {
+          if (m.map)          m.map.dispose?.();
+          if (m.emissiveMap)  m.emissiveMap.dispose?.();
+          if (m.normalMap)    m.normalMap.dispose?.();
+          m.dispose?.();
+        });
+      });
+      _three.renderer.dispose();
+    } catch(e) {}
+  }
+  _three = null;
+  _2d    = null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -422,11 +446,18 @@ function build3DScene(wrap, _retries) {
         if (item) {
           _selected = item.id;
           showProperties(item);
-          // Flash the hit object
-          if (hit.material && hit.material.emissive) {
+          // Flash the hit object — restore orig colour and intensity after
+          if (hit.material?.emissive) {
+            const origHex       = hit.material.emissive.getHex();
+            const origIntensity = hit.material.emissiveIntensity ?? 0;
             hit.material.emissive.setHex(0xc8ff00);
             hit.material.emissiveIntensity = 0.6;
-            setTimeout(() => { if (hit.material) hit.material.emissiveIntensity = 0; }, 1200);
+            setTimeout(() => {
+              if (hit.material?.emissive) {
+                hit.material.emissive.setHex(origHex);
+                hit.material.emissiveIntensity = origIntensity;
+              }
+            }, 1200);
           }
         }
       } else {
@@ -469,7 +500,8 @@ function build3DScene(wrap, _retries) {
     const nw=wrap.offsetWidth, nh=wrap.offsetHeight;
     if (!nw||!nh) return;
     camera.aspect=nw/nh; camera.updateProjectionMatrix(); renderer.setSize(nw,nh);
-  }).observe(wrap);
+  });
+  _resize3d.observe(wrap);
 
   // Animate
   let tick = 0;
@@ -929,30 +961,7 @@ function findItemAt(wx, wy) {
 // ═══════════════════════════════════════════════════════════════════════════════
 function switchView(view) {
   _view=view;
-  const wrap=document.getElementById('warehouse-canvas-wrap');
-
-  // Cancel animation loop
-  if(_animFrame){cancelAnimationFrame(_animFrame);_animFrame=null;}
-
-  // Disconnect resize observers
-  if(_resize3d){_resize3d.disconnect();_resize3d=null;}
-  if(_resize2d){_resize2d.disconnect();_resize2d=null;}
-
-  // Dispose 3D resources to prevent GPU/memory leaks
-  if(_three) {
-    try {
-      _three.scene.traverse(obj => {
-        if(obj.geometry)  obj.geometry.dispose();
-        if(obj.material) {
-          if(Array.isArray(obj.material)) obj.material.forEach(m=>m.dispose());
-          else obj.material.dispose();
-        }
-      });
-      _three.renderer.dispose();
-    } catch(e) {}
-  }
-
-  _three=null; _2d=null;
+  teardownView();
 
   // Update toolbar buttons
   document.querySelectorAll('.wh-view-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
@@ -1004,10 +1013,11 @@ export async function saveWarehouseLayout() {
     _items = (locs||[]).filter(l => +l.layoutW > 0).map(mapLocation);
     _dirty = false;
     toast(`Saved ${r.saved||payload.length} locations`,'ok');
-    // Rebuild view to reflect fresh data
-    if (_view === '3d') init3D();
-    else if (_view === '2d') init2D();
-    updateStats();
+    // Rebuild view to reflect fresh data (teardown first to prevent leaks)
+    teardownView();
+    if (_view === '3d')      setTimeout(init3D, 50);
+    else if (_view === '2d') setTimeout(init2D, 50);
+    else updateStats(); // list mode — no canvas to rebuild
   } catch(e){toast(e.message,'err');}
   finally{hideLoading();}
 }
@@ -1123,9 +1133,11 @@ export function exposeWarehouseGlobals() {
   window.__whLookupBarcode= lookupBarcodeLocation;
 
   window.__whRebuild = () => {
-    if(_animFrame){cancelAnimationFrame(_animFrame);_animFrame=null;}
-    _three=null; _2d=null;
-    setTimeout(()=>_view==='2d'?init2D():init3D(), 50);
+    teardownView();
+    if (_view === '2d')      setTimeout(init2D, 50);
+    else if (_view === '3d') setTimeout(init3D, 50);
+    // list mode: no canvas to rebuild, just update stats panel
+    else updateStats();
   };
 
   window.__whDeleteSelected = async () => {
@@ -1134,12 +1146,23 @@ export function exposeWarehouseGlobals() {
     if (!confirm(`Remove "${item?.label || _selected}" from warehouse plan?`)) return;
     showLoading('Removing…');
     try {
-      // Delete from GAS sheet if it has a real locationId
       if (item?.locationId) {
+        // Persisted item — delete backend, then reload source of truth
         await rpc('deleteWarehouseLocation', { locationId: item.locationId });
+        const [locs, occ] = await Promise.all([
+          rpc('getWarehouseLocations', {}),
+          rpc('getLocationOccupancy').catch(() => []),
+        ]);
+        _occ = {};
+        (occ||[]).forEach(o => _occ[o.locationId] = +o.itemCount||0);
+        _items = (locs||[]).filter(l => +l.layoutW > 0).map(mapLocation);
+        _dirty = false; // backend is source of truth — layout is clean
+      } else {
+        // Unsaved local item — remove from memory only
+        _items = _items.filter(i => i.id !== _selected);
+        _dirty = true; // local change not yet persisted
       }
-      _items = _items.filter(i => i.id !== _selected);
-      _selected = null; _dirty = false; // already persisted
+      _selected = null;
       showProperties(null);
       window.__whRebuild();
       toast('Location removed', 'ok');
@@ -1201,11 +1224,15 @@ export function exposeWarehouseGlobals() {
   };
 
   window.__whApplyFloor = () => {
-    _floor.name=document.getElementById('wf-name')?.value||_floor.name;
-    _floor.w   =parseFloat(document.getElementById('wf-w')?.value)||_floor.w;
-    _floor.d   =parseFloat(document.getElementById('wf-d')?.value)||_floor.d;
-    _floor.h   =parseFloat(document.getElementById('wf-h')?.value)||_floor.h;
-    _grid      =parseFloat(document.getElementById('wf-grid')?.value)||_grid;
+    const rawW = parseFloat(document.getElementById('wf-w')?.value);
+    const rawD = parseFloat(document.getElementById('wf-d')?.value);
+    const rawH = parseFloat(document.getElementById('wf-h')?.value);
+    const rawG = parseFloat(document.getElementById('wf-grid')?.value);
+    _floor.name = document.getElementById('wf-name')?.value || _floor.name;
+    _floor.w    = Math.max(5,   Math.min(500, isNaN(rawW) ? _floor.w : rawW));
+    _floor.d    = Math.max(5,   Math.min(500, isNaN(rawD) ? _floor.d : rawD));
+    _floor.h    = Math.max(2,   Math.min(30,  isNaN(rawH) ? _floor.h : rawH));
+    _grid       = Math.max(0.1, Math.min(5,   isNaN(rawG) ? _grid    : rawG));
     _dirty=true; closeModal();
     window.__whRebuild();
     toast('Dimensions updated','info');
