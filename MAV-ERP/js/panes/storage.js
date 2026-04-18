@@ -1,283 +1,572 @@
-/**
- * MAV HIRE ERP — js/panes/storage.js
- * Warehouse Zone→Bay→Shelf→Bin management.
- * Barcode location assignment. Pick list generation. Occupancy view.
- */
-import { rpc }   from '../api/gas.js';
-import { STATE } from '../utils/state.js';
-import { showLoading, hideLoading, toast, emptyState } from '../utils/dom.js';
-import { esc, statusBadge, fmtDate , escAttr} from '../utils/format.js';
-import { openModal, closeModal, confirmDialog } from '../components/modal.js';
+// =============================================================================
+// MAV RENTAL ERP — 10_storage.gs  v1.0
+// Warehouse location management: Zone → Bay → Shelf → Bin
+// Barcode-level location tracking with movement history
+// Depends on: 00_core.gs, 01_products_inventory.gs
+// =============================================================================
 
-// ── Main load ─────────────────────────────────────────────────────────────────
-export async function loadStorage() {
-  showLoading('Loading warehouse…');
-  try {
-    const [tree, occupancy, unlocated] = await Promise.all([
-      rpc('getWarehouseLocationTree'),
-      rpc('getLocationOccupancy'),
-      rpc('getUnlocatedBarcodes'),
-    ]);
-    renderTree(tree, occupancy);
-    renderUnlocated(unlocated);
-    renderOccupancy(occupancy);
-    const el = document.getElementById('storage-subtitle');
-    if (el) el.textContent = occupancy.length + ' locations';
-  } catch(e) { toast('Storage failed: ' + e.message, 'err'); }
-  finally { hideLoading(); }
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// WAREHOUSE LOCATIONS
+// Hierarchical: Zone → Bay → Shelf → Bin
+// Each node has a parentId (null for Zone = top level).
+// Full path is stored denormalised for fast display: "A / Bay 3 / Shelf 2 / Bin 4"
+// ─────────────────────────────────────────────────────────────────────────────
 
-// ── Tree view ─────────────────────────────────────────────────────────────────
-function renderTree(tree, occupancy) {
-  const el = document.getElementById('warehouse-tree');
-  if (!el) return;
-  if (!tree.length) { el.innerHTML = emptyState('▦', 'No locations configured — click Seed Warehouse to create the default structure'); return; }
+function saveWarehouseLocation(payload) {
+  payload = payload || {};
+  requireValue_(payload.locationType, 'locationType is required.');
 
-  const occMap = {};
-  occupancy.forEach(o => { occMap[o.locationId] = o; });
+  const locationId = validId_(payload.locationId) || nextId_('LOCATION_COUNTER', 'LOC');
+  const existing   = getWarehouseLocationById(locationId);
 
-  el.innerHTML = tree.map(zone => `
-    <div class="card" style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="font-family:var(--head);font-weight:700;font-size:16px;letter-spacing:.04em">
-          Zone ${esc(zone.zone)} <span style="color:var(--text3);font-size:13px;font-family:var(--body)">${esc(zone.description||'')}</span>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('${escAttr(zone.locationId)}','Bay','${escAttr(zone.zone)}')">+ Bay</button>
-      </div>
-      ${(zone.bays||[]).map(bay => `
-        <div style="margin-left:16px;margin-bottom:8px;border-left:2px solid var(--border);padding-left:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <div style="font-weight:600;color:var(--text2)">Bay ${esc(bay.bay)} ${bay.description ? `<span style="color:var(--text3);font-weight:400">· ${esc(bay.description)}</span>` : ''}</div>
-            <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('${escAttr(bay.locationId)}','Shelf','${escAttr(zone.zone)}','${escAttr(bay.bay)}')">+ Shelf</button>
-          </div>
-          ${(bay.shelves||[]).map(shelf => `
-            <div style="margin-left:16px;margin-bottom:6px;border-left:2px solid var(--border2);padding-left:12px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-                <div style="color:var(--text2);font-size:13px">Shelf ${esc(shelf.shelf)} ${shelf.description ? `<span style="color:var(--text3)">· ${esc(shelf.description)}</span>` : ''}</div>
-                <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('${escAttr(shelf.locationId)}','Bin','${escAttr(zone.zone)}','${escAttr(bay.bay)}','${escAttr(shelf.shelf)}')">+ Bin</button>
-              </div>
-              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-left:8px">
-                ${(shelf.bins||[]).map(bin => {
-                  const occ = occMap[bin.locationId] || {};
-                  const pct = occ.utilPct || 0;
-                  const col = pct > 90 ? 'var(--danger)' : pct > 60 ? 'var(--warn)' : 'var(--ok)';
-                  return `<div class="card-sm" style="min-width:140px;cursor:pointer" onclick="window.__viewBinContents('${escAttr(bin.locationId)}','${escAttr(bin.fullPath)}')">
-                    <div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Bin ${esc(bin.bin)}</div>
-                    ${bin.description ? `<div style="font-size:11px;color:var(--text2)">${esc(bin.description)}</div>` : ''}
-                    <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-                      <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div>
-                      <span style="font-family:var(--mono);font-size:10px;color:${col}">${occ.count||0}${occ.capacity ? '/'+occ.capacity : ''}</span>
-                    </div>
-                  </div>`;
-                }).join('')}
-                ${!(shelf.bins||[]).length ? '<div style="color:var(--text3);font-size:11px;padding:4px">No bins</div>' : ''}
-              </div>
-            </div>`).join('')}
-          ${!(bay.shelves||[]).length ? '<div style="color:var(--text3);font-size:11px;padding:4px 16px">No shelves</div>' : ''}
-        </div>`).join('')}
-      ${!(zone.bays||[]).length ? '<div style="color:var(--text3);font-size:12px;padding:4px">No bays</div>' : ''}
-    </div>`).join('');
-}
+  const type = safeString_(payload.locationType);
+  const validTypes = Object.values(ENUMS.LOCATION_TYPE);
+  if (!validTypes.includes(type)) throw new Error('Invalid location type: ' + type + '. Must be one of: ' + validTypes.join(', '));
 
-export async function viewBinContents(locationId, path) {
-  showLoading('Loading…');
-  try {
-    const barcodes = await rpc('getBarcodesAtLocation', locationId);
-    hideLoading();
-    openModal('modal-bin', esc(path), `
-      <div style="margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--text3)">${barcodes.length} item${barcodes.length !== 1 ? 's' : ''} stored here</div>
-      ${barcodes.length === 0 ? emptyState('▦', 'Empty') : `
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Barcode</th><th>Product</th><th>Serial</th><th>Status</th><th>Condition</th><th>Actions</th></tr></thead>
-          <tbody>${barcodes.map(b => `<tr>
-            <td class="td-id">${esc(b.barcode)}</td>
-            <td>${esc(b.productName || b.productId)}</td>
-            <td class="td-id">${esc(b.serialNumber||'—')}</td>
-            <td>${statusBadge(b.status)}</td>
-            <td>${esc(b.condition||'—')}</td>
-            <td><button class="btn btn-ghost btn-sm" onclick="window.__moveBarcodeModal('${escAttr(b.barcode)}')">Move</button></td>
-          </tr>`).join('')}</tbody>
-        </table></div>`}
-      <div style="margin-top:12px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__assignToBinModal('${escAttr(locationId)}','${escAttr(path)}')">+ Assign Barcode Here</button>
-      </div>
-    `, `<button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`);
-  } catch(e) { hideLoading(); toast(e.message, 'err'); }
-}
+  // Derive zone/bay/shelf/bin from fullPath if not explicitly provided
+  // e.g. fullPath 'Zone A > Bay A1 > Shelf 1' → zone='Zone A', bay='Bay A1', shelf='Shelf 1'
+  var parts = (payload.fullPath || payload.name || '').split(' > ').map(function(s) { return s.trim(); });
+  var zone   = payload.zone   || (parts[0] || '');
+  var bay    = payload.bay    || (parts[1] || '');
+  var shelf  = payload.shelf  || (parts[2] || '');
+  var bin    = payload.bin    || (parts[3] || '');
 
-// ── Unlocated barcodes ────────────────────────────────────────────────────────
-function renderUnlocated(barcodes) {
-  const el = document.getElementById('unlocated-list');
-  if (!el) return;
-  if (!barcodes.length) { el.innerHTML = emptyState('✓', 'All serialised stock located'); return; }
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Barcode</th><th>Product</th><th>Serial</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>${barcodes.map(b => `<tr>
-      <td class="td-id">${esc(b.barcode)}</td>
-      <td>${esc(b.productName || b.productId)}</td>
-      <td class="td-id">${esc(b.serialNumber||'—')}</td>
-      <td>${statusBadge(b.status)}</td>
-      <td><button class="btn btn-primary btn-sm" onclick="window.__moveBarcodeModal('${escAttr(b.barcode)}')">Assign Location</button></td>
-    </tr>`).join('')}</tbody></table></div>`;
-}
+  requireValue_(zone, 'zone is required (or provide fullPath with > separators).');
 
-// ── Occupancy summary ─────────────────────────────────────────────────────────
-function renderOccupancy(occupancy) {
-  const el = document.getElementById('occupancy-summary');
-  if (!el) return;
-  const bins     = occupancy.filter(o => o.locationType === 'Bin');
-  const total    = bins.reduce((s, o) => s + o.count, 0);
-  const capacity = bins.filter(o => o.capacity > 0).reduce((s, o) => s + o.capacity, 0);
-
-  el.innerHTML = `
-    <div class="kpi"><div class="kpi-label">Total Locations</div><div class="kpi-value">${occupancy.length}</div></div>
-    <div class="kpi"><div class="kpi-label">Items Stored</div><div class="kpi-value accent">${total}</div></div>
-    <div class="kpi"><div class="kpi-label">Capacity</div><div class="kpi-value">${capacity > 0 ? capacity : '—'}</div></div>
-    <div class="kpi"><div class="kpi-label">Utilisation</div><div class="kpi-value ${total/capacity > .8 ? 'warn' : ''}">${capacity > 0 ? Math.round(total/capacity*100) + '%' : '—'}</div></div>`;
-}
-
-// ── Add location modal ────────────────────────────────────────────────────────
-export function openAddLocationModal(parentId, type, zone, bay, shelf) {
-  openModal('modal-add-location', `Add ${type}`, `
-    <div class="form-grid">
-      <div class="form-group"><label>Zone *</label><input type="text" id="fl-zone" value="${esc(zone||'')}" ${type !== 'Zone' ? 'readonly' : ''}></div>
-      ${type !== 'Zone' ? `<div class="form-group"><label>Bay ${type === 'Bay' ? '*' : ''}</label><input type="text" id="fl-bay" value="${esc(bay||'')}" ${type !== 'Bay' ? 'readonly' : ''}></div>` : '<div></div>'}
-      ${['Shelf','Bin'].includes(type) ? `<div class="form-group"><label>Shelf ${type === 'Shelf' ? '*' : ''}</label><input type="text" id="fl-shelf" value="${esc(shelf||'')}" ${type !== 'Shelf' ? 'readonly' : ''}></div>` : '<div></div>'}
-      ${type === 'Bin' ? `<div class="form-group"><label>Bin *</label><input type="text" id="fl-bin"></div>` : '<div></div>'}
-      <div class="form-group span-2"><label>Description</label><input type="text" id="fl-desc" placeholder="e.g. Wireless mics"></div>
-      <div class="form-group"><label>Capacity (items)</label><input type="number" id="fl-capacity" value="0" min="0"></div>
-    </div>`, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAddLocation('${escAttr(parentId)}','${escAttr(type)}')">Create ${type}</button>`);
-
-  window.__submitAddLocation = async (pId, locType) => {
-    showLoading('Creating…'); closeModal();
-    try {
-      await rpc('saveWarehouseLocation', {
-        parentId:     pId || null,
-        locationType: locType,
-        zone:         document.getElementById('fl-zone')?.value.trim(),
-        bay:          document.getElementById('fl-bay')?.value.trim()    || '',
-        shelf:        document.getElementById('fl-shelf')?.value.trim()  || '',
-        bin:          document.getElementById('fl-bin')?.value.trim()    || '',
-        description:  document.getElementById('fl-desc')?.value.trim(),
-        capacity:     parseInt(document.getElementById('fl-capacity', 10)?.value, 10) || 0,
-        active:       true,
+  // Derive parentId for non-Zone types from existing locations if not provided
+  var parentId = payload.parentId || '';
+  if (!parentId && type !== ENUMS.LOCATION_TYPE.ZONE) {
+    // Look up the parent path (one level up in the hierarchy)
+    var parentPath = parts.slice(0, parts.length - 1).join(' > ');
+    if (parentPath) {
+      var allLocs = readObjects_(MAV.SHEETS.WAREHOUSE_LOCATIONS);
+      var parentRow = allLocs.find(function(r) {
+        return String(r['Full Path'] || r['Name']) === parentPath;
       });
-      toast(locType + ' created', 'ok');
-      STATE.loadedPanes.delete('storage');
-      await loadStorage();
-    } catch(e) { toast(e.message, 'err'); }
-    finally { hideLoading(); }
-  };
+      if (parentRow) parentId = String(parentRow['Location ID'] || '');
+    }
+  }
+
+  const fullPath = payload.fullPath || buildLocationPath_(Object.assign({}, payload, { zone: zone, bay: bay, shelf: shelf, bin: bin }));
+  const sheet    = getSheet_(MAV.SHEETS.WAREHOUSE_LOCATIONS);
+
+  const row = [
+    locationId,
+    type,
+    safeString_(parentId),
+    safeString_(zone),
+    safeString_(bay),
+    safeString_(shelf),
+    safeString_(bin),
+    fullPath,
+    safeString_(payload.description),
+    toNumber_(payload.capacity, 0),
+    payload.active !== false ? 'true' : 'false',
+    existing ? safeString_(existing.createdAt) || new Date().toISOString() : new Date().toISOString(),
+    new Date().toISOString(),
+    toNumber_(payload.layoutX, 0),
+    toNumber_(payload.layoutY, 0),
+    toNumber_(payload.layoutW, 1),
+    toNumber_(payload.layoutD, 1),
+    toNumber_(payload.layoutH, 2.4),
+    toNumber_(payload.layoutShelves, 4),
+    safeString_(payload.layoutColor || '#4db8ff'),
+    toNumber_(payload.layoutRotation, 0),
+  ];
+
+  upsertRow_(sheet, locationId, row);
+  writeAuditLog_('WarehouseLocation', locationId, existing ? 'UPDATE' : 'CREATE', '', '', JSON.stringify(payload), 'Location saved');
+  return { ok: true, locationId: locationId, fullPath: fullPath };
 }
 
-// ── Move barcode modal ────────────────────────────────────────────────────────
-export async function openMoveBarcodeModal(barcode) {
-  showLoading('Loading locations…');
-  try {
-    const leaves = await rpc('getLeafLocations');
-    hideLoading();
-    const opts = leaves.map(l => `<option value="${esc(l.locationId)}">${esc(l.fullPath)}</option>`).join('');
-
-    openModal('modal-move-barcode', `Assign Location: ${esc(barcode)}`, `
-      <div class="form-grid">
-        <div class="form-group span-2"><label>Location *</label>
-          <select id="fm-location" style="font-family:var(--mono);font-size:12px">
-            <option value="">— Select location —</option>${opts}
-          </select>
-        </div>
-        <div class="form-group span-2"><label>Notes</label><input type="text" id="fm-notes" placeholder="e.g. Post-return check"></div>
-      </div>`, `
-      <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__submitMoveBarcode('${escAttr(barcode)}')">Assign</button>`);
-
-    window.__submitMoveBarcode = async (bc) => {
-      const locId = document.getElementById('fm-location')?.value;
-      if (!locId) { toast('Select a location', 'warn'); return; }
-      showLoading('Assigning…'); closeModal();
-      try {
-        const r = await rpc('assignBarcodeLocation', bc, locId, document.getElementById('fm-notes')?.value || '');
-        toast(`${bc} → ${r.fullPath}`, 'ok');
-        STATE.loadedPanes.delete('storage');
-        await loadStorage();
-      } catch(e) { toast(e.message, 'err'); }
-      finally { hideLoading(); }
-    };
-  } catch(e) { hideLoading(); toast(e.message, 'err'); }
+function getWarehouseLocations(filters) {
+  filters = filters || {};
+  return readObjects_(MAV.SHEETS.WAREHOUSE_LOCATIONS)
+    .filter(function(r) {
+      return (!filters.locationType || String(r['Location Type']) === String(filters.locationType)) &&
+             (!filters.zone         || String(r['Zone'])          === String(filters.zone)) &&
+             (!filters.bay          || String(r['Bay'])           === String(filters.bay)) &&
+             (!filters.activeOnly   || safeString_(r['Active'])   !== 'false');
+    })
+    .map(mapWarehouseLocationRow_)
+    .sort(function(a, b) { return a.fullPath.localeCompare(b.fullPath); });
 }
 
-// ── Assign to bin modal ───────────────────────────────────────────────────────
-export async function openAssignToBinModal(locationId, path) {
-  openModal('modal-assign-bin', `Assign to ${esc(path)}`, `
-    <div class="form-group">
-      <label>Barcode *</label>
-      <input type="text" id="fab-barcode" placeholder="Scan or type barcode" autofocus>
-    </div>
-    <div class="form-group" style="margin-top:10px">
-      <label>Notes</label>
-      <input type="text" id="fab-notes">
-    </div>`, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAssignToBin('${escAttr(locationId)}')">Assign</button>`);
+function getWarehouseLocationById(locationId) {
+  if (!locationId) return null;
+  const row = readObjects_(MAV.SHEETS.WAREHOUSE_LOCATIONS)
+    .find(function(r) { return String(r['Location ID']) === String(locationId); });
+  return row ? mapWarehouseLocationRow_(row) : null;
+}
 
-  window.__submitAssignToBin = async (locId) => {
-    const barcode = document.getElementById('fab-barcode')?.value.trim();
-    if (!barcode) { toast('Barcode required', 'warn'); return; }
-    showLoading('Assigning…'); closeModal();
+function getWarehouseLocationTree() {
+  const locations = getWarehouseLocations({ activeOnly: true });
+  const zones     = locations.filter(function(l) { return l.locationType === ENUMS.LOCATION_TYPE.ZONE; });
+
+  return zones.map(function(zone) {
+    const bays = locations
+      .filter(function(l) { return l.locationType === ENUMS.LOCATION_TYPE.BAY && l.parentId === zone.locationId; })
+      .map(function(bay) {
+        const shelves = locations
+          .filter(function(l) { return l.locationType === ENUMS.LOCATION_TYPE.SHELF && l.parentId === bay.locationId; })
+          .map(function(shelf) {
+            return Object.assign({}, shelf, {
+              bins: locations.filter(function(l) { return l.locationType === ENUMS.LOCATION_TYPE.BIN && l.parentId === shelf.locationId; })
+            });
+          });
+        return Object.assign({}, bay, { shelves: shelves });
+      });
+    return Object.assign({}, zone, { bays: bays });
+  });
+}
+
+function getWarehouseLocationMap_() {
+  const map = {};
+  getWarehouseLocations().forEach(function(l) { map[l.locationId] = l; });
+  return map;
+}
+
+function getLeafLocations() {
+  // Returns only the bottom-level locations (Bins if they exist, else Shelves, etc.)
+  const all     = getWarehouseLocations({ activeOnly: true });
+  const parents = new Set(all.map(function(l) { return l.parentId; }).filter(Boolean));
+  return all.filter(function(l) { return !parents.has(l.locationId); });
+}
+
+function deleteWarehouseLocation(locationId) {
+  requireValue_(locationId, 'locationId is required.');
+  // Check nothing is stored here
+  const barcodesHere = getBarcodesAtLocation(locationId);
+  if (barcodesHere.length) throw new Error('Cannot delete location — ' + barcodesHere.length + ' barcode(s) assigned here.');
+  deleteRowsByFirstColumnValue_(MAV.SHEETS.WAREHOUSE_LOCATIONS, locationId);
+  writeAuditLog_('WarehouseLocation', locationId, 'DELETE', '', '', '', 'Location deleted');
+  return { ok: true, locationId: locationId };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BARCODE LOCATION ASSIGNMENT
+// Assigns a barcode to a warehouse location and logs the movement.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function assignBarcodeLocation(barcode, locationId, notes) {
+  requireValue_(barcode,     'barcode is required.');
+  requireValue_(locationId,  'locationId is required.');
+
+  const bc       = getBarcodeByCode(barcode);
+  if (!bc) throw new Error('Barcode not found: ' + barcode);
+
+  const location = getWarehouseLocationById(locationId);
+  if (!location) throw new Error('Location not found: ' + locationId);
+
+  // Update the Barcodes sheet location fields
+  const sheet   = getSheet_(MAV.SHEETS.BARCODES);
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const rowIdx  = data.findIndex(function(r, i) { return i > 0 && String(r[0]) === String(barcode); });
+  if (rowIdx === -1) throw new Error('Barcode row not found: ' + barcode);
+
+  const locCol      = headers.indexOf('Location ID');
+  const pathCol     = headers.indexOf('Location Path');
+  const updatedCol  = headers.indexOf('Updated At');
+
+  if (locCol  !== -1) sheet.getRange(rowIdx + 1, locCol  + 1).setValue(locationId);
+  if (pathCol !== -1) sheet.getRange(rowIdx + 1, pathCol + 1).setValue(location.fullPath);
+  if (updatedCol !== -1) sheet.getRange(rowIdx + 1, updatedCol + 1).setValue(new Date().toISOString());
+
+  // Log in BarcodeLocations history sheet
+  const logSheet = getSheet_(MAV.SHEETS.BARCODE_LOCATIONS);
+  const logId    = cheapId_('BLG');
+  logSheet.appendRow([
+    logId,
+    barcode,
+    bc.productId,
+    locationId,
+    location.fullPath,
+    new Date().toISOString(),
+    currentUser_(),
+    safeString_(notes)
+  ]);
+
+  writeAuditLog_('Barcode', barcode, 'LOCATION_CHANGE', 'Location', bc.locationId || '', locationId, notes || 'Location assigned');
+  return { ok: true, barcode: barcode, locationId: locationId, fullPath: location.fullPath };
+}
+
+function assignBarcodeLocationBulk(assignments) {
+  // assignments = [{ barcode, locationId, notes }]
+  const results = [];
+  (assignments || []).forEach(function(a) {
     try {
-      const r = await rpc('assignBarcodeLocation', barcode, locId, document.getElementById('fab-notes')?.value || '');
-      toast(`${barcode} → ${r.fullPath}`, 'ok');
-      STATE.loadedPanes.delete('storage');
-      await loadStorage();
-    } catch(e) { toast(e.message, 'err'); }
-    finally { hideLoading(); }
+      results.push(assignBarcodeLocation(a.barcode, a.locationId, a.notes));
+    } catch(e) {
+      results.push({ ok: false, barcode: a.barcode, error: e.message });
+    }
+  });
+  return results;
+}
+
+function clearBarcodeLocation(barcode, notes) {
+  requireValue_(barcode, 'barcode is required.');
+  const bc = getBarcodeByCode(barcode);
+  if (!bc) throw new Error('Barcode not found: ' + barcode);
+
+  const sheet   = getSheet_(MAV.SHEETS.BARCODES);
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const rowIdx  = data.findIndex(function(r, i) { return i > 0 && String(r[0]) === String(barcode); });
+  if (rowIdx === -1) throw new Error('Barcode row not found: ' + barcode);
+
+  const locCol     = headers.indexOf('Location ID');
+  const pathCol    = headers.indexOf('Location Path');
+  const updatedCol = headers.indexOf('Updated At');
+
+  if (locCol  !== -1) sheet.getRange(rowIdx + 1, locCol  + 1).setValue('');
+  if (pathCol !== -1) sheet.getRange(rowIdx + 1, pathCol + 1).setValue('');
+  if (updatedCol !== -1) sheet.getRange(rowIdx + 1, updatedCol + 1).setValue(new Date().toISOString());
+
+  writeAuditLog_('Barcode', barcode, 'LOCATION_CLEAR', 'Location', bc.locationPath || '', '', notes || 'Location cleared');
+  return { ok: true, barcode: barcode };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUERIES
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getBarcodesAtLocation(locationId) {
+  if (!locationId) return [];
+  return readObjects_(MAV.SHEETS.BARCODES)
+    .filter(function(r) { return String(r['Location ID']) === String(locationId); })
+    .map(mapBarcodeRow_);
+}
+
+function getBarcodeLocationHistory(barcode) {
+  return readObjects_(MAV.SHEETS.BARCODE_LOCATIONS)
+    .filter(function(r) { return String(r['Barcode']) === String(barcode); })
+    .map(function(r) {
+      return {
+        logId:        safeString_(r['Log ID']),
+        barcode:      safeString_(r['Barcode']),
+        productId:    safeString_(r['Product ID']),
+        locationId:   safeString_(r['Location ID']),
+        locationPath: safeString_(r['Location Path']),
+        movedAt:      safeString_(r['Moved At']),
+        movedBy:      safeString_(r['Moved By']),
+        notes:        safeString_(r['Notes'])
+      };
+    })
+    .sort(function(a, b) { return new Date(b.movedAt || 0) - new Date(a.movedAt || 0); });
+}
+
+function getLocationOccupancy() {
+  const locations = getWarehouseLocations({ activeOnly: true });
+  const barcodes  = readObjects_(MAV.SHEETS.BARCODES);
+
+  const locMap = {};
+  barcodes.forEach(function(r) {
+    const lid = safeString_(r['Location ID']);
+    if (!lid) return;
+    if (!locMap[lid]) locMap[lid] = [];
+    locMap[lid].push(safeString_(r['Barcode']));
+  });
+
+  return locations.map(function(loc) {
+    const items = locMap[loc.locationId] || [];
+    return {
+      locationId:  loc.locationId,
+      fullPath:    loc.fullPath,
+      locationType:loc.locationType,
+      capacity:    loc.capacity,
+      count:       items.length,
+      utilPct:     loc.capacity > 0 ? round2_((items.length / loc.capacity) * 100) : null,
+      barcodes:    items
+    };
+  });
+}
+
+function getUnlocatedBarcodes() {
+  return readObjects_(MAV.SHEETS.BARCODES)
+    .filter(function(r) {
+      const status = safeString_(r['Status']);
+      const locId  = safeString_(r['Location ID']);
+      return !locId && status === 'Available';
+    })
+    .map(mapBarcodeRow_);
+}
+
+function getPickList(jobId) {
+  // Returns items for a job grouped by warehouse location — for prep packing
+  requireValue_(jobId, 'jobId is required.');
+  const job = getJobById(jobId);
+  if (!job) throw new Error('Job not found: ' + jobId);
+
+  const serialisedLines = (job.items || []).filter(function(i) { return i.stockMethod === ENUMS.STOCK_METHOD.SERIALISED; });
+  const bulkLines       = (job.items || []).filter(function(i) { return i.stockMethod === ENUMS.STOCK_METHOD.BULK && i.lineType !== ENUMS.LINE_TYPE.SERVICE; });
+
+  // Serialised: get available barcodes and their locations
+  const pickItems = [];
+
+  serialisedLines.forEach(function(line) {
+    const barcodes = getBarcodes(line.productId, ENUMS.BARCODE_STATUS.AVAILABLE).slice(0, line.qtyRequired);
+    barcodes.forEach(function(bc) {
+      pickItems.push({
+        lineId:       line.lineId,
+        productId:    line.productId,
+        sku:          line.sku,
+        name:         line.name,
+        barcode:      bc.barcode,
+        serialNumber: bc.serialNumber,
+        locationId:   bc.locationId   || '',
+        locationPath: bc.locationPath || 'Unlocated',
+        condition:    bc.condition
+      });
+    });
+  });
+
+  bulkLines.forEach(function(line) {
+    pickItems.push({
+      lineId:       line.lineId,
+      productId:    line.productId,
+      sku:          line.sku,
+      name:         line.name,
+      barcode:      '',
+      serialNumber: '',
+      locationId:   '',
+      locationPath: 'Bulk Stock',
+      qtyRequired:  line.qtyRequired,
+      isBulk:       true
+    });
+  });
+
+  // Group by location
+  const grouped = {};
+  pickItems.forEach(function(item) {
+    const key = item.locationPath;
+    if (!grouped[key]) grouped[key] = { locationPath: key, items: [] };
+    grouped[key].items.push(item);
+  });
+
+  return {
+    jobId:     jobId,
+    jobName:   job.jobName,
+    startDate: job.startDate || job.eventDate,
+    groups:    Object.values(grouped).sort(function(a, b) { return a.locationPath.localeCompare(b.locationPath); }),
+    totalItems:pickItems.length
   };
 }
 
-// ── Pick list ─────────────────────────────────────────────────────────────────
-export async function openPickList(jobId) {
-  showLoading('Building pick list…');
-  try {
-    const pick = await rpc('getPickList', jobId);
-    hideLoading();
+// After a job is returned, auto-return barcodes to their last known location
+function returnBarcodesToStorage(jobId) {
+  requireValue_(jobId, 'jobId is required.');
+  const history  = readObjects_(MAV.SHEETS.BARCODE_LOCATIONS);
+  const returned = [];
 
-    const groupHtml = (pick.groups || []).map(g => `
-      <div style="margin-bottom:16px">
-        <div class="section-title" style="margin-bottom:6px">
-          <span style="font-family:var(--mono);font-size:11px">${esc(g.locationPath)}</span>
-        </div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Item</th><th>SKU</th><th>Barcode</th><th>Serial</th><th>Condition</th><th>✓</th></tr></thead>
-          <tbody>${g.items.map(i => `<tr>
-            <td class="td-name">${esc(i.name)}</td>
-            <td class="td-id">${esc(i.sku)}</td>
-            <td class="td-id">${esc(i.barcode || (i.isBulk ? `Bulk ×${i.qtyRequired}` : ''))}</td>
-            <td class="td-id">${esc(i.serialNumber||'')}</td>
-            <td>${esc(i.condition||'')}</td>
-            <td><input type="checkbox" style="width:auto"></td>
-          </tr>`).join('')}</tbody>
-        </table></div>
-      </div>`).join('');
+  // Get all barcodes that were checked out to this job
+  const jobBarcodes = readObjects_(MAV.SHEETS.JOB_BARCODES)
+    .filter(function(r) { return String(r['Job ID']) === String(jobId) && String(r['Scan Type']) === 'RETURN'; })
+    .map(function(r) { return safeString_(r['Barcode']); });
 
-    openModal('modal-picklist', `Pick List — ${esc(pick.jobName || pick.jobId)}`, `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div class="page-subtitle">Start: ${fmtDate(pick.startDate)} · ${pick.totalItems} items</div>
-        <button class="btn btn-ghost btn-sm no-print" onclick="window.print()">🖨 Print</button>
-      </div>
-      ${groupHtml || emptyState('▦', 'No serialised items on this job')}
-    `, `<button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`, 'modal-lg');
-  } catch(e) { hideLoading(); toast(e.message, 'err'); }
+  jobBarcodes.forEach(function(barcode) {
+    // Find the last location this barcode was at before the job
+    const lastLoc = history
+      .filter(function(r) { return String(r['Barcode']) === String(barcode); })
+      .sort(function(a, b) { return new Date(b['Moved At'] || 0) - new Date(a['Moved At'] || 0); })[0];
+
+    if (lastLoc && safeString_(lastLoc['Location ID'])) {
+      try {
+        assignBarcodeLocation(barcode, safeString_(lastLoc['Location ID']), 'Auto-returned from job ' + jobId);
+        returned.push(barcode);
+      } catch(e) {
+        Logger.log('returnBarcodesToStorage: ' + barcode + ' — ' + e.message);
+      }
+    }
+  });
+
+  return { ok: true, jobId: jobId, returnedCount: returned.length, barcodes: returned };
 }
 
-export async function seedWarehouse() {
-  if (!confirm('Create default warehouse structure (Zones A, B, C with bays/shelves/bins)?')) return;
-  showLoading('Building warehouse…');
+// ─────────────────────────────────────────────────────────────────────────────
+// WAREHOUSE INITIALISATION — seed a standard warehouse structure
+// ─────────────────────────────────────────────────────────────────────────────
+
+function seedWarehouseLocations() {
+  const existing = readObjects_(MAV.SHEETS.WAREHOUSE_LOCATIONS);
+  if (existing.length) return { ok: true, message: 'Warehouse locations already exist.' };
+
+  const created = [];
+
+  function mk(payload) {
+    const r = saveWarehouseLocation(payload);
+    created.push(r.locationId);
+    return r.locationId;
+  }
+
+  // Zone A — Audio
+  const zA = mk({ zone: 'A', locationType: 'Zone', description: 'Audio Equipment', capacity: 0 });
+  const zAB1 = mk({ zone: 'A', bay: '1', locationType: 'Bay', parentId: zA, description: 'Microphones & Wireless', capacity: 0 });
+  const zAB1S1 = mk({ zone: 'A', bay: '1', shelf: '1', locationType: 'Shelf', parentId: zAB1, capacity: 20 });
+  mk({ zone: 'A', bay: '1', shelf: '1', bin: '1', locationType: 'Bin', parentId: zAB1S1, description: 'Wireless Systems', capacity: 6 });
+  mk({ zone: 'A', bay: '1', shelf: '1', bin: '2', locationType: 'Bin', parentId: zAB1S1, description: 'Handheld Mics', capacity: 12 });
+  const zAB1S2 = mk({ zone: 'A', bay: '1', shelf: '2', locationType: 'Shelf', parentId: zAB1, capacity: 20 });
+  mk({ zone: 'A', bay: '1', shelf: '2', bin: '1', locationType: 'Bin', parentId: zAB1S2, description: 'DI Boxes', capacity: 12 });
+  mk({ zone: 'A', bay: '1', shelf: '2', bin: '2', locationType: 'Bin', parentId: zAB1S2, description: 'Accessories / Cables', capacity: 20 });
+
+  const zAB2 = mk({ zone: 'A', bay: '2', locationType: 'Bay', parentId: zA, description: 'PA & Mixers', capacity: 0 });
+  const zAB2S1 = mk({ zone: 'A', bay: '2', shelf: '1', locationType: 'Shelf', parentId: zAB2, capacity: 8 });
+  mk({ zone: 'A', bay: '2', shelf: '1', bin: '1', locationType: 'Bin', parentId: zAB2S1, description: 'PA Speakers', capacity: 8 });
+  const zAB2S2 = mk({ zone: 'A', bay: '2', shelf: '2', locationType: 'Shelf', parentId: zAB2, capacity: 4 });
+  mk({ zone: 'A', bay: '2', shelf: '2', bin: '1', locationType: 'Bin', parentId: zAB2S2, description: 'Subwoofers', capacity: 4 });
+  mk({ zone: 'A', bay: '2', shelf: '2', bin: '2', locationType: 'Bin', parentId: zAB2S2, description: 'Digital Mixers', capacity: 4 });
+
+  // Zone B — Lighting
+  const zB = mk({ zone: 'B', locationType: 'Zone', description: 'Lighting Equipment', capacity: 0 });
+  const zBB1 = mk({ zone: 'B', bay: '1', locationType: 'Bay', parentId: zB, description: 'Moving Heads', capacity: 0 });
+  const zBB1S1 = mk({ zone: 'B', bay: '1', shelf: '1', locationType: 'Shelf', parentId: zBB1, capacity: 8 });
+  mk({ zone: 'B', bay: '1', shelf: '1', bin: '1', locationType: 'Bin', parentId: zBB1S1, description: 'Robe BMFL', capacity: 4 });
+  mk({ zone: 'B', bay: '1', shelf: '1', bin: '2', locationType: 'Bin', parentId: zBB1S1, description: 'Chauvet Wash', capacity: 8 });
+  const zBB1S2 = mk({ zone: 'B', bay: '1', shelf: '2', locationType: 'Shelf', parentId: zBB1, capacity: 12 });
+  mk({ zone: 'B', bay: '1', shelf: '2', bin: '1', locationType: 'Bin', parentId: zBB1S2, description: 'LED PAR Cans', capacity: 20 });
+  mk({ zone: 'B', bay: '1', shelf: '2', bin: '2', locationType: 'Bin', parentId: zBB1S2, description: 'Hazers / Atmospherics', capacity: 4 });
+  const zBB2 = mk({ zone: 'B', bay: '2', locationType: 'Bay', parentId: zB, description: 'Control & Power', capacity: 0 });
+  const zBB2S1 = mk({ zone: 'B', bay: '2', shelf: '1', locationType: 'Shelf', parentId: zBB2, capacity: 6 });
+  mk({ zone: 'B', bay: '2', shelf: '1', bin: '1', locationType: 'Bin', parentId: zBB2S1, description: 'DMX Consoles', capacity: 2 });
+  mk({ zone: 'B', bay: '2', shelf: '1', bin: '2', locationType: 'Bin', parentId: zBB2S1, description: 'DMX Cables / Splitters', capacity: 20 });
+
+  // Zone C — Rigging & Staging
+  const zC = mk({ zone: 'C', locationType: 'Zone', description: 'Rigging, Truss & Staging', capacity: 0 });
+  const zCB1 = mk({ zone: 'C', bay: '1', locationType: 'Bay', parentId: zC, description: 'Truss', capacity: 0 });
+  const zCB1S1 = mk({ zone: 'C', bay: '1', shelf: '1', locationType: 'Shelf', parentId: zCB1, capacity: 40 });
+  mk({ zone: 'C', bay: '1', shelf: '1', bin: '1', locationType: 'Bin', parentId: zCB1S1, description: 'F34 2m Sections', capacity: 20 });
+  mk({ zone: 'C', bay: '1', shelf: '1', bin: '2', locationType: 'Bin', parentId: zCB1S1, description: 'Corner Blocks', capacity: 20 });
+  const zCB2 = mk({ zone: 'C', bay: '2', locationType: 'Bay', parentId: zC, description: 'Stage Decks & Stands', capacity: 0 });
+  const zCB2S1 = mk({ zone: 'C', bay: '2', shelf: '1', locationType: 'Shelf', parentId: zCB2, capacity: 20 });
+  mk({ zone: 'C', bay: '2', shelf: '1', bin: '1', locationType: 'Bin', parentId: zCB2S1, description: 'Stage Deck Panels', capacity: 20 });
+  mk({ zone: 'C', bay: '2', shelf: '1', bin: '2', locationType: 'Bin', parentId: zCB2S1, description: 'Speaker Stands', capacity: 12 });
+
+  return { ok: true, message: 'Warehouse seeded: Zones A (Audio), B (Lighting), C (Rigging). ' + created.length + ' locations created.' };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAPPER
+// ─────────────────────────────────────────────────────────────────────────────
+
+function mapWarehouseLocationRow_(r) {
+  return {
+    locationId:     safeString_(r['Location ID']),
+    locationType:   safeString_(r['Location Type']),
+    parentId:       safeString_(r['Parent ID']),
+    zone:           safeString_(r['Zone']),
+    bay:            safeString_(r['Bay']),
+    shelf:          safeString_(r['Shelf']),
+    bin:            safeString_(r['Bin']),
+    fullPath:       safeString_(r['Full Path']),
+    description:    safeString_(r['Description']),
+    capacity:       toNumber_(r['Capacity'], 0),
+    active:         safeString_(r['Active']) !== 'false',
+    createdAt:      safeString_(r['Created At']),
+    updatedAt:      safeString_(r['Updated At']),
+    layoutX:        toNumber_(r['Layout X'], 0),
+    layoutY:        toNumber_(r['Layout Y'], 0),
+    layoutW:        toNumber_(r['Layout W'], 1),
+    layoutD:        toNumber_(r['Layout D'], 1),
+    layoutH:        toNumber_(r['Layout H'], 2.4),
+    layoutShelves:  toNumber_(r['Layout Shelves'], 4),
+    layoutColor:    safeString_(r['Layout Color'] || '#4db8ff'),
+    layoutRotation: toNumber_(r['Layout Rotation'], 0),
+  };
+}
+
+function buildLocationPath_(payload) {
+  const parts = [safeString_(payload.zone)];
+  if (payload.bay)   parts.push('Bay ' + safeString_(payload.bay));
+  if (payload.shelf) parts.push('Shelf ' + safeString_(payload.shelf));
+  if (payload.bin)   parts.push('Bin ' + safeString_(payload.bin));
+  return parts.join(' / ');
+}
+
+// ── Warehouse designer ────────────────────────────────────────────────────────
+
+// Save entire floor plan layout in one batch call
+function saveWarehouseLayout(items) {
+  items = items || [];
+  var results = [];
+  items.forEach(function(item) {
+    try {
+      var r = saveWarehouseLocation(item);
+      results.push(r);
+    } catch(e) {
+      results.push({ ok: false, error: e.message, item: item.locationId });
+    }
+  });
+  bustSheetCache_(MAV.SHEETS.WAREHOUSE_LOCATIONS);
+  return { ok: true, saved: results.filter(function(r){return r.ok;}).length, results: results };
+}
+
+// Get warehouse config (dimensions etc) from settings
+function getWarehouseConfig() {
+  var settings = getSettings();
+  return {
+    floorW:  parseFloat(settings.warehouseFloorW)  || 20,
+    floorD:  parseFloat(settings.warehouseFloorD)  || 15,
+    floorH:  parseFloat(settings.warehouseFloorH)  || 6,
+    gridSize: parseFloat(settings.warehouseGrid)   || 0.5,
+    name:    settings.warehouseName || 'Main Warehouse',
+  };
+}
+
+function saveWarehouseConfig(config) {
+  return saveSettings({
+    warehouseFloorW: String(config.floorW  || 20),
+    warehouseFloorD: String(config.floorD  || 15),
+    warehouseFloorH: String(config.floorH  || 6),
+    warehouseGrid:   String(config.gridSize|| 0.5),
+    warehouseName:   String(config.name    || 'Main Warehouse'),
+  });
+}
+
+// ── Get barcodes assigned to a specific location ──────────────────────────────
+function getBarcodesByLocation(locationId) {
+  if (!locationId) return [];
+  // Try BARCODE_LOCATIONS sheet first
   try {
-    const r = await rpc('seedWarehouseLocations');
-    toast(r.message, 'ok');
-    STATE.loadedPanes.delete('storage');
-    await loadStorage();
-  } catch(e) { toast(e.message, 'err'); }
-  finally { hideLoading(); }
+    var locSheet = getSheet_(MAV.SHEETS.BARCODE_LOCATIONS || 'BarcodeLocations');
+    var locData  = locSheet.getDataRange().getValues();
+    var barcodes = [];
+    for (var i = 1; i < locData.length; i++) {
+      var row = locData[i];
+      var bc  = String(row[0] || '');
+      var loc = String(row[1] || '');
+      if (!bc) continue;
+      if (loc === locationId || String(row[2] || '') === locationId) {
+        barcodes.push(bc);
+      }
+    }
+    // Look up product info for each barcode
+    return barcodes.map(function(bc) {
+      var info = getBarcodeByCode(bc);
+      return {
+        barcode:     bc,
+        productId:   info ? info.productId : '',
+        productName: info ? info.productName : '',
+        serialNumber:info ? info.serialNumber : '',
+        condition:   info ? info.condition : '',
+      };
+    });
+  } catch(e) {
+    // Fallback: search barcodes sheet for matching location
+    var barcodeSheet = getSheet_(MAV.SHEETS.BARCODES);
+    var data = barcodeSheet.getDataRange().getValues();
+    var results = [];
+    for (var j = 1; j < data.length; j++) {
+      var row = data[j];
+      if (String(row[4] || '') === locationId || String(row[3] || '') === locationId) {
+        results.push({
+          barcode:     String(row[0] || ''),
+          productId:   String(row[1] || ''),
+          productName: String(row[2] || ''),
+          serialNumber:String(row[3] || ''),
+          condition:   String(row[5] || ''),
+        });
+      }
+    }
+    return results;
+  }
 }
