@@ -37,7 +37,7 @@ export async function loadCalendar() {
   } finally {
     hideLoading();
   }
-  requestAnimationFrame(() => renderCalendar());
+  requestAnimationFrame(() => { renderCalendar(); setupPaneEvents(); });
 }
 
 export function calPrev() {
@@ -316,6 +316,7 @@ function renderWeek() {
     </div>`;
   }
   el.innerHTML = html;
+  setupPaneEvents();
 }
 
 // Override nav functions to support week view
@@ -348,7 +349,7 @@ export function calTodayWeekAware() {
 // Called after render. Listens on container divs so rendered cards don't need
 // individual onclick handlers — they use data-action + data-id instead.
 function setupPaneEvents() {
-  const containerIds = ['cal-grid', 'cal-week-grid'];
+  const containerIds = ['calendar-grid'];
   containerIds.forEach(cid => {
     const container = document.getElementById(cid);
     if (!container || container._delegated) return;
