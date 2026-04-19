@@ -1455,7 +1455,9 @@ h3.section-title {
   align-items: center;
   justify-content: center;
   color: var(--text3);
-  font-size: 22px;
+  font-size: 20px;
+  background: var(--surface2);
+  border-radius: 6px;
 }
 
 /* ── Card body ───────────────────────────────────────── */
@@ -1619,4 +1621,42 @@ h3.section-title {
 @media (max-width: 768px) {
   .inv-kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
   .inv-card-top { padding: 10px 10px 8px; }
+}
+
+/* ── Inventory toolbar: search on top, filters scrollable below ── */
+.inv-toolbar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.inv-search-box {
+  width: 100%;
+  max-width: 100%;
+}
+.inv-filters {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+.inv-filters::-webkit-scrollbar { display: none; }
+.inv-filters .filter-select {
+  flex: 0 0 auto;
+  min-width: 120px;
+  max-width: 160px;
+}
+.inv-filters .btn { flex-shrink: 0; }
+
+/* ── Action bar: always visible (not hover-only) ─────────────────
+   Hover-only was hiding actions completely for most users.
+   Show always, but dimmed — full opacity on card hover/focus.   */
+.inv-card-actions {
+  opacity: 0.55;
+  pointer-events: auto;
+}
+.inv-card:hover .inv-card-actions,
+.inv-card:focus-within .inv-card-actions {
+  opacity: 1;
 }

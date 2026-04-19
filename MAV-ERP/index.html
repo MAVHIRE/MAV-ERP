@@ -384,33 +384,35 @@
       </div>
     </div>
     <div id="inv-snapshot"></div>
-    <div class="toolbar">
-      <div class="search-box">
+    <div class="toolbar inv-toolbar">
+      <div class="search-box inv-search-box">
         <span class="search-icon">⌕</span>
         <input type="text" id="inv-search" placeholder="Search name, SKU, brand, tags…" oninput="window.__filterProducts()">
       </div>
-      <select class="filter-select" id="inv-category-filter" onchange="window.__filterProducts()">
-        <option value="">All Categories</option>
-      </select>
-      <select class="filter-select" id="inv-group-filter" onchange="window.__filterProducts()">
-        <option value="">All Groups</option>
-      </select>
-      <select class="filter-select" id="inv-brand-filter" onchange="window.__filterProducts()">
-        <option value="">All Brands</option>
-      </select>
-      <select class="filter-select" id="inv-method-filter" onchange="window.__filterProducts()">
-        <option value="">All Methods</option>
-        <option value="Bulk">Bulk</option>
-        <option value="Serialised">Serialised</option>
-      </select>
-      <select class="filter-select" id="inv-avail-filter" onchange="window.__filterProducts()">
-        <option value="">Any Status</option>
-        <option value="available">Has Stock</option>
-        <option value="low">Low Stock</option>
-        <option value="out">Items Out</option>
-        <option value="inactive">Inactive</option>
-      </select>
-      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="inventory" aria-label="Reload inventory">↺</button>
+      <div class="inv-filters">
+        <select class="filter-select" id="inv-category-filter" onchange="window.__filterProducts()">
+          <option value="">All Categories</option>
+        </select>
+        <select class="filter-select" id="inv-group-filter" onchange="window.__filterProducts()">
+          <option value="">All Groups</option>
+        </select>
+        <select class="filter-select" id="inv-brand-filter" onchange="window.__filterProducts()">
+          <option value="">All Brands</option>
+        </select>
+        <select class="filter-select" id="inv-method-filter" onchange="window.__filterProducts()">
+          <option value="">All Methods</option>
+          <option value="Bulk">Bulk</option>
+          <option value="Serialised">Serialised</option>
+        </select>
+        <select class="filter-select" id="inv-avail-filter" onchange="window.__filterProducts()">
+          <option value="">Any Status</option>
+          <option value="available">Has Stock</option>
+          <option value="low">Low Stock</option>
+          <option value="out">Items Out</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="inventory" aria-label="Reload inventory">↺</button>
+      </div>
     </div>
     <div id="inv-list"></div>
     </div><!-- /pane-inner -->

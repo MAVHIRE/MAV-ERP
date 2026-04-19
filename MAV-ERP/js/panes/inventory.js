@@ -165,10 +165,12 @@ function renderProducts(products) {
 function renderGrid(products) {
   const el = document.getElementById('inv-list');
   if (!el) return;
-  if (!products.length) { el.innerHTML = emptyState('▦', 'No products match filters'); return; }
+  // Filter out any products with no name (data integrity guard)
+  const valid = products.filter(p => p.name && p.productId);
+  if (!valid.length) { el.innerHTML = emptyState('▦', 'No products match filters'); return; }
 
   el.className = 'inv-grid';
-  el.innerHTML = products.map(p => productCard(p)).join('');
+  el.innerHTML = valid.map(p => productCard(p)).join('');
 }
 
 function productCard(p) {
@@ -237,11 +239,12 @@ function productCard(p) {
 function renderTable(products) {
   const el = document.getElementById('inv-list');
   if (!el) return;
-  if (!products.length) { el.innerHTML = emptyState('▦', 'No products match filters'); return; }
+  const valid = products.filter(p => p.name && p.productId);
+  if (!valid.length) { el.innerHTML = emptyState('▦', 'No products match filters'); return; }
 
   el.className = 'inv-table-view';
 
-  const sorted = [...products].sort((a, b) => {
+  const sorted = [...valid].sort((a, b) => {
     const av = a[_sortField] ?? '';
     const bv = b[_sortField] ?? '';
     if (typeof av === 'number') return (av - bv) * _sortDir;
