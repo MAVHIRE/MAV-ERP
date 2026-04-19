@@ -42,26 +42,26 @@ function renderTree(tree, occupancy) {
         <div style="font-family:var(--head);font-weight:700;font-size:16px;letter-spacing:.04em">
           Zone ${esc(zone.zone)} <span style="color:var(--text3);font-size:13px;font-family:var(--body)">${esc(zone.description||'')}</span>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('${escAttr(zone.locationId)}','Bay','${escAttr(zone.zone)}')">+ Bay</button>
+        <button class="btn btn-ghost btn-sm" data-action="addLocationModal" data-id="${escAttr(zone.locationId)}" data-loctype="Bay" data-zone="${escAttr(zone.zone)}">+ Bay</button>
       </div>
       ${(zone.bays||[]).map(bay => `
         <div style="margin-left:16px;margin-bottom:8px;border-left:2px solid var(--border);padding-left:12px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <div style="font-weight:600;color:var(--text2)">Bay ${esc(bay.bay)} ${bay.description ? `<span style="color:var(--text3);font-weight:400">· ${esc(bay.description)}</span>` : ''}</div>
-            <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('${escAttr(bay.locationId)}','Shelf','${escAttr(zone.zone)}','${escAttr(bay.bay)}')">+ Shelf</button>
+            <button class="btn btn-ghost btn-sm" data-action="addLocationModal" data-id="${escAttr(bay.locationId)}" data-loctype="Shelf" data-zone="${escAttr(zone.zone)}" data-bay="${escAttr(bay.bay)}">+ Shelf</button>
           </div>
           ${(bay.shelves||[]).map(shelf => `
             <div style="margin-left:16px;margin-bottom:6px;border-left:2px solid var(--border2);padding-left:12px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
                 <div style="color:var(--text2);font-size:13px">Shelf ${esc(shelf.shelf)} ${shelf.description ? `<span style="color:var(--text3)">· ${esc(shelf.description)}</span>` : ''}</div>
-                <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('${escAttr(shelf.locationId)}','Bin','${escAttr(zone.zone)}','${escAttr(bay.bay)}','${escAttr(shelf.shelf)}')">+ Bin</button>
+                <button class="btn btn-ghost btn-sm" data-action="addLocationModal" data-id="${escAttr(shelf.locationId)}" data-loctype="Bin" data-zone="${escAttr(zone.zone)}" data-bay="${escAttr(bay.bay)}" data-shelf="${escAttr(shelf.shelf)}">+ Bin</button>
               </div>
               <div style="display:flex;flex-wrap:wrap;gap:6px;margin-left:8px">
                 ${(shelf.bins||[]).map(bin => {
                   const occ = occMap[bin.locationId] || {};
                   const pct = occ.utilPct || 0;
                   const col = pct > 90 ? 'var(--danger)' : pct > 60 ? 'var(--warn)' : 'var(--ok)';
-                  return `<div class="card-sm" style="min-width:140px;cursor:pointer" onclick="window.__viewBinContents('${escAttr(bin.locationId)}','${escAttr(bin.fullPath)}')">
+                  return `<div class="card-sm" style="min-width:140px;cursor:pointer" data-action="viewBinContents" data-id="${escAttr(bin.locationId)}" data-id2="${escAttr(bin.fullPath)}">
                     <div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Bin ${esc(bin.bin)}</div>
                     ${bin.description ? `<div style="font-size:11px;color:var(--text2)">${esc(bin.description)}</div>` : ''}
                     <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
@@ -95,11 +95,11 @@ export async function viewBinContents(locationId, path) {
             <td class="td-id">${esc(b.serialNumber||'—')}</td>
             <td>${statusBadge(b.status)}</td>
             <td>${esc(b.condition||'—')}</td>
-            <td><button class="btn btn-ghost btn-sm" onclick="window.__moveBarcodeModal('${escAttr(b.barcode)}')">Move</button></td>
+            <td><button class="btn btn-ghost btn-sm" data-action="moveBarcodeModal" data-id="${escAttr(b.barcode)}">Move</button></td>
           </tr>`).join('')}</tbody>
         </table></div>`}
       <div style="margin-top:12px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__assignToBinModal('${escAttr(locationId)}','${escAttr(path)}')">+ Assign Barcode Here</button>
+        <button class="btn btn-ghost btn-sm" data-action="assignToBinModal" data-id="${escAttr(locationId)}" data-id2="${escAttr(path)}">+ Assign Barcode Here</button>
       </div>
     `, `<button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`);
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
@@ -117,7 +117,7 @@ function renderUnlocated(barcodes) {
       <td>${esc(b.productName || b.productId)}</td>
       <td class="td-id">${esc(b.serialNumber||'—')}</td>
       <td>${statusBadge(b.status)}</td>
-      <td><button class="btn btn-primary btn-sm" onclick="window.__moveBarcodeModal('${escAttr(b.barcode)}')">Assign Location</button></td>
+      <td><button class="btn btn-primary btn-sm" data-action="moveBarcodeModal" data-id="${escAttr(b.barcode)}">Assign Location</button></td>
     </tr>`).join('')}</tbody></table></div>`;
 }
 
@@ -148,7 +148,7 @@ export function openAddLocationModal(parentId, type, zone, bay, shelf) {
       <div class="form-group"><label>Capacity (items)</label><input type="number" id="fl-capacity" value="0" min="0"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAddLocation('${escAttr(parentId)}','${escAttr(type)}')">Create ${type}</button>`);
+    <button class="btn btn-primary btn-sm" data-action="submitAddLocation" data-id="${escAttr(parentId)}" data-id2="${escAttr(type)}">Create ${type}</button>`);
 
   window.__submitAddLocation = async (pId, locType) => {
     showLoading('Creating…'); closeModal();
@@ -190,7 +190,7 @@ export async function openMoveBarcodeModal(barcode) {
         <div class="form-group span-2"><label>Notes</label><input type="text" id="fm-notes" placeholder="e.g. Post-return check"></div>
       </div>`, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__submitMoveBarcode('${escAttr(barcode)}')">Assign</button>`);
+      <button class="btn btn-primary btn-sm" data-action="submitMoveBarcode" data-id="${escAttr(barcode)}">Assign</button>`);
 
     window.__submitMoveBarcode = async (bc) => {
       const locId = document.getElementById('fm-location')?.value;
@@ -219,7 +219,7 @@ export async function openAssignToBinModal(locationId, path) {
       <input type="text" id="fab-notes">
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAssignToBin('${escAttr(locationId)}')">Assign</button>`);
+    <button class="btn btn-primary btn-sm" data-action="submitAssignToBin" data-id="${escAttr(locationId)}">Assign</button>`);
 
   window.__submitAssignToBin = async (locId) => {
     const barcode = document.getElementById('fab-barcode')?.value.trim();
@@ -280,4 +280,30 @@ export async function seedWarehouse() {
     await loadStorage();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['storage-list', 'storage-tree'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'addLocationModal': window.__addLocationModal(id, el.dataset.loctype||'Bay', el.dataset.zone||''); break;
+        case 'assignToBinModal': window.__assignToBinModal(id, el.dataset.path||''); break;
+        case 'moveBarcodeModal': window.__moveBarcodeModal(id); break;
+        case 'viewBinContents': window.__viewBinContents(id, el.dataset.path||''); break;
+        default: break;
+      }
+    });
+  });
 }

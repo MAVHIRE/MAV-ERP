@@ -37,7 +37,7 @@ function render(bundles) {
     const items   = b.items || [];
     const preview = items.slice(0, 4).map(i => esc(i.name)).join(', ');
     const more    = items.length > 4 ? ` +${items.length - 4} more` : '';
-    return `<div class="bundle-card" onclick="window.__openBundleDetail('${escAttr(b.bundleId)}')">
+    return `<div class="bundle-card" data-action="openBundleDetail" data-id="${escAttr(b.bundleId)}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
           <div class="bundle-name">${esc(b.bundleName)}</div>
@@ -98,7 +98,7 @@ function showBundleModal(b) {
       <tbody>${itemRows || '<tr><td colspan="6" style="color:var(--text3);padding:16px">No items</td></tr>'}</tbody></table>
     </div>
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__editBundle('${escAttr(b.bundleId)}');window.__closeModal()">Edit</button>
+    <button class="btn btn-ghost btn-sm" data-action="editBundle" data-id="${escAttr(b.bundleId)}";window.__closeModal()">Edit</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
 }
@@ -311,9 +311,9 @@ export async function loadAccessories() {
               <span style="font-size:12px">${esc(l.accessoryName)}</span>
               <span class="td-id">×${l.defaultQuantity}</span>
               ${l.optional ? '<span class="badge badge-info" style="font-size:9px">optional</span>' : ''}
-              <button class="line-item-remove" style="font-size:12px" onclick="window.__deleteAccessoryLink('${escAttr(l.linkId)}','${escAttr(p.productId)}')">×</button>
+              <button class="line-item-remove" style="font-size:12px" data-action="deleteAccessoryLink" data-id="${escAttr(l.linkId)}" data-id2="${escAttr(p.productId)}">×</button>
             </div>`).join('')}
-          <button class="btn btn-ghost btn-sm" onclick="window.__addAccessoryModal('${escAttr(p.productId)}','${escAttr(p.name)}')">+ Add</button>
+          <button class="btn btn-ghost btn-sm" data-action="addAccessoryModal" data-id="${escAttr(p.productId)}" data-id2="${escAttr(p.name)}">+ Add</button>
         </div>
       </div>`).join('');
   } catch(e) { toast('Accessories failed: ' + e.message, 'err'); }
@@ -332,7 +332,7 @@ export function openAddAccessoryModal(parentProductId, parentName) {
       <div class="form-group"><label>Optional?</label><input type="checkbox" id="fa-optional" style="width:auto;margin-top:8px"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAddAccessory('${escAttr(parentProductId)}')">Add Accessory</button>`);
+    <button class="btn btn-primary btn-sm" data-action="submitAddAccessory" data-id="${escAttr(parentProductId)}">Add Accessory</button>`);
 
   window.__submitAddAccessory = async (parentId) => {
     const accessoryProductId = document.getElementById('fa-product')?.value;
@@ -359,4 +359,30 @@ export async function deleteAccessoryLink(linkId) {
     await loadAccessories();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['bundles-list', 'accessories-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'addAccessoryModal': window.__addAccessoryModal(id); break;
+        case 'deleteAccessoryLink': window.__deleteAccessoryLink(id, el.dataset.id2||''); break;
+        case 'editBundle': window.__editBundle(id); break;
+        case 'openBundleDetail': window.__openBundleDetail(id); break;
+        default: break;
+      }
+    });
+  });
 }

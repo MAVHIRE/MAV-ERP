@@ -42,7 +42,7 @@ function render(orders) {
       <th>Order Date</th><th>Expected</th>
       <th class="right">Total</th><th>Actions</th>
     </tr></thead>
-    <tbody>${orders.map(p => `<tr style="cursor:pointer" onclick="window.__openPODetail('${escAttr(p.poId)}')">
+    <tbody>${orders.map(p => `<tr style="cursor:pointer" data-action="openPODetail" data-id="${escAttr(p.poId)}">
       <td class="td-id">${esc(p.poId)}</td>
       <td class="td-name">${esc(p.supplierName||'—')}</td>
       <td>${statusBadge(p.status)}</td>
@@ -50,10 +50,10 @@ function render(orders) {
       <td>${fmtDate(p.expectedDate)}</td>
       <td class="td-num" style="font-weight:600">${fmtCurDec(p.totalValue)}</td>
       <td onclick="event.stopPropagation()" style="display:flex;gap:4px">
-        ${p.status === 'Draft' ? `<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${escAttr(p.poId)}','Ordered')">Send Order</button>` : ''}
-        ${p.status === 'Ordered' ? `<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${escAttr(p.poId)}','Received')">Mark Received</button>` : ''}
-        ${!['Received','Cancelled'].includes(p.status) ? `<button class="btn btn-ghost btn-sm" onclick="window.__editPO('${escAttr(p.poId)}')">Edit</button>` : ''}
-        ${p.status === 'Draft' ? `<button class="btn btn-danger btn-sm" onclick="window.__deletePO('${escAttr(p.poId)}')">✕</button>` : ''}
+        ${p.status === 'Draft' ? `<button class="btn btn-primary btn-sm" data-action="updatePOStatus" data-id="${escAttr(p.poId)}" data-status="Ordered">Send Order</button>` : ''}
+        ${p.status === 'Ordered' ? `<button class="btn btn-primary btn-sm" data-action="updatePOStatus" data-id="${escAttr(p.poId)}" data-status="Received">Mark Received</button>` : ''}
+        ${!['Received','Cancelled'].includes(p.status) ? `<button class="btn btn-ghost btn-sm" data-action="editPO" data-id="${escAttr(p.poId)}">Edit</button>` : ''}
+        ${p.status === 'Draft' ? `<button class="btn btn-danger btn-sm" data-action="deletePO" data-id="${escAttr(p.poId)}">✕</button>` : ''}
       </td>
     </tr>`).join('')}
     </tbody></table></div>`;
@@ -129,10 +129,10 @@ function showPOModal(po) {
         <span style="font-size:12px;color:var(--text3)">Delivery date</span>
       </div>` : ''}
     `, `
-    ${!['Received','Cancelled'].includes(po.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__editPO('${escAttr(po.poId)}')">✏ Edit</button>`:''}
-    ${po.status==='Draft'?`<button class="btn btn-primary btn-sm" onclick="window.__updatePOStatus('${escAttr(po.poId)}','Ordered')">📤 Send Order</button>`:''}
-    ${canReceive?`<button class="btn btn-primary btn-sm" onclick="window.__receivePOItems('${escAttr(po.poId)}')">📦 Receive Items</button>`:''}
-    ${po.status!=='Cancelled'&&po.status!=='Received'?`<button class="btn btn-danger btn-sm" onclick="window.__updatePOStatus('${escAttr(po.poId)}','Cancelled')">Cancel PO</button>`:''}
+    ${!['Received','Cancelled'].includes(po.status)?`<button class="btn btn-ghost btn-sm" data-action="editPO" data-id="${escAttr(po.poId)}">✏ Edit</button>`:''}
+    ${po.status==='Draft'?`<button class="btn btn-primary btn-sm" data-action="updatePOStatus" data-id="${escAttr(po.poId)}" data-status="Ordered">📤 Send Order</button>`:''}
+    ${canReceive?`<button class="btn btn-primary btn-sm" data-action="receivePOItems" data-id="${escAttr(po.poId)}">📦 Receive Items</button>`:''}
+    ${po.status!=='Cancelled'&&po.status!=='Received'?`<button class="btn btn-danger btn-sm" data-action="updatePOStatus" data-id="${escAttr(po.poId)}" data-status="Cancelled">Cancel PO</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`
   );
 
@@ -193,7 +193,7 @@ function openPOForm(existing) {
     </div>
     <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="window.__addPOItem()">+ Add Item</button>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitPO('${escAttr(po.poId||'')}')">
+    <button class="btn btn-primary btn-sm" data-action="submitPO" data-id="${escAttr(po.poId||'')}">
       ${isEdit ? 'Save Changes' : 'Create PO'}</button>`
   );
 
@@ -293,4 +293,32 @@ export function exportPOsCsv() {
     'Notes':         po.notes || '',
   }));
   exportCsv(`MAV_PurchaseOrders_${new Date().toISOString().substring(0,10)}.csv`, rows);
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['po-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'deletePO': window.__deletePO(id); break;
+        case 'editPO': window.__editPO(id); break;
+        case 'openPODetail': window.__openPODetail(id); break;
+        case 'receivePOItems': window.__receivePOItems(id); break;
+        case 'submitPO': window.__submitPO(id); break;
+        case 'updatePOStatus': window.__updatePOStatus(id, el.dataset.status||''); break;
+        default: break;
+      }
+    });
+  });
 }

@@ -38,7 +38,7 @@ import { loadProducts, filterProducts, openProductDetail,
          openLogMaintenanceForProduct, openReturnConditionModal,
          editProduct, openStockAdjustModal, openBarcodeLabelModal,
          ensureProductsLoaded, ensureServicesLoaded, openRateCards,
-         exportInventoryCsv }
+         exportInventoryCsv, setInventoryView }
   from './js/panes/inventory.js';
 
 import { loadClients, filterClients, openNewClientModal, openClientHistory,
@@ -155,7 +155,6 @@ async function init() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
       .then(reg => {
-        console.log('[SW] Registered, scope:', reg.scope);
         // When user hits R (refreshAll), tell SW to re-cache
         window.__clearSwCache = () => reg.active?.postMessage('CLEAR_CACHE');
       })
@@ -164,6 +163,8 @@ async function init() {
 
   if (!GAS_URL) { showGasModal(); return; }
   setupTabs();
+  setupDelegation();
+  setupTabKeyNav();
   exposeGlobals();
   await bootstrap();
   // Handle ?pane= deep links (PWA shortcuts)
@@ -172,7 +173,7 @@ async function init() {
 }
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  setTimeout(init, 0);
+  requestAnimationFrame(init);
 } else {
   window.addEventListener('load', init);
 }
@@ -299,8 +300,13 @@ const PANE_LABELS = {
 
 function switchPane(paneName) {
   STATE.activePane = paneName;
-  document.querySelectorAll('.nav-item[data-pane]').forEach(t =>
-    t.classList.toggle('active', t.dataset.pane === paneName));
+  document.querySelectorAll('.nav-item[data-pane]').forEach(t => {
+    const isActive = t.dataset.pane === paneName;
+    t.classList.toggle('active', isActive);
+    // Maintain aria-current for accessibility
+    if (isActive) t.setAttribute('aria-current', 'page');
+    else          t.removeAttribute('aria-current');
+  });
   document.querySelectorAll('.pane').forEach(p =>
     p.classList.toggle('active', p.id === 'pane-' + paneName));
   const bc = document.getElementById('topbar-breadcrumb');
@@ -311,7 +317,7 @@ function switchPane(paneName) {
     const isLight = document.documentElement.classList.contains('light');
     tl.textContent = isLight ? 'Dark Mode' : 'Light Mode';
   }
-  setTimeout(() => loadPane(paneName), 0);
+  requestAnimationFrame(() => loadPane(paneName));
 }
 
 async function loadPane(name) {
@@ -387,7 +393,7 @@ function showGasModal() {
     if (token !== getAuthToken()) setAuthToken(token);
     setGasUrl(url);
   };
-  setTimeout(() => document.getElementById('gas-url-input')?.focus(), 50);
+  requestAnimationFrame(() => document.getElementById('gas-url-input')?.focus());
 }
 
 function showAuthPrompt() {
@@ -512,13 +518,7 @@ function exposeGlobals() {
   window.__logMaintenanceForProduct = openLogMaintenanceForProduct;
   window.__stockAdjust              = openStockAdjustModal;
   window.__printLabels              = openBarcodeLabelModal;
-  window.__previewProductImg        = (url) => {
-    const el = document.getElementById('fp-img-preview');
-    if (el) el.innerHTML = url
-      ? `<img src="${esc(url)}" style="max-height:56px;max-width:80px;object-fit:contain;border-radius:4px"
-           onerror="this.style.display='none'">`
-      : '';
-  };
+  window.__setInventoryView         = setInventoryView;
 
   // Clients
   window.__openNewClientModal = openNewClientModal;
@@ -588,7 +588,8 @@ function exposeGlobals() {
     document.querySelectorAll('.wh-view-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.view === view));
     if (view === 'list') loadStorage();
-    if (view === 'designer') setTimeout(() => window.__whRebuild && window.__whRebuild(), 80);
+    // 80ms gives the layout engine time to set container dimensions before Three.js reads them
+          if (view === 'designer') setTimeout(() => window.__whRebuild?.(), 80);
   };
   // Camera preset views — set as safe stubs; overwritten by init3D()/init2D() when scene loads
   window.__whResetView  = window.__whResetView  || (() => {});
@@ -863,7 +864,7 @@ function exposeGlobals() {
     // Navigation
     if (key === 'd' && noMod) { switchPane('dashboard');      return; }
     if (key === 'e' && noMod) { switchPane('enquiries');      return; }
-    if (key === 'n' && noMod) { switchPane('enquiries');      setTimeout(() => window.__openNewEnquiryModal?.(), 200); return; }
+    if (key === 'n' && noMod) { switchPane('enquiries');      requestAnimationFrame(() => window.__openNewEnquiryModal?.()); return; }
     if (key === 'j' && noMod) { switchPane('jobs');           window.__openNewJobModal?.();   return; }
     if (key === 'q' && noMod) { switchPane('quotes');         window.__openNewQuoteModal?.(); return; }
     if (key === 'i' && noMod) { switchPane('inventory');      return; }
@@ -909,5 +910,169 @@ function exposeGlobals() {
         </p>`, `<button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`
       );
     }
+  });
+}
+
+// ── Centralised event delegation ──────────────────────────────────────────────
+// All data-action buttons route through here instead of inline onclick handlers.
+// This is the single source of truth for button behaviour — no globals needed.
+function setupDelegation() {
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+
+    switch (action) {
+      // ── Pane navigation ──────────────────────────────────────────────────
+      case 'switch-pane':
+        switchPane(btn.dataset.pane); break;
+
+      // ── Pane reload ──────────────────────────────────────────────────────
+      case 'reload-pane':
+        STATE.loadedPanes.delete(btn.dataset.pane);
+        await loadPane(btn.dataset.pane); break;
+
+      // ── Open new entity modals ───────────────────────────────────────────
+      case 'open-new': {
+        const openFn = {
+          job:         window.__openNewJobModal,
+          quote:       window.__openNewQuoteModal,
+          client:      window.__openNewClientModal,
+          supplier:    window.__openNewSupplierModal,
+          crew:        window.__openNewCrewModal,
+          enquiry:     window.__openNewEnquiryModal,
+          maintenance: window.__openNewMaintenanceModal,
+          po:          window.__openNewPOModal,
+          subrental:   window.__openNewSubRentalModal,
+          transport:   window.__openNewTransportModal,
+          bundle:      window.__openNewBundleModal,
+          service:     window.__openNewServiceModal,
+          category:    window.__openNewCategoryModal,
+          product:     window.__openNewProductModal,
+        }[btn.dataset.entity];
+        openFn?.(); break;
+      }
+
+      // ── CSV exports ──────────────────────────────────────────────────────
+      case 'export-csv': {
+        const exportFn = {
+          inventory:   window.__exportInventoryCsv,
+          jobs:        window.__exportJobsCsv,
+          clients:     window.__exportClientsCsv,
+          enquiries:   window.__exportEnquiriesCsv,
+          crew:        window.__exportCrewCsv,
+          maintenance: window.__exportMaintenanceCsv,
+          invoices:    window.__exportInvoicesCsv,
+          pos:         window.__exportPOsCsv,
+          auditlog:    window.__exportAuditLogCsv,
+        }[btn.dataset.pane];
+        exportFn?.(); break;
+      }
+
+      // ── View toggles ─────────────────────────────────────────────────────
+      case 'set-view': {
+        const pane = btn.dataset.pane;
+        const view = btn.dataset.view;
+        if (pane === 'jobs')      window.__setJobView?.(view);
+        else if (pane === 'enquiries') window.__setEnquiryView?.(view);
+        break;
+      }
+
+      // ── Calendar nav ─────────────────────────────────────────────────────
+      case 'cal-view':  window.__calSetView?.(btn.dataset.view); break;
+      case 'cal-nav': {
+        const dir = btn.dataset.dir;
+        if (dir === 'next')  window.__calNext?.();
+        else if (dir === 'prev')  window.__calPrev?.();
+        else if (dir === 'today') window.__calToday?.();
+        break;
+      }
+
+      // ── Settings / bundles tabs ──────────────────────────────────────────
+      case 'settings-tab': window.__activateSettingsTab?.(btn.dataset.tab); break;
+      case 'bundles-tab':  window.__switchBundlesTab?.(btn.dataset.tab); break;
+
+      // ── Warehouse ────────────────────────────────────────────────────────
+      case 'wh-view':        window.__whSwitchView?.(btn.dataset.view); break;
+      case 'wh-add':         window.__whOpenAdd?.(btn.dataset.type); break;
+      case 'wh-save':        window.__whSave?.(); break;
+      case 'wh-floor-settings': window.__whFloorSettings?.(); break;
+      case 'wh-fit-floor':   window.__whFitFloor?.(); break;
+      case 'wh-reset-view':  window.__whResetView?.(); break;
+      case 'wh-top-view':    window.__whTopView?.(); break;
+      case 'wh-front-view':  window.__whFrontView?.(); break;
+      case 'wh-rebuild':     window.__whRebuild?.(); break;
+      case 'seed-warehouse': window.__seedWarehouse?.(); break;
+
+      // ── App chrome ───────────────────────────────────────────────────────
+      case 'refresh-all':          refreshAll(); break;
+      case 'toggle-theme':         toggleTheme(); break;
+      case 'toggle-mobile-search': window.__toggleMobileSearch?.(); break;
+      case 'show-settings':        showGasModal(); break;
+      case 'set-theme':            window.__setTheme?.(btn.dataset.theme); break;
+
+      // ── Settings ─────────────────────────────────────────────────────────
+      case 'save-settings':        window.__saveSettings?.(); break;
+      case 'generate-auth-token':  window.__generateAuthToken?.(); break;
+
+      // ── Analytics / Forecast ─────────────────────────────────────────────
+      case 'analytics-refresh':    window.__runAnalyticsRefresh?.(); break;
+      case 'forecast-refresh':     window.__runForecastRefresh?.(); break;
+      case 'generate-exec-report': window.__generateExecReport?.(); break;
+      case 'load-revenue-summary': window.__loadRevenueSummary?.(); break;
+
+      // ── Operations ───────────────────────────────────────────────────────
+      case 'triage-enquiries':    window.__triageAllEnquiries?.(); break;
+      case 'sync-shopify':        window.__syncShopifyEnquiries?.(); break;
+      case 'print-maintenance':   window.__printMaintenanceReport?.(); break;
+      case 'open-vehicle-manager':window.__openVehicleManager?.(); break;
+
+      // ── Inventory ─────────────────────────────────────────────────────────
+      case 'open-add-barcode':    window.__openAddBarcodeModal?.(); break;
+      case 'open-bulk-barcode':   window.__openBulkBarcodeImport?.(); break;
+      case 'open-product-csv':    window.__openProductCsvImport?.(); break;
+      case 'inv-view':            window.__setInventoryView?.(btn.dataset.view); break;
+
+      default:
+        // Unknown action — ignore silently
+        break;
+    }
+  });
+}
+
+// ── Accessible tab keyboard navigation ───────────────────────────────────────
+// Adds Left/Right/Home/End arrow key support to any element with role="tablist".
+// Also keeps aria-selected in sync when tabs are clicked via delegation.
+function setupTabKeyNav() {
+  document.addEventListener('keydown', (e) => {
+    const tab = e.target.closest('[role="tab"]');
+    if (!tab) return;
+    const list = tab.closest('[role="tablist"]');
+    if (!list) return;
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const idx  = tabs.indexOf(tab);
+    if (idx === -1) return;
+
+    let next = -1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  next = (idx + 1) % tabs.length;
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    next = (idx - 1 + tabs.length) % tabs.length;
+    if (e.key === 'Home')                                  next = 0;
+    if (e.key === 'End')                                   next = tabs.length - 1;
+    if (next === -1) return;
+
+    e.preventDefault();
+    tabs[next].focus();
+    tabs[next].click(); // activate the tab
+  });
+
+  // Sync aria-selected on tab click (for tabs that use data-action delegation)
+  document.addEventListener('click', (e) => {
+    const tab = e.target.closest('[role="tab"]');
+    if (!tab) return;
+    const list = tab.closest('[role="tablist"]');
+    if (!list) return;
+    list.querySelectorAll('[role="tab"]').forEach(t => {
+      t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+    });
   });
 }

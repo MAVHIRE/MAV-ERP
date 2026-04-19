@@ -233,12 +233,12 @@ function renderScanPane(jobs) {
       if (el2) el2.style.display = id === tab ? '' : 'none';
     });
     if (tab === 'stocktake') window.__loadStocktakeList();
-    if (tab === 'scan') setTimeout(() => document.getElementById('scan-barcode-input')?.focus(), 50);
-    if (tab === 'lookup') setTimeout(() => document.getElementById('lookup-barcode-input')?.focus(), 50);
+    if (tab === 'scan') requestAnimationFrame(() => document.getElementById('scan-barcode-input')?.focus());
+    if (tab === 'lookup') requestAnimationFrame(() => document.getElementById('lookup-barcode-input')?.focus());
   };
 
   setScanMode('out');
-  setTimeout(() => document.getElementById('scan-barcode-input')?.focus(), 100);
+  requestAnimationFrame(() => document.getElementById('scan-barcode-input')?.focus());
 }
 
 // ── Job select ────────────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ export async function onScanJobSelect() {
     if (statusEl) statusEl.innerHTML  = statusBadge(job.status) +
       (job.status === 'Returned' ? `
         <button class="btn btn-ghost btn-sm" style="margin-left:10px;font-size:11px"
-          onclick="window.__returnAllToStorage('${escAttr(job.jobId)}')">⬡ Return All to Storage</button>` : '');
+          data-action="returnAllToStorage" data-id="${escAttr(job.jobId)}">⬡ Return All to Storage</button>` : '');
     if (infoEl)   infoEl.style.display= 'block';
 
     if (lineEl && lineWrap) {
@@ -346,7 +346,7 @@ export async function submitScan() {
         </div>
         ${mode === 'RETURN' ? `
         <button class="btn btn-ghost btn-sm" style="font-size:11px;flex-shrink:0"
-          onclick="window.__offerReturnToStorage('${escAttr(barcode)}')">
+          data-action="offerReturnToStorage" data-id="${escAttr(barcode)}">
           ⬡ Assign Storage
         </button>` : ''}
       </div>`;
@@ -422,7 +422,7 @@ export async function loadStocktakeList() {
   try {
     if (!STATE.products?.length) STATE.products = await rpc('getProducts', {});
     renderStocktakeList(STATE.products);
-  } catch(e) { el.innerHTML = `<div style="color:var(--danger)">${e.message}</div>`; }
+  } catch(e) { el.innerHTML = `<div style="color:var(--danger)">${esc(e.message)}</div>`; }
 }
 
 function renderStocktakeList(products) {
@@ -583,8 +583,8 @@ export async function lookupBarcode() {
           </table>
         </div>` : '<div style="color:var(--text3);font-size:12px">No location history.</div>'}
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" onclick="window.__offerReturnToStorage('${escAttr(barcode)}')">⬡ Assign Location</button>
-        ${bc.locationPath?`<button class="btn btn-ghost btn-sm" onclick="window.__clearBarcodeLocation('${escAttr(barcode)}')">✕ Clear Location</button>`:''}
+        <button class="btn btn-ghost btn-sm" data-action="offerReturnToStorage" data-id="${escAttr(barcode)}">⬡ Assign Location</button>
+        ${bc.locationPath?`<button class="btn btn-ghost btn-sm" data-action="clearBarcodeLocation" data-id="${escAttr(barcode)}">✕ Clear Location</button>`:''}
       </div>`;
   } catch(e) { el.innerHTML = `<div style="color:var(--danger);padding:8px">${esc(e.message)}</div>`; }
 }
@@ -611,7 +611,7 @@ export async function offerReturnToStorage(barcode) {
         <input type="text" id="rts-notes" placeholder="e.g. Top shelf, back row"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Skip</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitReturnToStorage('${escAttr(barcode)}')">Assign Location</button>`
+    <button class="btn btn-primary btn-sm" data-action="submitReturnToStorage" data-id="${escAttr(barcode)}">Assign Location</button>`
   );
 
   window.__submitReturnToStorage = async (bc) => {
@@ -806,10 +806,35 @@ async function onCameraBarcode(value) {
     inp.value = value;
     // Flash the input
     inp.style.color = 'var(--accent)';
-    setTimeout(() => { inp.style.color = ''; }, 800);
+    requestAnimationFrame(() => { inp.style.color = ''; });
   }
 
   // Close camera and submit
   closeCameraScan();
   await submitScan();
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['scan-results', 'scan-feedback', 'scan-pane-body'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'clearBarcodeLocation': window.__clearBarcodeLocation(id); break;
+        case 'offerReturnToStorage': window.__offerReturnToStorage(id); break;
+        case 'returnAllToStorage': window.__returnAllToStorage(id); break;
+        default: break;
+      }
+    });
+  });
 }

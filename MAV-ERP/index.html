@@ -18,6 +18,8 @@
   <link rel="stylesheet" href="css/components.css">
 </head>
 <body>
+  <!-- Skip navigation for keyboard/screen reader users -->
+  <a href="#main" class="skip-link">Skip to main content</a>
 
 <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
 <div id="sidebar">
@@ -36,112 +38,112 @@
 
     <div class="nav-group">
       <span class="nav-group-label">Overview</span>
-      <div class="nav-item active" data-pane="dashboard">
+      <button type="button" class="nav-item active" data-pane="dashboard" aria-current="page">
         <span class="nav-icon">◈</span><span>Dashboard</span>
-      </div>
-      <div class="nav-item" data-pane="calendar">
+      </button>
+      <button type="button" class="nav-item" data-pane="calendar">
         <span class="nav-icon">▦</span><span>Calendar</span>
-      </div>
+      </button>
     </div>
 
     <div class="nav-group">
       <span class="nav-group-label">Operations</span>
-      <div class="nav-item" data-pane="enquiries">
+      <button type="button" class="nav-item" data-pane="enquiries">
         <span class="nav-icon">◈</span><span>Enquiries</span>
         <span class="nav-badge warn" id="badge-enquiries" style="display:none"></span>
-      </div>
-      <div class="nav-item" data-pane="jobs">
+      </button>
+      <button type="button" class="nav-item" data-pane="jobs">
         <span class="nav-icon">◉</span><span>Jobs</span>
         <span class="nav-badge" id="badge-jobs" style="display:none"></span>
-      </div>
-      <div class="nav-item" data-pane="quotes">
+      </button>
+      <button type="button" class="nav-item" data-pane="quotes">
         <span class="nav-icon">◎</span><span>Quotes</span>
-      </div>
-      <div class="nav-item" data-pane="transport">
+      </button>
+      <button type="button" class="nav-item" data-pane="transport">
         <span class="nav-icon">🚚</span><span>Transport</span>
-      </div>
-      <div class="nav-item" data-pane="scan">
+      </button>
+      <button type="button" class="nav-item" data-pane="scan">
         <span class="nav-icon">⊡</span><span>Scan Station</span>
-      </div>
+      </button>
     </div>
 
     <div class="nav-group">
       <span class="nav-group-label">Inventory</span>
-      <div class="nav-item" data-pane="inventory">
+      <button type="button" class="nav-item" data-pane="inventory">
         <span class="nav-icon">▦</span><span>Products</span>
-      </div>
-      <div class="nav-item" data-pane="bundles">
+      </button>
+      <button type="button" class="nav-item" data-pane="bundles">
         <span class="nav-icon">◫</span><span>Bundles</span>
-      </div>
-      <div class="nav-item" data-pane="storage">
+      </button>
+      <button type="button" class="nav-item" data-pane="storage">
         <span class="nav-icon">⬡</span><span>Warehouse</span>
-      </div>
-      <div class="nav-item" data-pane="maintenance">
+      </button>
+      <button type="button" class="nav-item" data-pane="maintenance">
         <span class="nav-icon">⟳</span><span>Maintenance</span>
         <span class="nav-badge danger" id="badge-maintenance" style="display:none"></span>
-      </div>
+      </button>
     </div>
 
     <div class="nav-group">
       <span class="nav-group-label">People</span>
-      <div class="nav-item" data-pane="clients">
+      <button type="button" class="nav-item" data-pane="clients">
         <span class="nav-icon">◑</span><span>Clients</span>
-      </div>
-      <div class="nav-item" data-pane="suppliers">
+      </button>
+      <button type="button" class="nav-item" data-pane="suppliers">
         <span class="nav-icon">◐</span><span>Suppliers</span>
-      </div>
-      <div class="nav-item" data-pane="crew">
+      </button>
+      <button type="button" class="nav-item" data-pane="crew">
         <span class="nav-icon">◑</span><span>Crew</span>
-      </div>
+      </button>
     </div>
 
     <div class="nav-group">
       <span class="nav-group-label">Finance</span>
-      <div class="nav-item" data-pane="invoices">
+      <button type="button" class="nav-item" data-pane="invoices">
         <span class="nav-icon">£</span><span>Invoices</span>
         <span class="nav-badge warn" id="badge-invoices" style="display:none"></span>
-      </div>
-      <div class="nav-item" data-pane="purchaseorders">
+      </button>
+      <button type="button" class="nav-item" data-pane="purchaseorders">
         <span class="nav-icon">◎</span><span>Purchase Orders</span>
-      </div>
-      <div class="nav-item" data-pane="subrentals">
+      </button>
+      <button type="button" class="nav-item" data-pane="subrentals">
         <span class="nav-icon">↗</span><span>Sub-Rentals</span>
-      </div>
+      </button>
     </div>
 
     <div class="nav-group">
       <span class="nav-group-label">Intelligence</span>
-      <div class="nav-item" data-pane="analytics">
+      <button type="button" class="nav-item" data-pane="analytics">
         <span class="nav-icon">∴</span><span>Analytics</span>
-      </div>
-      <div class="nav-item" data-pane="forecast">
+      </button>
+      <button type="button" class="nav-item" data-pane="forecast">
         <span class="nav-icon">◌</span><span>Forecast</span>
         <span class="nav-badge warn" id="badge-forecast" style="display:none"></span>
-      </div>
-      <div class="nav-item" data-pane="auditlog">
+      </button>
+      <button type="button" class="nav-item" data-pane="auditlog">
         <span class="nav-icon">◉</span><span>Audit Log</span>
-      </div>
+      </button>
     </div>
 
   </nav>
 
   <!-- Sidebar bottom -->
   <div id="sidebar-bottom">
-    <div class="sidebar-action" onclick="window.__showSettings()">
+    <button type="button" class="sidebar-action" data-action="show-settings">
       <span>⚙</span><span>Settings</span>
-    </div>
-    <div class="sidebar-action" onclick="window.__toggleTheme()">
+    </button>
+    <button type="button" class="sidebar-action" data-action="toggle-theme">
       <span>◑</span><span id="theme-label">Light Mode</span>
-    </div>
-    <div class="sidebar-action" onclick="window.__refreshAll()">
+    </button>
+    <button type="button" class="sidebar-action" data-action="refresh-all">
       <span>↺</span><span>Refresh</span>
-    </div>
+    </button>
   </div>
 
 </div><!-- #sidebar -->
 
 <!-- ══ MAIN ═════════════════════════════════════════════════════════════════ -->
-<div id="main">
+<main id="main">
 
 <!-- Topbar -->
 <div id="topbar">
@@ -164,11 +166,11 @@
     <div id="alert-pill" class="hidden">⚠ <span id="alert-count">0</span></div>
     <span id="cache-indicator" style="display:none;font-size:10px;color:var(--text3);font-family:var(--mono)"></span>
 
-    <button id="theme-toggle" class="topbar-btn" onclick="window.__toggleTheme()" title="Toggle theme">◑</button>
-    <button class="topbar-btn" onclick="window.__refreshAll()" title="Refresh all data">↺</button>
+    <button id="theme-toggle" class="topbar-btn" data-action="toggle-theme" title="Toggle theme" aria-label="Toggle light/dark theme">◑</button>
+    <button class="topbar-btn" data-action="refresh-all" title="Refresh all data" aria-label="Refresh all data">↺</button>
     <!-- Mobile search toggle (only visible on mobile, replaces hidden search box) -->
-    <button class="topbar-btn" id="mobile-search-btn" onclick="window.__toggleMobileSearch()" title="Search" style="display:none">⌕</button>
-    <button class="btn btn-ghost btn-sm topbar-gas-btn" onclick="window.__showSettings()">⚙ GAS URL</button>
+    <button class="topbar-btn" id="mobile-search-btn" data-action="toggle-mobile-search" title="Search" aria-label="Open search" style="display:none">⌕</button>
+    <button class="btn btn-ghost btn-sm topbar-gas-btn" data-action="show-settings">⚙ GAS URL</button>
   </div>
 </div>
 
@@ -183,9 +185,9 @@
         <div class="page-subtitle" id="dash-ts" style="font-size:11px;color:var(--text3);font-family:var(--mono)">Loading…</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Analytics</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__exportJobsCsv()" title="Export to CSV">⬇ CSV</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__openNewJobModal()">+ New Job</button>
+        <button class="btn btn-ghost btn-sm" data-action="analytics-refresh">↺ Analytics</button>
+        <button class="btn btn-primary btn-sm btn-export" data-action="export-csv" data-pane="jobs" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="job">+ New Job</button>
       </div>
     </div>
 
@@ -195,15 +197,15 @@
     <!-- Row 1: Revenue chart + Job status + Utilisation -->
     <div class="dash-grid-3">
       <div class="section">
-        <div class="section-title">Revenue</div>
+        <h3 class="section-title">Revenue</h3>
         <div id="dash-revenue-chart" style="min-height:160px"></div>
       </div>
       <div class="section">
-        <div class="section-title">Job Status</div>
+        <h3 class="section-title">Job Status</h3>
         <div id="dash-status-chart" style="min-height:160px"></div>
       </div>
       <div class="section">
-        <div class="section-title">Fleet Utilisation</div>
+        <h3 class="section-title">Fleet Utilisation</h3>
         <div id="dash-util-chart" style="min-height:160px"></div>
       </div>
     </div>
@@ -211,15 +213,15 @@
     <!-- Row 2: Upcoming + Alerts + Overdue -->
     <div class="dash-grid-3">
       <div class="section">
-        <div class="section-title">Jobs Departing Soon</div>
+        <h3 class="section-title">Jobs Departing Soon</h3>
         <div id="dash-upcoming" style="min-height:80px"></div>
       </div>
       <div class="section">
-        <div class="section-title" id="dash-alerts-section">Alerts</div>
+        <h3 class="section-title" id="dash-alerts-section">Alerts</h3>
         <div id="dash-alerts" style="min-height:80px"></div>
       </div>
       <div class="section">
-        <div class="section-title">Overdue Returns</div>
+        <h3 class="section-title">Overdue Returns</h3>
         <div id="dash-overdue" style="min-height:80px"></div>
       </div>
     </div>
@@ -227,15 +229,15 @@
     <!-- Row 3: Low stock + Finance summary + Service due -->
     <div class="three-col">
       <div class="section">
-        <div class="section-title">Low Stock</div>
+        <h3 class="section-title">Low Stock</h3>
         <div id="dash-lowstock"></div>
       </div>
       <div class="section">
-        <div class="section-title">Finance Summary</div>
+        <h3 class="section-title">Finance Summary</h3>
         <div id="dash-finance"></div>
       </div>
       <div class="section">
-        <div class="section-title">Service Due (14 days)</div>
+        <h3 class="section-title">Service Due (14 days)</h3>
         <div id="dash-service-due"></div>
       </div>
     </div>
@@ -245,14 +247,14 @@
       <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>New Enquiries</span>
         <button class="btn btn-ghost btn-sm" style="font-size:11px"
-          onclick="window.__switchPane('enquiries')">View all →</button>
+          data-action="switch-pane" data-pane="enquiries">View all →</button>
       </div>
       <div id="dash-new-enquiries"></div>
     </div>
 
     <!-- Row 4: Management insights (loads async) -->
     <div class="section" id="dash-brain" style="display:none">
-      <div class="section-title">Management Insights</div>
+      <h3 class="section-title">Management Insights</h3>
     </div>
     </div><!-- /pane-inner -->
   </div>
@@ -262,18 +264,18 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Enquiries</div>
+        <h2 class="page-title">Enquiries</h2>
         <div class="page-subtitle" id="enq-subtitle">Inbound leads &amp; triage</div>
       </div>
       <div class="page-actions">
         <button class="btn btn-ghost btn-sm enq-view-btn active" data-view="pipeline"
-          onclick="window.__setEnquiryView('pipeline')">◫ Pipeline</button>
+          data-action="set-view" data-pane="enquiries" data-view="pipeline">◫ Pipeline</button>
         <button class="btn btn-ghost btn-sm enq-view-btn" data-view="list"
-          onclick="window.__setEnquiryView('list')">☰ List</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__syncShopifyEnquiries()" title="Sync from Shopify Gmail sheet">⟳ Sync Shopify</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__triageAllEnquiries()" title="Run distance + rules triage on all New enquiries">⚡ Triage All</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__exportEnquiriesCsv()">⬇ CSV</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__openNewEnquiryModal()">+ New Enquiry</button>
+          data-action="set-view" data-pane="enquiries" data-view="list">☰ List</button>
+        <button class="btn btn-ghost btn-sm" data-action="sync-shopify" title="Sync from Shopify Gmail sheet">⟳ Sync Shopify</button>
+        <button class="btn btn-ghost btn-sm" data-action="triage-enquiries" title="Run distance + rules triage on all New enquiries">⚡ Triage All</button>
+        <button class="btn btn-ghost btn-sm btn-export" data-action="export-csv" data-pane="enquiries">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="enquiry">+ New Enquiry</button>
       </div>
     </div>
 
@@ -309,10 +311,10 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Jobs</div>
+        <h2 class="page-title">Jobs</h2>
         <div class="page-subtitle" id="jobs-subtitle">All rental jobs</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewJobModal()">+ New Job</button>
+      <button class="btn btn-primary" data-action="open-new" data-entity="job">+ New Job</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -325,9 +327,9 @@
         <option>Prepping</option><option>Checked Out</option><option>Live</option>
         <option>Returned</option><option>Complete</option><option>Cancelled</option>
       </select>
-      <button class="btn btn-ghost btn-sm jobs-view-btn active" data-view="list" onclick="window.__setJobView('list')" title="List view">☰ List</button>
-      <button class="btn btn-ghost btn-sm jobs-view-btn" data-view="kanban" onclick="window.__setJobView('kanban')" title="Kanban board">◫ Board</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('jobs')">↺</button>
+      <button class="btn btn-ghost btn-sm jobs-view-btn active" data-view="list" data-action="set-view" data-pane="jobs" data-view="list" title="List view">☰ List</button>
+      <button class="btn btn-ghost btn-sm jobs-view-btn" data-view="kanban" data-action="set-view" data-pane="jobs" data-view="kanban" title="Kanban board">◫ Board</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="jobs">↺</button>
     </div>
     <div id="jobs-list"></div>
     </div><!-- /pane-inner -->
@@ -338,10 +340,10 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Quotes</div>
+        <h2 class="page-title">Quotes</h2>
         <div class="page-subtitle" id="quotes-subtitle">All quotes</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewQuoteModal()">+ New Quote</button>
+      <button class="btn btn-primary" data-action="open-new" data-entity="quote">+ New Quote</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -353,7 +355,7 @@
         <option>Draft</option><option>Sent</option><option>Accepted</option>
         <option>Declined</option><option>Expired</option>
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('quotes')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="quotes">↺</button>
     </div>
     <div id="quotes-list"></div>
     </div><!-- /pane-inner -->
@@ -364,15 +366,21 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Inventory</div>
+        <h2 class="page-title">Inventory</h2>
         <div class="page-subtitle" id="inv-subtitle">Products &amp; stock levels</div>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__openProductCsvImport()">⬆ Import Products</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__openBulkBarcodeImport()">⬆ Import Barcodes</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__openAddBarcodeModal()">+ Barcode</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__exportInventoryCsv()" title="Export to CSV">⬇ CSV</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__openNewProductModal()">+ Product</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div role="group" aria-label="View style" style="display:flex;gap:2px">
+          <button type="button" class="btn btn-ghost btn-sm active" aria-label="Grid view"
+            data-action="inv-view" data-view="grid" title="Grid view">⊞</button>
+          <button type="button" class="btn btn-ghost btn-sm" aria-label="Table view"
+            data-action="inv-view" data-view="table" title="Table view">☰</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-action="open-product-csv">⬆ Import</button>
+        <button class="btn btn-ghost btn-sm" data-action="open-bulk-barcode">⬆ Barcodes</button>
+        <button class="btn btn-ghost btn-sm" data-action="open-add-barcode">+ Barcode</button>
+        <button class="btn btn-ghost btn-sm btn-export" data-action="export-csv" data-pane="inventory" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="product">+ Product</button>
       </div>
     </div>
     <div id="inv-snapshot"></div>
@@ -396,14 +404,15 @@
         <option value="Serialised">Serialised</option>
       </select>
       <select class="filter-select" id="inv-avail-filter" onchange="window.__filterProducts()">
-        <option value="">Any Availability</option>
+        <option value="">Any Status</option>
         <option value="available">Has Stock</option>
         <option value="low">Low Stock</option>
         <option value="out">Items Out</option>
+        <option value="inactive">Inactive</option>
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('inventory')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="inventory" aria-label="Reload inventory">↺</button>
     </div>
-    <div id="products-list"></div>
+    <div id="inv-list"></div>
     </div><!-- /pane-inner -->
   </div>
 
@@ -412,18 +421,18 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Clients</div>
+        <h2 class="page-title">Clients</h2>
         <div class="page-subtitle" id="clients-subtitle">Client records</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__exportClientsCsv()" title="Export to CSV">⬇ CSV</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__openNewClientModal()">+ New Client</button>
+      <button class="btn btn-primary btn-export" data-action="export-csv" data-pane="clients" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="client">+ New Client</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
         <span class="search-icon">⌕</span>
         <input type="text" id="clients-search" placeholder="Search clients…" oninput="window.__filterClients()">
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('clients')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="clients">↺</button>
     </div>
     <!-- Top clients revenue bar -->
     <div id="clients-revenue-wrap" style="margin-bottom:16px">
@@ -441,17 +450,17 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Suppliers</div>
+        <h2 class="page-title">Suppliers</h2>
         <div class="page-subtitle" id="suppliers-subtitle">Equipment suppliers</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewSupplierModal()">+ New Supplier</button>
+      <button class="btn btn-primary" data-action="open-new" data-entity="supplier">+ New Supplier</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
         <span class="search-icon">⌕</span>
         <input type="text" id="sup-search" placeholder="Search suppliers…" oninput="window.__filterSuppliers()">
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('suppliers')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="suppliers">↺</button>
     </div>
     <div id="suppliers-list"></div>
     </div><!-- /pane-inner -->
@@ -462,12 +471,12 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Maintenance</div>
+        <h2 class="page-title">Maintenance</h2>
         <div class="page-subtitle" id="maint-subtitle">Service &amp; repairs</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__printMaintenanceReport()">⎙ Report</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__exportMaintenanceCsv()" title="Export to CSV">⬇ CSV</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__openNewMaintenanceModal()">+ New Record</button>
+      <button class="btn btn-ghost btn-sm" data-action="print-maintenance">⎙ Report</button>
+      <button class="btn btn-ghost btn-sm btn-export" data-action="export-csv" data-pane="maintenance" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="maintenance">+ New Record</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -479,7 +488,7 @@
         <option>Scheduled</option><option>In Progress</option>
         <option>Awaiting Parts</option><option>Complete</option><option>Cancelled</option>
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('maintenance')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="maintenance">↺</button>
     </div>
     <div id="maint-list"></div>
     </div><!-- /pane-inner -->
@@ -490,13 +499,13 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Analytics</div>
+        <h2 class="page-title">Analytics</h2>
         <div class="page-subtitle" id="analytics-subtitle">ROI, utilisation &amp; performance</div>
       </div>
       <div class="page-actions">
-        <button class="btn btn-ghost btn-sm" onclick="window.__generateExecReport()">⎙ Executive Report</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__refreshAnalyticsStats()">⟳ Refresh Stats</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__runAnalyticsRefresh()">↺ Refresh</button>
+        <button class="btn btn-ghost btn-sm" data-action="generate-exec-report">⎙ Executive Report</button>
+        <button class="btn btn-ghost btn-sm" data-action="analytics-refresh">⟳ Refresh Stats</button>
+        <button class="btn btn-ghost btn-sm" data-action="analytics-refresh">↺ Refresh</button>
       </div>
     </div>
 
@@ -505,15 +514,15 @@
     <!-- Charts row -->
     <div class="dash-grid-3">
       <div class="section">
-        <div class="section-title">Revenue by SKU (Top 12)</div>
+        <h3 class="section-title">Revenue by SKU (Top 12)</h3>
         <div id="analytics-revenue-chart"></div>
       </div>
       <div class="section">
-        <div class="section-title">Revenue by Category</div>
+        <h3 class="section-title">Revenue by Category</h3>
         <div id="analytics-category-chart"></div>
       </div>
       <div class="section">
-        <div class="section-title">Utilisation vs ROI</div>
+        <h3 class="section-title">Utilisation vs ROI</h3>
         <div id="analytics-roi-chart"></div>
       </div>
     </div>
@@ -521,11 +530,11 @@
     <!-- ABC + Dead stock -->
     <div class="two-col" style="margin-bottom:16px">
       <div class="section">
-        <div class="section-title">ABC Classification</div>
+        <h3 class="section-title">ABC Classification</h3>
         <div id="analytics-abc"></div>
       </div>
       <div class="section">
-        <div class="section-title">Dead Stock (90+ days no hire)</div>
+        <h3 class="section-title">Dead Stock (90+ days no hire)</h3>
         <div id="dead-stock-list"></div>
       </div>
     </div>
@@ -533,15 +542,15 @@
     <!-- Top SKUs + Pipeline + Slow moving -->
     <div class="three-col" style="margin-bottom:16px">
       <div class="section">
-        <div class="section-title">Top 10 SKUs by Revenue</div>
+        <h3 class="section-title">Top 10 SKUs by Revenue</h3>
         <div id="top-skus-list"></div>
       </div>
       <div class="section">
-        <div class="section-title">Sales Pipeline</div>
+        <h3 class="section-title">Sales Pipeline</h3>
         <div id="pipeline-report"></div>
       </div>
       <div class="section">
-        <div class="section-title">Slow Moving Stock</div>
+        <h3 class="section-title">Slow Moving Stock</h3>
         <div id="slow-moving-list"></div>
       </div>
     </div>
@@ -549,15 +558,15 @@
     <!-- Worst SKUs + High Utilisation + Repair vs Replace -->
     <div class="three-col" style="margin-bottom:16px">
       <div class="section">
-        <div class="section-title">Worst Performing SKUs</div>
+        <h3 class="section-title">Worst Performing SKUs</h3>
         <div id="worst-skus-list"></div>
       </div>
       <div class="section">
-        <div class="section-title">High Utilisation (70%+)</div>
+        <h3 class="section-title">High Utilisation (70%+)</h3>
         <div id="high-util-list"></div>
       </div>
       <div class="section">
-        <div class="section-title">Repair vs Replace Review</div>
+        <h3 class="section-title">Repair vs Replace Review</h3>
         <div id="repair-replace-list"></div>
       </div>
     </div>
@@ -565,18 +574,18 @@
     <!-- Category revenue breakdown -->
     <div class="two-col" style="margin-bottom:16px">
       <div class="section">
-        <div class="section-title">Revenue by Category</div>
+        <h3 class="section-title">Revenue by Category</h3>
         <div id="category-revenue-list"></div>
       </div>
       <div class="section">
-        <div class="section-title">Category Forecasts</div>
+        <h3 class="section-title">Category Forecasts</h3>
         <div id="category-forecasts"></div>
       </div>
     </div>
 
     <!-- Revenue Summary with date range -->
     <div class="section" style="margin-bottom:16px">
-      <div class="section-title">Revenue Summary</div>
+      <h3 class="section-title">Revenue Summary</h3>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
         <label style="font-size:11px;color:var(--text3);font-family:var(--mono)">From</label>
         <input type="date" id="rev-from" class="filter-select" style="max-width:150px"
@@ -604,7 +613,7 @@
 
     <!-- Full SKU table -->
     <div class="section">
-      <div class="section-title">Full SKU Performance</div>
+      <h3 class="section-title">Full SKU Performance</h3>
       <div class="toolbar">
         <div class="search-box">
           <span class="search-icon">⌕</span>
@@ -630,39 +639,39 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Forecast</div>
+        <h2 class="page-title">Forecast</h2>
         <div class="page-subtitle" id="forecast-subtitle">Demand &amp; buy recommendations</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="window.__runForecastRefresh()">↺ Rebuild</button>
+      <button class="btn btn-ghost btn-sm" data-action="forecast-refresh">↺ Rebuild</button>
     </div>
 
     <div class="kpi-grid" id="forecast-kpis" style="grid-template-columns:repeat(6,1fr)"></div>
 
     <!-- Forecast chart -->
     <div class="section" style="margin-bottom:16px">
-      <div class="section-title">Forecast vs Historic Revenue (Top SKUs)</div>
+      <h3 class="section-title">Forecast vs Historic Revenue (Top SKUs)</h3>
       <div id="forecast-chart"></div>
     </div>
 
     <div class="two-col" style="margin-bottom:16px">
       <div class="section">
-        <div class="section-title">Predicted Shortages — 90 Days</div>
+        <h3 class="section-title">Predicted Shortages — 90 Days</h3>
         <div id="shortage-list"></div>
       </div>
       <div class="section">
-        <div class="section-title">Buy Recommendations</div>
+        <h3 class="section-title">Buy Recommendations</h3>
         <div id="buy-list"></div>
       </div>
     </div>
 
     <!-- Category forecasts -->
     <div class="section" style="margin-bottom:16px">
-      <div class="section-title">Category Forecasts (90 days)</div>
-      <div id="category-forecasts"></div>
+      <h3 class="section-title">Category Forecasts (90 days)</h3>
+      <div id="forecast-category-forecasts"></div>
     </div>
 
     <div class="section">
-      <div class="section-title">All Forecast Lines</div>
+      <h3 class="section-title">All Forecast Lines</h3>
       <div class="tbl-wrap">
         <table id="tbl-forecasts">
           <thead><tr>
@@ -682,15 +691,15 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Bundles</div>
+        <h2 class="page-title">Bundles</h2>
         <div class="page-subtitle" id="bundles-subtitle">Saved kit templates &amp; accessories</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewBundleModal()">+ New Bundle</button>
+      <button class="btn btn-primary" data-action="open-new" data-entity="bundle">+ New Bundle</button>
     </div>
 
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
-      <div class="tab active" id="btab-bundles" onclick="window.__switchBundlesTab('bundles')" style="border-right:1px solid var(--border)">Bundles</div>
-      <div class="tab" id="btab-accessories" onclick="window.__switchBundlesTab('accessories')">Product Accessories</div>
+      <button type="button" class="tab active" id="btab-bundles" data-action="bundles-tab" data-tab="bundles" role="tab" aria-selected="true" aria-controls="bundles-list" style="border-right:1px solid var(--border)">Bundles</button>
+      <button type="button" class="tab" id="btab-accessories" data-action="bundles-tab" data-tab="accessories" role="tab" aria-selected="false" aria-controls="accessories-list">Product Accessories</button>
     </div>
 
     <div id="bundles-content">
@@ -699,7 +708,7 @@
           <span class="search-icon">⌕</span>
           <input type="text" id="bundles-search" placeholder="Search bundles…" oninput="window.__filterBundles()">
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('bundles')">↺</button>
+        <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="bundles">↺</button>
       </div>
       <div id="bundles-list"></div>
     </div>
@@ -720,31 +729,31 @@
       <div style="font-family:var(--head);font-weight:800;font-size:15px;letter-spacing:-.01em;margin-right:4px;color:var(--text)" id="wh-title">Warehouse</div>
 
       <!-- View switcher -->
-      <button class="btn btn-ghost btn-sm wh-view-btn active" data-view="3d" onclick="window.__whSwitchView('3d')">◈ 3D</button>
-      <button class="btn btn-ghost btn-sm wh-view-btn" data-view="2d" onclick="window.__whSwitchView('2d')">▭ Floor Plan</button>
-      <button class="btn btn-ghost btn-sm wh-view-btn" data-view="list" onclick="window.__whSwitchView('list')">☰ Locations</button>
+      <button type="button" class="btn btn-ghost btn-sm wh-view-btn active" data-view="3d" data-action="wh-view" data-view="3d" role="tab" aria-selected="true" aria-label="3D warehouse view">◈ 3D</button>
+      <button type="button" class="btn btn-ghost btn-sm wh-view-btn" data-view="2d" data-action="wh-view" data-view="2d" role="tab" aria-selected="false" aria-label="2D floor plan view">▭ Floor Plan</button>
+      <button type="button" class="btn btn-ghost btn-sm wh-view-btn" data-view="list" data-action="wh-view" data-view="list" role="tab" aria-selected="false" aria-label="Locations list view">☰ Locations</button>
 
       <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
 
       <!-- 3D camera presets (hidden in 2D) -->
       <div id="wh-cam-buttons" style="display:flex;gap:4px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__whResetView&&window.__whResetView()" title="Perspective view">⊙ 3D</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__whTopView&&window.__whTopView()" title="Top-down">⊡ Top</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__whFrontView&&window.__whFrontView()" title="Front elevation">▭ Front</button>
+        <button class="btn btn-ghost btn-sm" data-action="wh-reset-view" title="Perspective view">⊙ 3D</button>
+        <button class="btn btn-ghost btn-sm" data-action="wh-top-view" title="Top-down">⊡ Top</button>
+        <button class="btn btn-ghost btn-sm" data-action="wh-front-view" title="Front elevation">▭ Front</button>
       </div>
 
       <!-- 2D fit button (hidden in 3D) -->
       <div id="wh-fit-button" style="display:none">
-        <button class="btn btn-ghost btn-sm" onclick="window.__whFitFloor&&window.__whFitFloor()" title="Fit to screen">⊡ Fit</button>
+        <button class="btn btn-ghost btn-sm" data-action="wh-fit-floor" title="Fit to screen">⊡ Fit</button>
       </div>
 
       <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
 
       <!-- Add items -->
-      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('rack')">+ Rack</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('shelf')">+ Shelf</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('zone')">+ Zone</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__whOpenAdd('wall')">+ Wall</button>
+      <button class="btn btn-ghost btn-sm" data-action="wh-add" data-type="rack">+ Rack</button>
+      <button class="btn btn-ghost btn-sm" data-action="wh-add" data-type="shelf">+ Shelf</button>
+      <button class="btn btn-ghost btn-sm" data-action="wh-add" data-type="zone">+ Zone</button>
+      <button class="btn btn-ghost btn-sm" data-action="wh-add" data-type="wall">+ Wall</button>
 
       <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
 
@@ -759,10 +768,10 @@
       </div>
 
       <div style="margin-left:auto;display:flex;gap:5px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__whRebuild&&window.__whRebuild()" title="Rebuild scene">↺</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__whFloorSettings()">⚙ Dimensions</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__seedWarehouse()">⚡ Seed</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__whSave()">💾 Save</button>
+        <button class="btn btn-ghost btn-sm" data-action="wh-rebuild" title="Rebuild scene">↺</button>
+        <button class="btn btn-ghost btn-sm" data-action="wh-floor-settings">⚙ Dimensions</button>
+        <button class="btn btn-ghost btn-sm" data-action="seed-warehouse">⚡ Seed</button>
+        <button class="btn btn-primary btn-sm" data-action="wh-save">💾 Save</button>
       </div>
     </div>
 
@@ -818,22 +827,22 @@
     <div id="wh-list-view" style="flex:1;display:none;overflow-y:auto;padding:20px">
       <div class="page-header" style="margin-bottom:16px">
         <div>
-          <div class="page-title">Locations</div>
+          <h2 class="page-title">Locations</h2>
           <div class="page-subtitle" id="storage-subtitle">Warehouse layout &amp; stock placement</div>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost btn-sm" onclick="window.__addLocationModal('','Zone','')">+ Zone</button>
-          <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('storage')">↺</button>
+          <button class="btn btn-ghost btn-sm" data-action="wh-add" data-type="Zone">+ Zone</button>
+          <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="storage">↺</button>
         </div>
       </div>
       <div class="kpi-grid" id="occupancy-summary" style="margin-bottom:20px"></div>
       <div class="two-col">
         <div class="section">
-          <div class="section-title">Warehouse Layout</div>
+          <h3 class="section-title">Warehouse Layout</h3>
           <div id="warehouse-tree"></div>
         </div>
         <div class="section">
-          <div class="section-title">Unlocated Stock</div>
+          <h3 class="section-title">Unlocated Stock</h3>
           <div id="unlocated-list"></div>
         </div>
       </div>
@@ -847,12 +856,12 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Outstanding Invoices</div>
+        <h2 class="page-title">Outstanding Invoices</h2>
         <div class="page-subtitle" id="invoices-subtitle">Jobs with balance due</div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__exportInvoicesCsv()">⬇ CSV</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('invoices')">↺ Refresh</button>
+        <button class="btn btn-ghost btn-sm btn-export" data-action="export-csv" data-pane="invoices">⬇ CSV</button>
+        <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="invoices">↺ Refresh</button>
       </div>
     </div>
     <div class="toolbar">
@@ -876,23 +885,23 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Settings</div>
+        <h2 class="page-title">Settings</h2>
         <div class="page-subtitle">System configuration &amp; customisation</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__saveSettings()">Save Settings</button>
+      <button class="btn btn-primary" data-action="save-settings">Save Settings</button>
     </div>
 
     <!-- Settings tab bar -->
-    <div class="settings-tabs" style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0">
-      <button class="settings-tab-btn active" data-tab="company"  onclick="window.__activateSettingsTab('company')">Company</button>
-      <button class="settings-tab-btn" data-tab="financial"       onclick="window.__activateSettingsTab('financial')">Financial</button>
-      <button class="settings-tab-btn" data-tab="quoting"         onclick="window.__activateSettingsTab('quoting')">Quoting</button>
-      <button class="settings-tab-btn" data-tab="email"           onclick="window.__activateSettingsTab('email')">Email Templates</button>
-      <button class="settings-tab-btn" data-tab="pdf"             onclick="window.__activateSettingsTab('pdf')">PDF Designer</button>
-      <button class="settings-tab-btn" data-tab="notifications"   onclick="window.__activateSettingsTab('notifications')">Notifications</button>
-      <button class="settings-tab-btn" data-tab="system"          onclick="window.__activateSettingsTab('system')">System</button>
-      <button class="settings-tab-btn" data-tab="services"        onclick="window.__activateSettingsTab('services')">Services</button>
-      <button class="settings-tab-btn" data-tab="categories"      onclick="window.__activateSettingsTab('categories')">Categories</button>
+    <div class="settings-tabs" role="tablist" aria-label="Settings sections" style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button class="settings-tab-btn active" data-tab="company"  data-action="settings-tab" data-tab="company" role="tab" aria-selected="true">Company</button>
+      <button class="settings-tab-btn" data-tab="financial"       data-action="settings-tab" data-tab="financial" role="tab" aria-selected="false">Financial</button>
+      <button class="settings-tab-btn" data-tab="quoting"         data-action="settings-tab" data-tab="quoting" role="tab" aria-selected="false">Quoting</button>
+      <button class="settings-tab-btn" data-tab="email"           data-action="settings-tab" data-tab="email" role="tab" aria-selected="false">Email Templates</button>
+      <button class="settings-tab-btn" data-tab="pdf"             data-action="settings-tab" data-tab="pdf" role="tab" aria-selected="false">PDF Designer</button>
+      <button class="settings-tab-btn" data-tab="notifications"   data-action="settings-tab" data-tab="notifications" role="tab" aria-selected="false">Notifications</button>
+      <button class="settings-tab-btn" data-tab="system"          data-action="settings-tab" data-tab="system" role="tab" aria-selected="false">System</button>
+      <button class="settings-tab-btn" data-tab="services"        data-action="settings-tab" data-tab="services" role="tab" aria-selected="false">Services</button>
+      <button class="settings-tab-btn" data-tab="categories"      data-action="settings-tab" data-tab="categories" role="tab" aria-selected="false">Categories</button>
     </div>
 
     <div style="max-width:860px">
@@ -900,7 +909,7 @@
       <!-- ── Company ── -->
       <div class="settings-section" data-section="company">
         <div class="section" style="margin-bottom:20px">
-          <div class="section-title">Business Details</div>
+          <h3 class="section-title">Business Details</h3>
           <div class="form-grid">
             <div class="form-group"><label>Business Name *</label>
               <input type="text" id="s-business-name"></div>
@@ -919,7 +928,7 @@
           </div>
         </div>
         <div class="section">
-          <div class="section-title">Logo &amp; Branding</div>
+          <h3 class="section-title">Logo &amp; Branding</h3>
           <div class="form-grid">
             <div class="form-group span-2">
               <label>Logo URL <span style="font-size:11px;color:var(--text3)">— direct link to JPG or PNG image</span></label>
@@ -934,7 +943,7 @@
       <!-- ── Financial ── -->
       <div class="settings-section" data-section="financial" style="display:none">
         <div class="section">
-          <div class="section-title">Tax</div>
+          <h3 class="section-title">Tax</h3>
           <div class="form-grid">
             <div class="form-group">
               <label>VAT Enabled</label>
@@ -950,7 +959,7 @@
           </div>
         </div>
         <div class="section" style="margin-top:16px">
-          <div class="section-title">Currency</div>
+          <h3 class="section-title">Currency</h3>
           <div class="form-grid">
             <div class="form-group"><label>Currency Code</label>
               <input type="text" id="s-currency" placeholder="GBP" maxlength="3" style="max-width:100px"></div>
@@ -963,7 +972,7 @@
       <!-- ── Quoting ── -->
       <div class="settings-section" data-section="quoting" style="display:none">
         <div class="section" style="margin-bottom:16px">
-          <div class="section-title">ID Prefixes</div>
+          <h3 class="section-title">ID Prefixes</h3>
           <div class="form-grid">
             <div class="form-group"><label>Quote Prefix</label>
               <input type="text" id="s-quote-prefix" placeholder="MAV-Q"></div>
@@ -972,7 +981,7 @@
           </div>
         </div>
         <div class="section" style="margin-bottom:16px">
-          <div class="section-title">Quote Defaults</div>
+          <h3 class="section-title">Quote Defaults</h3>
           <div class="form-grid">
             <div class="form-group"><label>Quote Valid For (days)</label>
               <input type="number" id="s-valid-days" value="30" min="1"></div>
@@ -981,7 +990,7 @@
           </div>
         </div>
         <div class="section">
-          <div class="section-title">Job Defaults</div>
+          <h3 class="section-title">Job Defaults</h3>
           <div class="form-grid">
             <div class="form-group span-2">
               <label>Require Deposit Before Checkout</label>
@@ -1037,7 +1046,7 @@
         <div class="two-col" style="gap:20px;align-items:start">
           <div>
             <div class="section" style="margin-bottom:16px">
-              <div class="section-title">Colours</div>
+              <h3 class="section-title">Colours</h3>
               <div class="form-grid">
                 <div class="form-group">
                   <label>Header Colour</label>
@@ -1062,7 +1071,7 @@
               </div>
             </div>
             <div class="section" style="margin-bottom:16px">
-              <div class="section-title">Show / Hide Sections</div>
+              <h3 class="section-title">Show / Hide Sections</h3>
               <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
                 <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
                   <input type="checkbox" id="s-pdf-show-logo" onchange="window.__updatePdfPreview()" style="width:16px;height:16px">
@@ -1082,7 +1091,7 @@
               </div>
             </div>
             <div class="section">
-              <div class="section-title">Footer &amp; Terms</div>
+              <h3 class="section-title">Footer &amp; Terms</h3>
               <div class="form-grid">
                 <div class="form-group span-2"><label>PDF Footer Line</label>
                   <input type="text" id="s-pdf-footer-text" placeholder="MAV Hire | 07754 875616 | info@mavhire.co.uk"
@@ -1105,7 +1114,7 @@
       <!-- ── Notifications ── -->
       <div class="settings-section" data-section="notifications" style="display:none">
         <div class="section">
-          <div class="section-title">Email Notifications</div>
+          <h3 class="section-title">Email Notifications</h3>
           <div class="form-grid">
             <div class="form-group span-2"><label>Send notifications to</label>
               <input type="email" id="s-notify-email" placeholder="mike@mavhire.co.uk"></div>
@@ -1143,7 +1152,7 @@
       <!-- ── System ── -->
       <div class="settings-section" data-section="system" style="display:none">
         <div class="section" style="margin-bottom:16px">
-          <div class="section-title">Display</div>
+          <h3 class="section-title">Display</h3>
           <div class="form-grid">
             <div class="form-group"><label>Date Format</label>
               <select id="s-date-format">
@@ -1164,18 +1173,18 @@
           </div>
         </div>
         <div class="section" style="margin-bottom:16px">
-          <div class="section-title">Theme</div>
+          <h3 class="section-title">Theme</h3>
           <div style="display:flex;gap:10px;margin-top:8px">
-            <button class="btn btn-ghost" onclick="window.__setTheme('dark')"
+            <button class="btn btn-ghost" data-action="set-theme" data-theme="dark"
               style="display:flex;align-items:center;gap:8px">◑ Dark mode</button>
-            <button class="btn btn-ghost" onclick="window.__setTheme('light')"
+            <button class="btn btn-ghost" data-action="set-theme" data-theme="light"
               style="display:flex;align-items:center;gap:8px">☀ Light mode</button>
           </div>
         </div>
 
         <!-- Enquiries & Distance -->
         <div class="section" style="margin-bottom:16px">
-          <div class="section-title">Enquiries &amp; CRM</div>
+          <h3 class="section-title">Enquiries &amp; CRM</h3>
           <div class="form-grid" style="margin-top:10px">
             <div class="form-group">
               <label>Home / Base Postcode</label>
@@ -1200,7 +1209,7 @@
 
         <!-- Security / Auth -->
         <div class="section" style="margin-bottom:16px">
-          <div class="section-title">Security</div>
+          <h3 class="section-title">Security</h3>
           <div class="form-grid" style="margin-top:10px">
             <div class="form-group">
               <label>GAS Auth Token <span style="font-size:11px;font-weight:400;color:var(--text3)">— protects the API endpoint</span></label>
@@ -1215,7 +1224,7 @@
                 <input type="checkbox" id="s-show-token"> Show token
               </label>
               <div style="margin-top:10px">
-                <button class="btn btn-ghost btn-sm" onclick="window.__generateAuthToken()">⟳ Generate random token</button>
+                <button class="btn btn-ghost btn-sm" data-action="generate-auth-token">⟳ Generate random token</button>
               </div>
             </div>
           </div>
@@ -1227,12 +1236,12 @@
       <div class="settings-section" data-section="services" style="display:none">
         <div class="page-header" style="margin-bottom:16px">
           <div>
-            <div class="section-title">Services Catalogue</div>
+            <h3 class="section-title">Services Catalogue</h3>
             <p style="font-size:12px;color:var(--text3);margin-top:4px">
               Labour, delivery, damage waiver and other service line items available on quotes and jobs.
             </p>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="window.__openNewServiceModal()">+ New Service</button>
+          <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="service">+ New Service</button>
         </div>
         <div id="services-list">
           <div style="color:var(--text3);font-size:12px">Loading services…</div>
@@ -1243,12 +1252,12 @@
       <div class="settings-section" data-section="categories" style="display:none">
         <div class="page-header" style="margin-bottom:16px">
           <div>
-            <div class="section-title">Product Categories</div>
+            <h3 class="section-title">Product Categories</h3>
             <p style="font-size:12px;color:var(--text3);margin-top:4px">
               Define product groups, categories and subcategories used across Inventory, Analytics and Forecasting.
             </p>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="window.__openNewCategoryModal()">+ New Category</button>
+          <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="category">+ New Category</button>
         </div>
         <div id="categories-list">
           <div style="color:var(--text3);font-size:12px">Loading categories…</div>
@@ -1264,19 +1273,19 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Job Calendar</div>
+        <h2 class="page-title">Job Calendar</h2>
         <div class="page-subtitle" id="calendar-title">Loading…</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <div style="display:flex;gap:0;border:1px solid var(--border2);border-radius:var(--r);overflow:hidden">
           <button class="btn btn-ghost btn-sm cal-view-btn active" data-view="month"
-            onclick="window.__calSetView('month')" style="border-radius:0;border:none">Month</button>
+            data-action="cal-view" data-view="month" style="border-radius:0;border:none">Month</button>
           <button class="btn btn-ghost btn-sm cal-view-btn" data-view="week"
-            onclick="window.__calSetView('week')" style="border-radius:0;border:none;border-left:1px solid var(--border2)">Week</button>
+            data-action="cal-view" data-view="week" style="border-radius:0;border:none;border-left:1px solid var(--border2)">Week</button>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="window.__calPrev()">← Prev</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__calToday()">Today</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__calNext()">Next →</button>
+        <button class="btn btn-ghost btn-sm" data-action="cal-nav" data-dir="prev">← Prev</button>
+        <button class="btn btn-ghost btn-sm" data-action="cal-nav" data-dir="today">Today</button>
+        <button class="btn btn-ghost btn-sm" data-action="cal-nav" data-dir="next">Next →</button>
       </div>
     </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px" id="calendar-legend"></div>
@@ -1289,10 +1298,10 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Sub-Rentals</div>
+        <h2 class="page-title">Sub-Rentals</h2>
         <div class="page-subtitle" id="sr-subtitle">Equipment hired from other suppliers</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__openNewSubRentalModal()">+ Sub-Rental</button>
+      <button class="btn btn-primary" data-action="open-new" data-entity="subrental">+ Sub-Rental</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -1304,7 +1313,7 @@
         <option>Ordered</option><option>Confirmed</option>
         <option>Delivered</option><option>Returned</option><option>Cancelled</option>
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('subrentals')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="subrentals">↺</button>
     </div>
     <div id="sr-list"></div>
     </div><!-- /pane-inner -->
@@ -1315,11 +1324,11 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Crew</div>
+        <h2 class="page-title">Crew</h2>
         <div class="page-subtitle" id="crew-subtitle">Staff assignments</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__exportCrewCsv()" title="Export to CSV">⬇ CSV</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__openNewCrewModal()">+ Assign Crew</button>
+      <button class="btn btn-primary btn-export" data-action="export-csv" data-pane="crew" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="crew">+ Assign Crew</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -1331,7 +1340,7 @@
         <option>Assigned</option><option>Confirmed</option>
         <option>On Site</option><option>Complete</option><option>Cancelled</option>
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('crew')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="crew">↺</button>
     </div>
     <div id="crew-list"></div>
     </div><!-- /pane-inner -->
@@ -1342,11 +1351,11 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Purchase Orders</div>
+        <h2 class="page-title">Purchase Orders</h2>
         <div class="page-subtitle" id="po-subtitle">Supplier orders</div>
       </div>
-      <button class="btn btn-primary" onclick="window.__exportPOsCsv()" title="Export to CSV">⬇ CSV</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__openNewPOModal()">+ New PO</button>
+      <button class="btn btn-primary btn-export" data-action="export-csv" data-pane="pos" title="Export to CSV">⬇ CSV</button>
+        <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="po">+ New PO</button>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -1358,7 +1367,7 @@
         <option>Draft</option><option>Ordered</option>
         <option>Received</option><option>Cancelled</option>
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('purchaseorders')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="purchaseorders">↺</button>
     </div>
     <div id="po-list"></div>
     </div><!-- /pane-inner -->
@@ -1369,7 +1378,7 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Scan Station</div>
+        <h2 class="page-title">Scan Station</h2>
         <div class="page-subtitle">Checkout · Return · Stocktake · Lookup</div>
       </div>
     </div>
@@ -1382,18 +1391,18 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Transport</div>
+        <h2 class="page-title">Transport</h2>
         <div class="page-subtitle" id="transport-subtitle">Delivery &amp; collection scheduling</div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="window.__openVehicleManager()">🚚 Fleet</button>
-        <button class="btn btn-primary btn-sm" onclick="window.__openNewTransportModal()">+ Add Run</button>
+        <button class="btn btn-ghost btn-sm" data-action="open-vehicle-manager">🚚 Fleet</button>
+        <button class="btn btn-primary btn-sm" data-action="open-new" data-entity="transport">+ Add Run</button>
       </div>
     </div>
 
     <!-- Fleet overview -->
     <div class="section" style="margin-bottom:16px">
-      <div class="section-title">Fleet Status</div>
+      <h3 class="section-title">Fleet Status</h3>
       <div id="transport-fleet"></div>
     </div>
 
@@ -1407,7 +1416,7 @@
       </select>
       <input type="date" id="transport-date-filter" class="filter-select"
         onchange="window.__filterTransport()" style="padding:6px 10px">
-      <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('transport')">↺</button>
+      <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="transport">↺</button>
     </div>
     <div id="transport-list"></div>
     </div><!-- /pane-inner -->
@@ -1418,12 +1427,12 @@
     <div class="pane-inner">
     <div class="page-header">
       <div>
-        <div class="page-title">Audit Log</div>
+        <h2 class="page-title">Audit Log</h2>
         <div class="page-subtitle" id="auditlog-subtitle">Full activity trail</div>
       </div>
       <div class="page-actions">
-        <button class="btn btn-ghost btn-sm" onclick="window.__exportAuditLogCsv()">⬇ CSV</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__reloadPane('auditlog')">↺ Refresh</button>
+        <button class="btn btn-ghost btn-sm btn-export" data-action="export-csv" data-pane="auditlog">⬇ CSV</button>
+        <button class="btn btn-ghost btn-sm" data-action="reload-pane" data-pane="auditlog">↺ Refresh</button>
       </div>
     </div>
     <div class="toolbar">
@@ -1476,7 +1485,7 @@
         oninput="window.__globalSearch(this.value)"
         onkeydown="window.__mobileSearchKey(event)">
     </div>
-    <button onclick="window.__toggleMobileSearch()" style="background:none;border:none;color:var(--text2);font-size:22px;padding:4px 8px;cursor:pointer;line-height:1">✕</button>
+    <button data-action="toggle-mobile-search" style="background:none;border:none;color:var(--text2);font-size:22px;padding:4px 8px;cursor:pointer;line-height:1">✕</button>
   </div>
   <div id="mobile-search-results" style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch"></div>
 </div>

@@ -53,7 +53,7 @@ function render(items) {
       <tbody>${items.map(r => `<tr>
         <td class="td-id">${esc(r.subRentalId)}</td>
         <td>
-          <div class="td-name" style="cursor:pointer" onclick="window.__openJobDetail('${escAttr(r.jobId)}')">${esc(r.jobName||r.jobId)}</div>
+          <div class="td-name" style="cursor:pointer" data-action="openJobDetail" data-id="${escAttr(r.jobId)}">${esc(r.jobName||r.jobId)}</div>
           <div class="td-id">${esc(r.jobId)}</div>
         </td>
         <td>${esc(r.supplierName||'—')}</td>
@@ -72,8 +72,8 @@ function render(items) {
           </select>
         </td>
         <td style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" onclick="window.__editSubRental('${escAttr(r.subRentalId)}')">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="window.__deleteSubRental('${escAttr(r.subRentalId)}')">✕</button>
+          <button class="btn btn-ghost btn-sm" data-action="editSubRental" data-id="${escAttr(r.subRentalId)}">Edit</button>
+          <button class="btn btn-danger btn-sm" data-action="deleteSubRental" data-id="${escAttr(r.subRentalId)}">✕</button>
         </td>
       </tr>`).join('')}
       </tbody>
@@ -142,7 +142,7 @@ function openSubRentalForm(existing, prefillJobId) {
         <textarea id="sr-notes" rows="2">${v('notes')}</textarea></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitSubRental('${escAttr(r.subRentalId||'')}')">
+    <button class="btn btn-primary btn-sm" data-action="submitSubRental" data-id="${escAttr(r.subRentalId||'')}">
       ${isEdit ? 'Save Changes' : 'Add Sub-Rental'}</button>`
   );
 
@@ -206,4 +206,29 @@ export async function updateSubRentalStatusFn(subRentalId, status) {
       r.subRentalId === subRentalId ? {...r, status} : r
     );
   } catch(e) { toast(e.message, 'err'); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['subrentals-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'deleteSubRental': window.__deleteSubRental(id); break;
+        case 'editSubRental': window.__editSubRental(id); break;
+        case 'openJobDetail': window.__openJobDetail(id); break;
+        default: break;
+      }
+    });
+  });
 }

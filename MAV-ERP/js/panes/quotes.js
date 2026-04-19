@@ -73,7 +73,7 @@ function render(quotes) {
     return `<div style="display:grid;grid-template-columns:1fr 1fr auto auto auto;gap:12px;align-items:center;
       padding:12px 14px;border-radius:8px;background:var(--surface2);margin-bottom:6px;
       border-left:3px solid ${statusColor};cursor:pointer;transition:background .15s"
-      onclick="window.__openQuoteDetail('${escAttr(q.quoteId)}')"
+      data-action="openQuoteDetail" data-id="${escAttr(q.quoteId)}"
       onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
       <div>
         <div style="font-weight:600;font-size:13px">${esc(q.eventName||q.quoteId)}</div>
@@ -94,11 +94,11 @@ function render(quotes) {
         ${q.replacementValue?`<div style="font-size:10px;color:var(--text3)">RV: ${fmtCurDec(q.replacementValue)}</div>`:''}
       </div>
       <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${escAttr(q.quoteId)}')" title="Edit">✏</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${escAttr(q.quoteId)}')" title="PDF">⬇</button>
-        ${isActive?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${escAttr(q.quoteId)}')" title="Email">✉</button>`:''}
-        ${isActive?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${escAttr(q.quoteId)}')" title="Approval link">🔗</button>`:''}
-        ${q.status==='Accepted'&&!q.linkedJobId?`<button class="btn btn-primary btn-sm" onclick="window.__convertQuoteToJob('${escAttr(q.quoteId)}')">→ Job</button>`:''}
+        <button class="btn btn-ghost btn-sm" data-action="editQuote" data-id="${escAttr(q.quoteId)}" title="Edit">✏</button>
+        <button class="btn btn-ghost btn-sm" data-action="downloadQuotePdf" data-id="${escAttr(q.quoteId)}" title="PDF">⬇</button>
+        ${isActive?`<button class="btn btn-ghost btn-sm" data-action="emailQuote" data-id="${escAttr(q.quoteId)}" title="Email">✉</button>`:''}
+        ${isActive?`<button class="btn btn-ghost btn-sm" data-action="generateApprovalLink" data-id="${escAttr(q.quoteId)}" title="Approval link">🔗</button>`:''}
+        ${q.status==='Accepted'&&!q.linkedJobId?`<button class="btn btn-primary btn-sm" data-action="convertQuoteToJob" data-id="${escAttr(q.quoteId)}">→ Job</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -131,7 +131,7 @@ function showQuoteModal(q) {
   const statusFlow = { Draft:['Sent'], Sent:['Accepted','Declined'], Accepted:[], Declined:[], Expired:[] };
   const nextStatuses = statusFlow[q.status] || [];
   const statusBtns   = nextStatuses.map(s =>
-    `<button class="btn btn-ghost btn-sm" onclick="window.__updateQuoteStatus('${escAttr(q.quoteId)}','${escAttr(s)}')">→ Mark ${esc(s)}</button>`
+    `<button class="btn btn-ghost btn-sm" data-action="updateQuoteStatus" data-id="${escAttr(q.quoteId)}" data-id2="${escAttr(s)}">→ Mark ${esc(s)}</button>`
   ).join('');
 
   openModal('modal-quote', `Quote: ${esc(q.eventName||q.quoteId)}`, `
@@ -165,14 +165,14 @@ function showQuoteModal(q) {
     </div>
     ${q.notes?`<div style="margin-top:12px;font-size:12px;color:var(--text2);padding:10px;background:var(--surface2);border-radius:var(--r)">${esc(q.notes)}</div>`:''}
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__downloadQuotePdf('${escAttr(q.quoteId)}')">⬇ PDF</button>
-    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__emailQuote('${escAttr(q.quoteId)}')">✉ Email</button>`:''} ${['Draft','Sent','Accepted'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__generateApprovalLink('${escAttr(q.quoteId)}')">🔗 Approval Link</button>`:''}
-    <button class="btn btn-ghost btn-sm" onclick="window.__editQuote('${escAttr(q.quoteId)}')">✏ Edit</button>
-    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" onclick="window.__openApplyBundleToQuote('${escAttr(q.quoteId)}')">◫ Bundle</button>`:''}
+    <button class="btn btn-ghost btn-sm" data-action="downloadQuotePdf" data-id="${escAttr(q.quoteId)}">⬇ PDF</button>
+    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" data-action="emailQuote" data-id="${escAttr(q.quoteId)}">✉ Email</button>`:''} ${['Draft','Sent','Accepted'].includes(q.status)?`<button class="btn btn-ghost btn-sm" data-action="generateApprovalLink" data-id="${escAttr(q.quoteId)}">🔗 Approval Link</button>`:''}
+    <button class="btn btn-ghost btn-sm" data-action="editQuote" data-id="${escAttr(q.quoteId)}">✏ Edit</button>
+    ${['Draft','Sent'].includes(q.status)?`<button class="btn btn-ghost btn-sm" data-action="openApplyBundleToQuote" data-id="${escAttr(q.quoteId)}">◫ Bundle</button>`:''}
     ${statusBtns}
-    ${!q.linkedJobId?`<button class="btn btn-ghost btn-sm" onclick="window.__convertQuoteToJob('${escAttr(q.quoteId)}')">→ Convert to Job</button>`:''}
-    <button class="btn btn-ghost btn-sm" onclick="window.__duplicateQuote('${escAttr(q.quoteId)}')">⎘ Duplicate</button>
-    ${!q.linkedJobId&&['Draft','Expired','Declined'].includes(q.status)?`<button class="btn btn-danger btn-sm" onclick="window.__deleteQuote('${escAttr(q.quoteId)}')">🗑 Delete</button>`:''}
+    ${!q.linkedJobId?`<button class="btn btn-ghost btn-sm" data-action="convertQuoteToJob" data-id="${escAttr(q.quoteId)}">→ Convert to Job</button>`:''}
+    <button class="btn btn-ghost btn-sm" data-action="duplicateQuote" data-id="${escAttr(q.quoteId)}">⎘ Duplicate</button>
+    ${!q.linkedJobId&&['Draft','Expired','Declined'].includes(q.status)?`<button class="btn btn-danger btn-sm" data-action="deleteQuote" data-id="${escAttr(q.quoteId)}">🗑 Delete</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `, 'modal-lg');
 }
@@ -220,11 +220,11 @@ function openQuoteForm(existingQuote) {
     weightKg:    i.weightKg    || 0,
   }));
 
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     initLineItems('quote-lines', initialLines);
     if (!isEdit) addRentalLine();
     setupClientAutocomplete('fq-client-name','fq-company','fq-email','fq-phone');
-  }, 50);
+  });
 
   window.__submitQuoteForm = async () => {
     const clientName = document.getElementById('fq-client-name')?.value.trim();
@@ -376,8 +376,8 @@ function openEmailModal(q) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-ghost btn-sm" onclick="window.__previewQuotePdf('${escAttr(q.quoteId)}')">Preview PDF</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitEmailQuote('${escAttr(q.quoteId)}')">Send Email</button>`
+    <button class="btn btn-ghost btn-sm" data-action="previewQuotePdf" data-id="${escAttr(q.quoteId)}">Preview PDF</button>
+    <button class="btn btn-primary btn-sm" data-action="submitEmailQuote" data-id="${escAttr(q.quoteId)}">Send Email</button>`
   );
 
   window.__previewQuotePdf = (qId) => downloadQuotePdf(qId);
@@ -471,11 +471,11 @@ export async function openApplyBundleToQuote(quoteId) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitApplyBundleToQuote('${escAttr(quoteId)}')">Apply Bundle</button>`
+    <button class="btn btn-primary btn-sm" data-action="submitApplyBundleToQuote" data-id="${escAttr(quoteId)}">Apply Bundle</button>`
   );
   window.__submitApplyBundleToQuote = async (qId) => {
     const bundleId = document.getElementById('abq-bundle')?.value;
-    const qty      = parseInt(document.getElementById('abq-qty')?.value || '1', 10);
+    const qty      = parseInt(document.getElementById('abq-qty', 10)?.value || '1', 10);
     const price    = document.getElementById('abq-price')?.value;
     if (!bundleId) { toast('Select a bundle', 'warn'); return; }
     showLoading('Applying bundle…'); closeModal();
@@ -551,4 +551,37 @@ export async function quoteCheckDate(dateStr) {
   } catch(e) {
     el.innerHTML = `<div style="font-size:11px;color:var(--danger)">${esc(e.message)}</div>`;
   }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['quotes-list', 'quotes-pipeline'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'convertQuoteToJob': window.__convertQuoteToJob(id); break;
+        case 'deleteQuote': window.__deleteQuote(id); break;
+        case 'downloadQuotePdf': window.__downloadQuotePdf(id); break;
+        case 'duplicateQuote': window.__duplicateQuote(id); break;
+        case 'editQuote': window.__editQuote(id); break;
+        case 'emailQuote': window.__emailQuote(id); break;
+        case 'generateApprovalLink': window.__generateApprovalLink(id); break;
+        case 'openApplyBundleToQuote': window.__openApplyBundleToQuote(id); break;
+        case 'openQuoteDetail': window.__openQuoteDetail(id); break;
+        case 'previewQuotePdf': window.__previewQuotePdf(id); break;
+        case 'updateQuoteStatus': window.__updateQuoteStatus(id, el.dataset.status); break;
+        default: break;
+      }
+    });
+  });
 }

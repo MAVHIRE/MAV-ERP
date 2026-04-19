@@ -140,7 +140,7 @@ function enquiryCard(e) {
   const distMatch = e.notes?.match(/\[Distance\] ([\d.]+) miles/);
   const distMiles = distMatch ? distMatch[1] : null;
 
-  return `<div onclick="window.__openEnquiryDetail('${escAttr(e.enquiryId)}')"
+  return `<div data-action="openEnquiryDetail" data-id="${escAttr(e.enquiryId)}"
     style="background:var(--surface);border:1px solid var(--border);
     border-left:3px solid ${priorityC};border-radius:var(--r2);padding:10px;
     margin-bottom:6px;cursor:pointer;transition:all var(--trans)"
@@ -182,7 +182,7 @@ function renderList(list) {
         ${list.map(e => {
           const col = STATUS_COLOR[e.status] || 'var(--text3)';
           const pc  = PRIORITY_COLOR[e.priority] || 'var(--text3)';
-          return `<tr style="cursor:pointer" onclick="window.__openEnquiryDetail('${escAttr(e.enquiryId)}')">
+          return `<tr style="cursor:pointer" data-action="openEnquiryDetail" data-id="${escAttr(e.enquiryId)}">
             <td style="font-size:11px;color:var(--text3);white-space:nowrap">${e.receivedDate?fmtDate(e.receivedDate.substring(0,10)):'—'}</td>
             <td>
               <div style="font-weight:600">${esc(e.name||'—')}</div>
@@ -267,17 +267,17 @@ export async function openEnquiryDetail(enquiryId) {
         ${['Contacted','Qualified','Quoted','Won','Lost','Spam']
           .filter(s => s !== e.status)
           .map(s => `<button class="btn btn-ghost btn-sm" style="font-size:11px;color:${STATUS_COLOR[s]||'var(--text2)'}"
-            onclick="window.__setEnquiryStatus('${escAttr(e.enquiryId)}','${s}')">${s}</button>`).join('')}
+            data-action="setEnquiryStatus" data-id="${escAttr(e.enquiryId)}" data-status="${s}">${s}</button>`).join('')}
       </div>
     </div>` : ''}
   `, `
     ${isActive ? `
-    <button class="btn btn-ghost btn-sm" onclick="window.__openEnquiryEdit('${escAttr(e.enquiryId)}')">✏ Edit</button>
-    ${e.venuePostcode ? `<button class="btn btn-ghost btn-sm" onclick="window.__enrichEnquiry('${escAttr(e.enquiryId)}')" title="Calculate distance + run triage rules">📍 Enrich</button>` : ''}
-    ${!e.clientId ? `<button class="btn btn-ghost btn-sm" onclick="window.__enqConvertToClient('${escAttr(e.enquiryId)}')">👤 → Client</button>` : ''}
-    ${!e.quoteId  ? `<button class="btn btn-primary btn-sm" onclick="window.__enqConvertToQuote('${escAttr(e.enquiryId)}')">📄 → Quote</button>` : `<button class="btn btn-ghost btn-sm" onclick="window.__switchPane('quotes');window.__openQuoteDetail('${escAttr(e.quoteId)}')">View Quote →</button>`}
+    <button class="btn btn-ghost btn-sm" data-action="openEnquiryEdit" data-id="${escAttr(e.enquiryId)}">✏ Edit</button>
+    ${e.venuePostcode ? `<button class="btn btn-ghost btn-sm" data-action="enrichEnquiry" data-id="${escAttr(e.enquiryId)}" title="Calculate distance + run triage rules">📍 Enrich</button>` : ''}
+    ${!e.clientId ? `<button class="btn btn-ghost btn-sm" data-action="enqConvertToClient" data-id="${escAttr(e.enquiryId)}">👤 → Client</button>` : ''}
+    ${!e.quoteId  ? `<button class="btn btn-primary btn-sm" data-action="enqConvertToQuote" data-id="${escAttr(e.enquiryId)}">📄 → Quote</button>` : `<button class="btn btn-ghost btn-sm" onclick="window.__switchPane('quotes');window.__openQuoteDetail('${escAttr(e.quoteId)}')">View Quote →</button>`}
     ` : ''}
-    ${e.quoteId ? '' : `<button class="btn btn-danger btn-sm" onclick="window.__deleteEnquiry('${escAttr(e.enquiryId)}')">🗑 Delete</button>`}
+    ${e.quoteId ? '' : `<button class="btn btn-danger btn-sm" data-action="deleteEnquiry" data-id="${escAttr(e.enquiryId)}">🗑 Delete</button>`}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
 }
@@ -323,7 +323,7 @@ export async function openEnquiryEdit(enquiryId) {
         <textarea id="ee-notes" rows="3">${esc(e.notes||'')}</textarea></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitEnquiryEdit('${escAttr(e.enquiryId)}')">Save Changes</button>`
+    <button class="btn btn-primary btn-sm" data-action="submitEnquiryEdit" data-id="${escAttr(e.enquiryId)}">Save Changes</button>`
   );
 
   window.__submitEnquiryEdit = async (id) => {
@@ -524,4 +524,33 @@ export async function enrichEnquiry(enquiryId) {
     await loadEnquiries();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['enq-list', 'enq-pipeline'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'deleteEnquiry': window.__deleteEnquiry(id); break;
+        case 'enqConvertToClient': window.__enqConvertToClient(id); break;
+        case 'enqConvertToQuote': window.__enqConvertToQuote(id); break;
+        case 'enrichEnquiry': window.__enrichEnquiry(id); break;
+        case 'openEnquiryDetail': window.__openEnquiryDetail(id); break;
+        case 'openEnquiryEdit': window.__openEnquiryEdit(id); break;
+        case 'setEnquiryStatus': window.__setEnquiryStatus(id, el.dataset.status||''); break;
+        default: break;
+      }
+    });
+  });
 }

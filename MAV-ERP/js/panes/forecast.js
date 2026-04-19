@@ -84,7 +84,7 @@ function renderForecastChart(forecasts) {
   if (!top.length) { el.innerHTML=emptyState('◌','No forecast data — run refresh'); return; }
 
   el.innerHTML=`<div style="position:relative;height:200px"><canvas id="c-forecast"></canvas></div>`;
-  setTimeout(()=>{
+  requestAnimationFrame(()=>{
     const c=document.getElementById('c-forecast');
     if (!c) return;
     if (_charts.forecast) _charts.forecast.destroy();
@@ -242,7 +242,7 @@ function openBuyListPoModal(buys) {
           productId:   b.productId,
           productName: b.productName,
           sku:         b.sku || '',
-          quantity:    parseInt(document.getElementById(`bl-qty-${gi}-${bi}`)?.value||b.recommendedPurchaseQty, 10),
+          quantity:    parseInt(document.getElementById(`bl-qty-${gi}-${bi}`, 10)?.value||b.recommendedPurchaseQty, 10),
           unitCost:    b.unitCost || 0,
         })).filter(i => i.quantity > 0);
         if (!items.length) continue;
@@ -297,7 +297,7 @@ export async function runForecastRefresh() {
 
 // ── Category forecasts ────────────────────────────────────────────────────────
 function renderCategoryForecasts(items) {
-  const el = document.getElementById('category-forecasts');
+  const el = document.getElementById('forecast-category-forecasts');
   if (!el || !items.length) return;
   const max = Math.max(...items.map(i => +i.forecastRevenue||0), 1);
   el.innerHTML = items.slice(0,10).map(i => {

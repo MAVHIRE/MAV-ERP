@@ -41,8 +41,8 @@ export async function loadWarehouseDesigner() {
     _items = (locs||[]).filter(l => +l.layoutW > 0).map(mapLocation);
     hideLoading();
     updateStats();
-    if (_view === '3d')      setTimeout(init3D, 80);
-    else if (_view === '2d') setTimeout(init2D, 80);
+    if (_view === '3d')      requestAnimationFrame(init3D);
+    else if (_view === '2d') requestAnimationFrame(init2D);
     // list mode handled by updateStats() called above
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
 }
@@ -124,7 +124,7 @@ function showProperties(item) {
     <div style="display:flex;flex-direction:column;gap:4px;font-size:11px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between">
         <span style="color:var(--text3)">Type</span>
-        <span style="font-family:var(--mono)">${item.type}</span>
+        <span style="font-family:var(--mono)">${esc(item.type)}</span>
       </div>
       <div style="display:flex;justify-content:space-between">
         <span style="color:var(--text3)">Position</span>
@@ -146,12 +146,12 @@ function showProperties(item) {
 
     ${cap > 0 ? `
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px;font-size:11px"
-      onclick="window.__whViewContents('${escAttr(item.locationId)}','${escAttr(item.label)}')">
+      data-action="whViewContents" data-id="${escAttr(item.locationId)}" data-id2="${escAttr(item.label)}">
       📦 View Contents
     </button>` : ''}
 
     <button class="btn btn-ghost btn-sm" style="width:100%;font-size:11px"
-      onclick="window.__whEditItem('${escAttr(item.id)}')">
+      data-action="whEditItem" data-id="${escAttr(item.id)}">
       ✏ Edit Properties
     </button>`;
 }
@@ -978,8 +978,8 @@ function switchView(view) {
   const fit2d=document.getElementById('wh-fit-button');
   if(fit2d) fit2d.style.display=view==='2d'?'flex':'none';
 
-  if(view==='3d') setTimeout(()=>init3D(),80);
-  else if(view==='2d') setTimeout(()=>init2D(),50);
+  if(view==='3d') requestAnimationFrame(()=>init3D());
+  else if(view==='2d') requestAnimationFrame(()=>init2D());
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────
@@ -1015,8 +1015,8 @@ export async function saveWarehouseLayout() {
     toast(`Saved ${r.saved||payload.length} locations`,'ok');
     // Rebuild view to reflect fresh data (teardown first to prevent leaks)
     teardownView();
-    if (_view === '3d')      setTimeout(init3D, 50);
-    else if (_view === '2d') setTimeout(init2D, 50);
+    if (_view === '3d')      requestAnimationFrame(init3D);
+    else if (_view === '2d') requestAnimationFrame(init2D);
     else updateStats(); // list mode — no canvas to rebuild
   } catch(e){toast(e.message,'err');}
   finally{hideLoading();}
@@ -1134,8 +1134,8 @@ export function exposeWarehouseGlobals() {
 
   window.__whRebuild = () => {
     teardownView();
-    if (_view === '2d')      setTimeout(init2D, 50);
-    else if (_view === '3d') setTimeout(init3D, 50);
+    if (_view === '2d')      requestAnimationFrame(init2D);
+    else if (_view === '3d') requestAnimationFrame(init3D);
     // list mode: no canvas to rebuild, just update stats panel
     else updateStats();
   };

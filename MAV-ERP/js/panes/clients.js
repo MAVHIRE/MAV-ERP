@@ -31,7 +31,7 @@ function renderClientRevenue(report) {
       ${top5.map(c => {
         const pct = Math.round((c.totalRevenue||0)/max*100);
         return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer"
-          onclick="window.__openClientHistory('${escAttr(c.clientId)}')">
+          data-action="openClientHistory" data-id="${escAttr(c.clientId)}">
           <div style="font-family:var(--mono);font-size:9px;color:var(--text3)">${fmtCurDec(c.totalRevenue||0)}</div>
           <div style="width:100%;background:var(--accent);border-radius:3px 3px 0 0;opacity:.8"
             style="height:${pct}%">&nbsp;</div>
@@ -41,7 +41,7 @@ function renderClientRevenue(report) {
     <div style="display:flex;gap:8px">
       ${top5.map(c => `<div style="flex:1;font-size:9px;color:var(--text3);text-align:center;
         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer"
-        onclick="window.__openClientHistory('${escAttr(c.clientId)}')"
+        data-action="openClientHistory" data-id="${escAttr(c.clientId)}"
         title="${esc(c.clientName)}">${esc(c.clientName.split(' ')[0])}</div>`).join('')}
     </div>`;
 }
@@ -64,7 +64,7 @@ function render(clients) {
     ${clients.map(c => {
       const initials = c.clientName.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const typeColor = typeColors[c.clientType]||'#5a5a70';
-      return `<div onclick="window.__openClientHistory('${escAttr(c.clientId)}')"
+      return `<div data-action="openClientHistory" data-id="${escAttr(c.clientId)}"
         style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
         padding:14px;cursor:pointer;transition:all var(--trans)"
         onmouseover="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'"
@@ -112,7 +112,7 @@ function showClientHistoryModal(client, jobs, quotes) {
   const outstandingBal = jobs.reduce((s, j) => s + (+j.balanceDue||0), 0);
   const activeJobs     = jobs.filter(j => !['Complete','Cancelled','Returned'].includes(j.status));
 
-  const jobRows = jobs.slice(0, 20).map(j => `<tr onclick="window.__openJobDetail('${escAttr(j.jobId)}')" style="cursor:pointer">
+  const jobRows = jobs.slice(0, 20).map(j => `<tr data-action="openJobDetail" data-id="${escAttr(j.jobId)}" style="cursor:pointer">
     <td class="td-id">${esc(j.jobId)}</td>
     <td class="td-name">${esc(j.jobName||'—')}</td>
     <td>${fmtDate(j.eventDate||j.startDate)}</td>
@@ -121,7 +121,7 @@ function showClientHistoryModal(client, jobs, quotes) {
     <td class="td-num" style="${j.balanceDue>0?'color:var(--warn)':''}">${j.balanceDue>0?fmtCurDec(j.balanceDue):'—'}</td>
   </tr>`).join('');
 
-  const quoteRows = quotes.slice(0, 10).map(q => `<tr onclick="window.__openQuoteDetail('${escAttr(q.quoteId)}')" style="cursor:pointer">
+  const quoteRows = quotes.slice(0, 10).map(q => `<tr data-action="openQuoteDetail" data-id="${escAttr(q.quoteId)}" style="cursor:pointer">
     <td class="td-id">${esc(q.quoteId)}</td>
     <td class="td-name">${esc(q.eventName||'—')}</td>
     <td>${fmtDate(q.eventDate)}</td>
@@ -188,7 +188,7 @@ function showClientHistoryModal(client, jobs, quotes) {
       </table>
     </div>` : ''}
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__openClientPortal('${escAttr(clientId)}')">◎ Portal Link</button>
+    <button class="btn btn-ghost btn-sm" data-action="openClientPortal" data-id="${escAttr(clientId)}">◎ Portal Link</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__openNewJobModal()">+ New Job</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__openNewQuoteModal()">+ New Quote</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
@@ -218,7 +218,7 @@ export function openNewClientModal() {
     <button class="btn btn-primary btn-sm" onclick="window.__submitNewClient()">Save Client</button>`
   );
   window.__submitNewClient = submitNewClient;
-  setTimeout(() => document.getElementById('fc-name')?.focus(), 50);
+  requestAnimationFrame(() => document.getElementById('fc-name')?.focus());
 }
 
 async function submitNewClient() {
@@ -297,7 +297,7 @@ export async function openClientPortal(clientId) {
         ⚠ This link is unique to this client. Anyone with it can view their data.
         Click Revoke to invalidate it.
       </p>`, `
-      <button class="btn btn-danger btn-sm" onclick="window.__revokeClientPortal('${escAttr(clientId)}')">✕ Revoke</button>
+      <button class="btn btn-danger btn-sm" data-action="revokeClientPortal" data-id="${escAttr(clientId)}">✕ Revoke</button>
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>`
     );
 
@@ -316,4 +316,31 @@ export async function revokeClientPortal(clientId) {
     closeModal();
   } catch(e) { toast(e.message, 'err'); }
   finally { hideLoading(); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['clients-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'openClientHistory': window.__openClientHistory(id); break;
+        case 'openClientPortal': window.__openClientPortal(id); break;
+        case 'openJobDetail': window.__openJobDetail(id); break;
+        case 'openQuoteDetail': window.__openQuoteDetail(id); break;
+        case 'revokeClientPortal': window.__revokeClientPortal(id); break;
+        default: break;
+      }
+    });
+  });
 }

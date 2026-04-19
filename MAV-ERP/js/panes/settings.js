@@ -302,8 +302,8 @@ function renderServicesList(services) {
         <div style="font-size:10px;color:var(--text3)">default rate</div>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
-        <button class="btn btn-ghost btn-sm" onclick="window.__editService('${escAttr(s.serviceId)}')">✏</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.__toggleServiceActive('${escAttr(s.serviceId)}','${s.active===false?'true':'false'}')"
+        <button class="btn btn-ghost btn-sm" data-action="editService" data-id="${escAttr(s.serviceId)}">✏</button>
+        <button class="btn btn-ghost btn-sm" data-action="toggleServiceActive" data-id="${escAttr(s.serviceId)}" data-val="${s.active===false?'true':'false'}"
           title="${s.active===false?'Activate':'Deactivate'}">
           ${s.active===false?'▶':'⏸'}
         </button>
@@ -383,7 +383,7 @@ function openServiceForm(existing) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitService('${escAttr(s.serviceId||'')}')">
+    <button class="btn btn-primary btn-sm" data-action="submitService" data-id="${escAttr(s.serviceId||'')}">
       ${isEdit ? 'Save Changes' : 'Create Service'}
     </button>`
   );
@@ -464,8 +464,8 @@ function renderCategoriesList(cats) {
             </div>
             <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">${esc(c.categoryId)}</div>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="window.__editCategory('${escAttr(c.categoryId)}')">✏</button>
-          <button class="btn btn-ghost btn-sm" onclick="window.__deleteCategory('${escAttr(c.categoryId)}','${escAttr(c.category)}')"
+          <button class="btn btn-ghost btn-sm" data-action="editCategory" data-id="${escAttr(c.categoryId)}">✏</button>
+          <button class="btn btn-ghost btn-sm" data-action="deleteCategory" data-id="${escAttr(c.categoryId)}" data-name="${escAttr(c.category)}"
             style="color:var(--danger)">✕</button>
         </div>`).join('')}
     </div>`).join('');
@@ -504,7 +504,7 @@ function openCategoryForm(existing) {
       </label></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitCategory('${escAttr(c.categoryId||'')}')">
+    <button class="btn btn-primary btn-sm" data-action="submitCategory" data-id="${escAttr(c.categoryId||'')}">
       ${isEdit?'Save Changes':'Create Category'}
     </button>`
   );
@@ -539,4 +539,32 @@ export async function deleteCategory(categoryId, name) {
     STATE.loadedPanes.delete('inventory');
   } catch(e) { toast(e.message,'err'); }
   finally { hideLoading(); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['settings-services-list', 'settings-categories-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'deleteCategory': window.__deleteCategory(id); break;
+        case 'editCategory': window.__editCategory(id); break;
+        case 'editService': window.__editService(id); break;
+        case 'submitCategory': window.__submitCategory(id); break;
+        case 'submitService': window.__submitService(id); break;
+        case 'toggleServiceActive': window.__toggleServiceActive(id, el.dataset.val||''); break;
+        default: break;
+      }
+    });
+  });
 }

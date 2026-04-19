@@ -98,7 +98,7 @@ function renderRevenueBySkuChart(skuStats) {
   if (!top.length) { el.innerHTML = emptyState('∴','No data yet'); return; }
 
   el.innerHTML = `<div style="position:relative;height:220px"><canvas id="c-sku-rev"></canvas></div>`;
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     const c = document.getElementById('c-sku-rev');
     if (!c) return;
     if (_charts.skuRev) _charts.skuRev.destroy();
@@ -122,7 +122,7 @@ function renderRevenueBySkuChart(skuStats) {
         }
       }
     });
-  },50);
+  });
 }
 
 // ── Category breakdown ────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ function renderCategoryChart(snapshot) {
   const colors = ['#e8ff47','#4db8ff','#4dff91','#ffaa00','#9b8aff','#ff4d4d','#ff8c00','#4db8ff'];
 
   el.innerHTML = `<div style="position:relative;height:180px"><canvas id="c-cat"></canvas></div>`;
-  setTimeout(()=>{
+  requestAnimationFrame(()=> {
     const c = document.getElementById('c-cat');
     if (!c) return;
     if (_charts.cat) _charts.cat.destroy();
@@ -154,7 +154,7 @@ function renderCategoryChart(snapshot) {
           tooltip:{ callbacks:{ label: ctx=>`${ctx.label}: ${fmtCur(ctx.parsed)}` } } }
       }
     });
-  },50);
+  });
 }
 
 // ── ROI scatter chart ─────────────────────────────────────────────────────────
@@ -170,7 +170,7 @@ function renderROIChart(skuStats) {
   if (!data.length) { el.innerHTML=emptyState('∴','No data'); return; }
   el.innerHTML = `<div style="position:relative;height:200px"><canvas id="c-roi"></canvas></div>`;
 
-  setTimeout(()=>{
+  requestAnimationFrame(()=> {
     const c = document.getElementById('c-roi');
     if (!c) return;
     if (_charts.roi) _charts.roi.destroy();
@@ -194,7 +194,7 @@ function renderROIChart(skuStats) {
         }
       }
     });
-  },50);
+  });
 }
 
 // ── ABC classification table ──────────────────────────────────────────────────
@@ -243,7 +243,7 @@ function renderDeadStock(dead) {
     const daysSince = s.lastHiredDate
       ? Math.floor((Date.now()-new Date(s.lastHiredDate))/86400000)
       : 999;
-    return `<div onclick="window.__openProductDetail('${escAttr(s.productId)}')"
+    return `<div data-action="openProductDetail" data-id="${escAttr(s.productId)}"
       style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;
       border-radius:6px;background:var(--surface2);margin-bottom:5px;cursor:pointer;transition:background .15s"
       onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
@@ -272,7 +272,7 @@ export function renderSkuTable(stats) {
       </div>
       <span style="font-size:10px;color:var(--text3);min-width:28px">${util.toFixed(0)}%</span>
     </div>`;
-    return `<tr onclick="window.__openProductDetail('${escAttr(s.productId)}')" style="cursor:pointer">
+    return `<tr data-action="openProductDetail" data-id="${escAttr(s.productId)}" style="cursor:pointer">
       <td><div style="font-weight:500">${esc(s.name)}</div><div class="td-id">${esc(s.sku)}</div></td>
       <td><div style="font-size:11px;color:var(--text2)">${esc(s.category)}</div></td>
       <td class="td-num">${s.qtyOwned||0}</td>
@@ -512,7 +512,7 @@ export async function generateExecutiveReport() {
       </div>
       ${(report.alerts||[]).length ? `
         <h2>Alerts</h2>
-        ${report.alerts.slice(0,5).map(a=>`<div class="alert alert-warn">⚠ ${typeof a==='string'?a:(a.title||JSON.stringify(a))}</div>`).join('')}
+        ${report.alerts.slice(0,5).map(a=>`<div class="alert alert-warn">⚠ ${esc(typeof a==='string'?a:(a.title||JSON.stringify(a)))}</div>`).join('')}
       ` : ''}
       <h2>Operations</h2>
       <p>Active jobs: ${report.operations?.activeJobs??'—'} · Upcoming 7d: ${report.operations?.upcomingJobs?.length??'—'}</p>
@@ -568,4 +568,27 @@ function renderCategoryRevenue(items) {
       </div>
     </div>`;
   }).join('');
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['analytics-sku-list', 'analytics-cat-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'openProductDetail': window.__openProductDetail(id); break;
+        default: break;
+      }
+    });
+  });
 }

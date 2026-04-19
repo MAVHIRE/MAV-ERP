@@ -113,7 +113,7 @@ function transportCard(t) {
       <!-- Job -->
       <div style="flex:1;min-width:0">
         ${job?`<div style="font-weight:500;font-size:13px;cursor:pointer;color:var(--info)"
-          onclick="window.__openJobDetail('${escAttr(t.jobId)}')">${esc(job.jobName||t.jobId)}</div>
+          data-action="openJobDetail" data-id="${escAttr(t.jobId)}">${esc(job.jobName||t.jobId)}</div>
           <div style="font-size:11px;color:var(--text3)">${esc(job.clientName||'')}${job.venue?' · '+esc(job.venue):''}</div>
           <div style="font-size:11px;color:var(--text3)">${job.deliveryAddress?'📍 '+esc(job.deliveryAddress.address||''):''}</div>
         `:
@@ -125,7 +125,7 @@ function transportCard(t) {
         ${t.cost>0?`<div style="font-family:var(--mono);font-size:13px;color:var(--text2)">${fmtCurDec(t.cost)}</div>`:''}
         <div style="display:flex;gap:4px;margin-top:6px" onclick="event.stopPropagation()">
           <button class="btn btn-ghost btn-sm" onclick="openTransportForm('${escAttr(t.transportId)}')">✏</button>
-          <button class="btn btn-danger btn-sm" onclick="window.__deleteTransport('${escAttr(t.transportId)}')">✕</button>
+          <button class="btn btn-danger btn-sm" data-action="deleteTransport" data-id="${escAttr(t.transportId)}">✕</button>
         </div>
       </div>
     </div>`;
@@ -238,7 +238,7 @@ async function openTransportForm(transportId, preJobId) {
       </div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitTransport('${escAttr(t.transportId||'')}')">
+    <button class="btn btn-primary btn-sm" data-action="submitTransport" data-id="${escAttr(t.transportId||'')}">
       ${transportId ? 'Save Changes' : 'Add Run'}</button>`
   );
 
@@ -366,4 +366,29 @@ export function openVehicleManager() {
     } catch(e) { toast(e.message, 'err'); }
     finally { hideLoading(); }
   };
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['transport-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'deleteTransport': window.__deleteTransport(id); break;
+        case 'openJobDetail': window.__openJobDetail(id); break;
+        case 'submitTransport': window.__submitTransport(id); break;
+        default: break;
+      }
+    });
+  });
 }

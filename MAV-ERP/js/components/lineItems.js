@@ -334,12 +334,12 @@ function showRatePicker(lineId, product, rates) {
     });
   });
 
-  // Close on outside click
-  setTimeout(() => {
+  // Close on outside click — defer by one frame so the opening click doesn't immediately trigger close
+  requestAnimationFrame(() => {
     document.addEventListener('click', function handler(e) {
       if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('click', handler); }
     });
-  }, 50);
+  });
 }
 
 function clearProductOnLine(id) {
@@ -370,7 +370,7 @@ function suggestAccessories(accessories, parentProductId, parentName) {
     <div style="display:flex;flex-wrap:wrap;gap:6px">
       ${accessories.map(a => `
         <button class="btn btn-ghost btn-sm" style="font-size:11px"
-                onclick="window.__liAddAccessory('${escAttr(a.accessoryProductId)}','${escAttr(a.accessoryName)}',${a.defaultQuantity})">
+                data-action="liAddAccessory" data-id="${escAttr(a.accessoryProductId)}" data-name="${escAttr(a.accessoryName)}" data-qty="${a.defaultQuantity}">
           + ${esc(a.accessoryName)} ×${a.defaultQuantity}${a.optional ? ' (optional)' : ''}
         </button>`).join('')}
       <button class="btn btn-ghost btn-sm" style="font-size:11px;opacity:.5"
@@ -494,4 +494,23 @@ function normaliseItem(l) {
     imageUrl:        l.imageUrl          || '',
     stockMethod:     l.stockMethod       || '',
   };
+}
+
+function setupPaneEvents() {
+  ['li-items-wrap','li-accessories-wrap'].forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true;
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el) return;
+      const id = el.dataset.id || '';
+      switch(el.dataset.action) {
+        case 'liAddAccessory':
+          window.__liAddAccessory(id, el.dataset.name||'', +el.dataset.qty||1); break;
+        case 'liRemoveItem': window.__liRemoveItem(id); break;
+        default: break;
+      }
+    });
+  });
 }

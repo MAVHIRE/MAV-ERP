@@ -95,7 +95,7 @@ function renderInvoices(jobs) {
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px">
             <div style="font-weight:600;font-size:13px;cursor:pointer"
-              onclick="window.__openInvoiceDetail('${escAttr(j.jobId)}')">${esc(j.jobName||j.jobId)}</div>
+              data-action="openInvoiceDetail" data-id="${escAttr(j.jobId)}">${esc(j.jobName||j.jobId)}</div>
             <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">${esc(j.jobId)}</span>
           </div>
           <div style="font-size:11px;color:var(--text3)">${esc(j.clientName)}${j.company?` · ${esc(j.company)}`:''}</div>
@@ -121,11 +121,11 @@ function renderInvoices(jobs) {
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
           <button class="btn btn-ghost btn-sm"
-            onclick="window.__openInvoiceDetail('${escAttr(j.jobId)}')">📋 Detail</button>
+            data-action="openInvoiceDetail" data-id="${escAttr(j.jobId)}">📋 Detail</button>
           <button class="btn btn-primary btn-sm"
-            onclick="window.__recordDeposit('${escAttr(j.jobId)}',${+j.balanceDue||0})">💰 Pay</button>
+            data-action="recordDeposit" data-id="${escAttr(j.jobId)}" data-balance="${+j.balanceDue||0}">💰 Pay</button>
           <button class="btn btn-ghost btn-sm"
-            onclick="window.__sendPaymentReminder('${escAttr(j.jobId)}')">✉ Remind</button>
+            data-action="sendPaymentReminder" data-id="${escAttr(j.jobId)}">✉ Remind</button>
         </div>
       </div>`;
   }).join('');
@@ -201,11 +201,11 @@ export async function openInvoiceDetail(jobId) {
             border-left:3px solid var(--ok);margin-bottom:4px">
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--ok)">${amt}</div>
-              <div style="font-size:10px;color:var(--text3)">${p.notes||'Payment recorded'}</div>
+              <div style="font-size:10px;color:var(--text3)">${esc(p.notes||'Payment recorded')}</div>
             </div>
             <div style="font-size:10px;color:var(--text3);text-align:right;font-family:var(--mono)">
               ${p.timestamp?fmtDate(p.timestamp.substring(0,10)):'—'}<br>
-              ${p.user||''}
+              ${esc(p.user||'')}
             </div>
           </div>`;
         }).join('')}
@@ -231,8 +231,8 @@ export async function openInvoiceDetail(jobId) {
       </div>
     `, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__generateJobInvoice('${escAttr(jobId)}')">🧾 Invoice PDF</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.__sendPaymentReminder('${escAttr(jobId)}')">✉ Remind</button>
+      <button class="btn btn-ghost btn-sm" data-action="generateJobInvoice" data-id="${escAttr(jobId)}">🧾 Invoice PDF</button>
+      <button class="btn btn-ghost btn-sm" data-action="sendPaymentReminder" data-id="${escAttr(jobId)}">✉ Remind</button>
       <button class="btn btn-primary btn-sm" onclick="window.__closeModal();window.__recordDeposit('${escAttr(jobId)}',${balance})">💰 Record Payment</button>
     `);
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
@@ -264,7 +264,7 @@ export async function batchPaymentReminder() {
     const body = `Hi ${name},\n\nThis is a reminder that the following balance${jobs.length>1?'s are':' is'} currently outstanding:\n\n${jobLines}\n\nTotal: ${fmtCurDec(totalDue)}\n\nPlease don't hesitate to get in touch if you have any questions.\n\nKind regards,\nMAV Hire`;
     const subject = `Payment Reminder — MAV Hire${jobs.length>1?` (${jobs.length} invoices)`:''}`;
     window.open(`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => requestAnimationFrame(r));
   }
   toast(`Opened ${entries.length} reminder email${entries.length!==1?'s':''}`, 'ok');
 }
@@ -312,4 +312,30 @@ async function generateJobInvoice(jobId) {
     if (win) { win.document.write(result.html); win.document.close(); win.print(); }
     toast(`Invoice ${result.invoiceNumber} generated`, 'ok');
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['invoices-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'generateJobInvoice': window.__generateJobInvoice(id); break;
+        case 'openInvoiceDetail': window.__openInvoiceDetail(id); break;
+        case 'recordDeposit': window.__recordDeposit(id, +(el.dataset.balance)||0); break;
+        case 'sendPaymentReminder': window.__sendPaymentReminder(id); break;
+        default: break;
+      }
+    });
+  });
 }

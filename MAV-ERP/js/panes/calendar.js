@@ -37,7 +37,7 @@ export async function loadCalendar() {
   } finally {
     hideLoading();
   }
-  setTimeout(() => renderCalendar(), 10);
+  requestAnimationFrame(() => renderCalendar());
 }
 
 export function calPrev() {
@@ -214,7 +214,7 @@ export function calDayClick(dateStr) {
           return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                                background:var(--surface2);border-radius:var(--r);cursor:pointer;
                                border-left:3px solid ${color}"
-                       onclick="window.__openJobDetail('${escAttr(j.jobId)}')">
+                       data-action="openJobDetail" data-id="${escAttr(j.jobId)}">
             <div style="flex:1">
               <div style="font-weight:500;font-size:13px">${esc(j.jobName||j.jobId)}</div>
               <div style="font-size:11px;color:var(--text3)">${esc(j.clientName||'')} · ${esc(j.venue||'')}</div>
@@ -298,7 +298,7 @@ function renderWeek() {
 
     const pills = jobs.map(j => {
       const color = STATUS_COLOR[j.status] || '#5a5a70';
-      return `<div onclick="window.__openJobDetail('${escAttr(j.jobId)}')"
+      return `<div data-action="openJobDetail" data-id="${escAttr(j.jobId)}"
         style="font-size:10px;padding:4px 6px;border-radius:3px;margin-bottom:3px;
           background:${color}22;border-left:3px solid ${color};
           color:var(--text);cursor:pointer;line-height:1.3"
@@ -342,4 +342,27 @@ export function calTodayWeekAware() {
     _weekStart = new Date(t.getTime()-dow*86400000); _weekStart.setHours(0,0,0,0);
     renderWeek();
   } else { calToday(); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['cal-grid', 'cal-week-grid'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'openJobDetail': window.__openJobDetail(id); break;
+        default: break;
+      }
+    });
+  });
 }

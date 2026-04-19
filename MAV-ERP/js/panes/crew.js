@@ -51,7 +51,7 @@ function render(items) {
     return `
       <div class="section" style="margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div class="section-title" style="cursor:pointer" onclick="window.__openJobDetail('${escAttr(group.jobId)}')">${esc(group.jobName||group.jobId)}</div>
+          <div class="section-title" style="cursor:pointer" data-action="openJobDetail" data-id="${escAttr(group.jobId)}">${esc(group.jobName||group.jobId)}</div>
           <div style="font-family:var(--mono);font-size:12px;color:var(--text2)">${fmtCurDec(jobTotal)} crew fees</div>
         </div>
         <div class="tbl-wrap"><table>
@@ -65,8 +65,8 @@ function render(items) {
             <td style="font-size:11px">${fmtDate(c.startDate)}${c.endDate&&c.endDate!==c.startDate?' → '+fmtDate(c.endDate):''}</td>
             <td>${statusBadge(c.status)}</td>
             <td style="display:flex;gap:4px">
-              <button class="btn btn-ghost btn-sm" onclick="window.__editCrew('${escAttr(c.crewId)}')">Edit</button>
-              <button class="btn btn-danger btn-sm" onclick="window.__deleteCrew('${escAttr(c.crewId)}')">✕</button>
+              <button class="btn btn-ghost btn-sm" data-action="editCrew" data-id="${escAttr(c.crewId)}">Edit</button>
+              <button class="btn btn-danger btn-sm" data-action="deleteCrew" data-id="${escAttr(c.crewId)}">✕</button>
             </td>
           </tr>`).join('')}
           </tbody>
@@ -129,7 +129,7 @@ function openCrewForm(existing, prefillJobId) {
         <input type="text" id="cr-notes" value="${v('notes')}"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitCrew('${escAttr(c.crewId||'')}')">
+    <button class="btn btn-primary btn-sm" data-action="submitCrew" data-id="${escAttr(c.crewId||'')}">
       ${isEdit ? 'Save Changes' : 'Assign'}</button>`
   );
 
@@ -197,4 +197,29 @@ export function exportCrewCsv() {
     'End Date':     c.endDate   ? String(c.endDate).substring(0,10)   : '',
   }));
   exportCsv(`MAV_Crew_${new Date().toISOString().substring(0,10)}.csv`, rows);
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['crew-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'deleteCrew': window.__deleteCrew(id); break;
+        case 'editCrew': window.__editCrew(id); break;
+        case 'openJobDetail': window.__openJobDetail(id); break;
+        default: break;
+      }
+    });
+  });
 }

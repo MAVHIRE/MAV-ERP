@@ -47,7 +47,7 @@ function render(suppliers) {
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px">
     ${suppliers.map(s => {
       const initials = s.supplierName.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      return `<div onclick="window.__openSupplierDetail('${escAttr(s.supplierId)}')"
+      return `<div data-action="openSupplierDetail" data-id="${escAttr(s.supplierId)}"
         style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
         padding:14px;cursor:pointer;transition:all var(--trans)"
         onmouseover="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'"
@@ -73,7 +73,7 @@ function render(suppliers) {
           </div>
         </div>
         <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
-          <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${escAttr(s.supplierId)}')">✏ Edit</button>
+          <button class="btn btn-ghost btn-sm" data-action="editSupplier" data-id="${escAttr(s.supplierId)}">✏ Edit</button>
           <button class="btn btn-ghost btn-sm" onclick="window.__openNewPOModal()">+ PO</button>
         </div>
       </div>`;
@@ -147,7 +147,7 @@ function showSupplierModal(s, products, stats) {
         <tbody>${productRows}</tbody></table>
       </div>` : `<p style="font-size:13px;color:var(--text3)">No products linked to this supplier.</p>`}
   `, `
-    <button class="btn btn-ghost btn-sm" onclick="window.__editSupplier('${escAttr(s.supplierId)}')">✏ Edit</button>
+    <button class="btn btn-ghost btn-sm" data-action="editSupplier" data-id="${escAttr(s.supplierId)}">✏ Edit</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__openNewPOModal()">+ PO</button>
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
@@ -197,7 +197,7 @@ function openSupplierForm(existing) {
         <textarea id="fs-notes" rows="2">${v('notes')}</textarea></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitSupplierForm('${escAttr(s.supplierId||'')}')">
+    <button class="btn btn-primary btn-sm" data-action="submitSupplierForm" data-id="${escAttr(s.supplierId||'')}">
       ${isEdit ? 'Save Changes' : 'Save Supplier'}</button>`
   );
 
@@ -227,4 +227,28 @@ function openSupplierForm(existing) {
     } catch(e) { toast(e.message, 'err'); }
     finally { hideLoading(); }
   };
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['suppliers-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'editSupplier': window.__editSupplier(id); break;
+        case 'openSupplierDetail': window.__openSupplierDetail(id); break;
+        default: break;
+      }
+    });
+  });
 }

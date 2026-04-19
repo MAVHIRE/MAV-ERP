@@ -91,7 +91,7 @@ function render(records, upcoming) {
     const priColor   = priorityColors[m.priority]||'var(--text3)';
     const statColor  = statusColors[m.status]||'var(--text3)';
 
-    return `<div onclick="window.__openMaintDetail('${escAttr(m.maintenanceId)}')"
+    return `<div data-action="openMaintDetail" data-id="${escAttr(m.maintenanceId)}"
       style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;
       border-radius:var(--r2);background:var(--surface);border:1px solid var(--border);
       border-left:3px solid ${priColor};margin-bottom:6px;cursor:pointer;transition:all var(--trans)"
@@ -118,9 +118,9 @@ function render(records, upcoming) {
         <span style="font-size:10px;padding:2px 8px;border-radius:20px;
           background:${priColor}22;color:${priColor};font-family:var(--mono)">${esc(m.priority)}</span>
         <div onclick="event.stopPropagation()" style="display:flex;gap:4px;margin-top:2px">
-          ${m.status==='Scheduled'?`<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${escAttr(m.maintenanceId)}')">Start</button>`:''}
-          ${['In Progress','Awaiting Parts'].includes(m.status)?`<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${escAttr(m.maintenanceId)}')">✓ Done</button>`:''}
-          ${!['Complete','Cancelled'].includes(m.status)?`<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${escAttr(m.maintenanceId)}')">✕</button>`:''}
+          ${m.status==='Scheduled'?`<button class="btn btn-ghost btn-sm" data-action="maintStart" data-id="${escAttr(m.maintenanceId)}">Start</button>`:''}
+          ${['In Progress','Awaiting Parts'].includes(m.status)?`<button class="btn btn-primary btn-sm" data-action="maintComplete" data-id="${escAttr(m.maintenanceId)}">✓ Done</button>`:''}
+          ${!['Complete','Cancelled'].includes(m.status)?`<button class="btn btn-danger btn-sm" data-action="maintCancel" data-id="${escAttr(m.maintenanceId)}">✕</button>`:''}
         </div>
       </div>
     </div>`;
@@ -203,12 +203,12 @@ function showMaintModal(m, kpis, parts) {
         <tbody>${partRows}</tbody></table>
       </div>` : ''}
   `, `
-    ${canStart    ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintStart('${escAttr(m.maintenanceId)}')">▶ Start</button>` : ''}
-    ${canAddPart  ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintAddPart('${escAttr(m.maintenanceId)}')">+ Part</button>` : ''}
-    ${canAddPart  ? `<button class="btn btn-ghost btn-sm" onclick="window.__maintEditCosts('${escAttr(m.maintenanceId)}',${+m.partsCost||0},${+m.labourCost||0},${+m.otherCost||0})">£ Costs</button>` : ''}
-    <button class="btn btn-ghost btn-sm" onclick="window.__openMaintEdit('${escAttr(m.maintenanceId)}')">✏ Edit</button>
-    ${canComplete ? `<button class="btn btn-primary btn-sm" onclick="window.__maintComplete('${escAttr(m.maintenanceId)}')">✓ Complete</button>` : ''}
-    ${canCancel   ? `<button class="btn btn-danger btn-sm" onclick="window.__maintCancel('${escAttr(m.maintenanceId)}')">✕ Cancel</button>` : ''}
+    ${canStart    ? `<button class="btn btn-ghost btn-sm" data-action="maintStart" data-id="${escAttr(m.maintenanceId)}">▶ Start</button>` : ''}
+    ${canAddPart  ? `<button class="btn btn-ghost btn-sm" data-action="maintAddPart" data-id="${escAttr(m.maintenanceId)}">+ Part</button>` : ''}
+    ${canAddPart  ? `<button class="btn btn-ghost btn-sm" data-action="maintEditCosts" data-id="${escAttr(m.maintenanceId)}" data-parts="${+m.partsCost||0}" data-labour="${+m.labourCost||0}" data-other="${+m.otherCost||0}">£ Costs</button>` : ''}
+    <button class="btn btn-ghost btn-sm" data-action="openMaintEdit" data-id="${escAttr(m.maintenanceId)}">✏ Edit</button>
+    ${canComplete ? `<button class="btn btn-primary btn-sm" data-action="maintComplete" data-id="${escAttr(m.maintenanceId)}">✓ Complete</button>` : ''}
+    ${canCancel   ? `<button class="btn btn-danger btn-sm" data-action="maintCancel" data-id="${escAttr(m.maintenanceId)}">✕ Cancel</button>` : ''}
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Close</button>
   `);
 }
@@ -223,7 +223,7 @@ export async function maintStart(id) {
         <input type="text" id="ms-notes" placeholder="Any initial notes…"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitMaintStart('${escAttr(id)}')">Start</button>`);
+    <button class="btn btn-primary btn-sm" data-action="submitMaintStart" data-id="${escAttr(id)}">Start</button>`);
 
   window.__submitMaintStart = async (mId) => {
     showLoading('Starting…'); closeModal();
@@ -251,7 +251,7 @@ export async function maintComplete(id) {
         <input type="text" id="mc-notes"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitMaintComplete('${escAttr(id)}')">Mark Complete</button>`);
+    <button class="btn btn-primary btn-sm" data-action="submitMaintComplete" data-id="${escAttr(id)}">Mark Complete</button>`);
 
   window.__submitMaintComplete = async (mId) => {
     const resolution = document.getElementById('mc-resolution')?.value.trim();
@@ -298,7 +298,7 @@ export function maintAddPart(maintenanceId) {
         <input type="number" id="ap-cost" value="0" step="0.01" min="0"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitAddPart('${escAttr(maintenanceId)}')">Add Part</button>`);
+    <button class="btn btn-primary btn-sm" data-action="submitAddPart" data-id="${escAttr(maintenanceId)}">Add Part</button>`);
 
   window.__submitAddPart = async (mId) => {
     const name = document.getElementById('ap-name')?.value.trim();
@@ -333,7 +333,7 @@ export function maintEditCosts(maintenanceId, partsCost, labourCost, otherCost) 
         <input type="number" id="ec-other" value="${otherCost}" step="0.01" min="0"></div>
     </div>`, `
     <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-    <button class="btn btn-primary btn-sm" onclick="window.__submitEditCosts('${escAttr(maintenanceId)}')">Save Costs</button>`);
+    <button class="btn btn-primary btn-sm" data-action="submitEditCosts" data-id="${escAttr(maintenanceId)}">Save Costs</button>`);
 
   window.__submitEditCosts = async (mId) => {
     showLoading('Saving…'); closeModal();
@@ -480,7 +480,7 @@ export async function openMaintEdit(maintenanceId) {
           <textarea id="me-notes" rows="2">${esc(record.notes||'')}</textarea></div>
       </div>`, `
       <button class="btn btn-ghost btn-sm" onclick="window.__closeModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="window.__submitMaintEdit('${escAttr(maintenanceId)}')">Save Changes</button>`
+      <button class="btn btn-primary btn-sm" data-action="submitMaintEdit" data-id="${escAttr(maintenanceId)}">Save Changes</button>`
     );
     window.__submitMaintEdit = async (mId) => {
       showLoading('Saving…'); closeModal();
@@ -577,11 +577,11 @@ export async function printMaintenanceReport() {
       <h2>Recent Records (last 50)</h2>
       <table><thead><tr><th>ID</th><th>Product</th><th>Type</th><th>Status</th><th>Priority</th><th>Cost</th><th>Date</th></tr></thead>
       <tbody>${(report.recentHistory||[]).slice(0,50).map(m=>`<tr>
-        <td style="font-family:monospace;font-size:10px">${m.maintenanceId}</td>
-        <td>${m.productName||m.sku||'—'}</td>
-        <td>${m.type||'—'}</td>
-        <td><span class="badge ${m.status==='Complete'?'ok':m.priority==='High'?'high':''}">${m.status}</span></td>
-        <td><span class="badge ${m.priority==='High'?'high':''}">${m.priority}</span></td>
+        <td style="font-family:monospace;font-size:10px">${esc(m.maintenanceId)}</td>
+        <td>${esc(m.productName||m.sku||'—')}</td>
+        <td>${esc(m.type||'—')}</td>
+        <td><span class="badge ${m.status==='Complete'?'ok':m.priority==='High'?'high':''}">${esc(m.status)}</span></td>
+        <td><span class="badge ${m.priority==='High'?'high':''}">${esc(m.priority)}</span></td>
         <td>£${(+m.totalCost||0).toFixed(2)}</td>
         <td>${m.scheduledDate?new Date(m.scheduledDate).toLocaleDateString('en-GB'):'—'}</td>
       </tr>`).join('')}</tbody></table>
@@ -590,4 +590,33 @@ export async function printMaintenanceReport() {
     win.print();
     toast('Maintenance report opened', 'ok');
   } catch(e) { hideLoading(); toast(e.message, 'err'); }
+}
+
+// ── Pane-level event delegation ───────────────────────────────────────────────
+// Called after render. Listens on container divs so rendered cards don't need
+// individual onclick handlers — they use data-action + data-id instead.
+function setupPaneEvents() {
+  const containerIds = ['maint-list'];
+  containerIds.forEach(cid => {
+    const container = document.getElementById(cid);
+    if (!container || container._delegated) return;
+    container._delegated = true; // prevent double-binding on re-render
+    container.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || !container.contains(el)) return;
+      e.stopPropagation();
+      const action = el.dataset.action;
+      const id     = el.dataset.id  || '';
+      switch (action) {
+        case 'maintAddPart': window.__maintAddPart(id); break;
+        case 'maintCancel': window.__maintCancel(id); break;
+        case 'maintComplete': window.__maintComplete(id); break;
+        case 'maintEditCosts': window.__maintEditCosts(id, +el.dataset.parts||0, +el.dataset.labour||0, +el.dataset.other||0); break;
+        case 'maintStart': window.__maintStart(id); break;
+        case 'openMaintDetail': window.__openMaintDetail(id); break;
+        case 'openMaintEdit': window.__openMaintEdit(id); break;
+        default: break;
+      }
+    });
+  });
 }
